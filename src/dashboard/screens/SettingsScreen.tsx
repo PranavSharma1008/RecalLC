@@ -384,6 +384,17 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
               linkedin.com/in/pranavsharma1008 ↗
             </a>
           </div>
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-fg">GitHub Sponsor</span>
+            <a
+              href="https://github.com/sponsors/PranavSharma1008"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline flex items-center gap-1"
+            >
+              github.com/sponsors/PranavSharma1008 ↗
+            </a>
+          </div>
           <div className="pt-2 border-t border-line flex items-center justify-between">
             <span>Free & Open Source</span>
             <a

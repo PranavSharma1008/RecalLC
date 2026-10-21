@@ -112,7 +112,7 @@ export function SupportScreen() {
           </div>
           <div className="mt-6">
             <a
-              href="https://github.com/PranavSharma1008"
+              href="https://github.com/sponsors/PranavSharma1008"
               target="_blank"
               rel="noopener noreferrer"
               className="block w-full rounded-xl border border-line bg-surface-2 py-2.5 text-center text-xs font-semibold text-fg transition-all hover:border-line-strong hover:bg-surface-3"
@@ -162,6 +162,17 @@ export function SupportScreen() {
                   className="font-medium text-accent hover:underline hover:text-accent-hover flex items-center gap-1"
                 >
                   linkedin.com/in/pranavsharma1008 ↗
+                </a>
+              </div>
+              <div className="flex items-center gap-2 text-muted">
+                <span>🐙</span>
+                <a
+                  href="https://github.com/sponsors/PranavSharma1008"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-accent hover:underline hover:text-accent-hover flex items-center gap-1"
+                >
+                  github.com/sponsors/PranavSharma1008 ↗
                 </a>
               </div>
               <div className="flex items-center gap-2 text-muted">
