@@ -1,0 +1,692 @@
+================================================================================
+RECALLLC — SMART LEETCODE REVISION (CHROME EXTENSION)
+FULL HANDOFF / TASK DOCUMENT
+================================================================================
+
+Project path : /Users/pranavsharma/Documents/Projects /RecalLc
+                (NOTE: the path contains a SPACE before "/RecalLc" — always
+                 quote it in shell commands)
+Last updated : 2026-10-21
+Status        : Working end-to-end MVP
+                - 8,358 LOC
+                - 133/133 unit tests pass (9 test files)
+                - tsc --noEmit clean (strict mode)
+                - production build succeeds
+                - 30/30 real-Chrome E2E checks pass
+
+Tagline      : "Solve it. Remember it. Master it."
+
+
+--------------------------------------------------------------------------------
+1. PRODUCT VISION
+--------------------------------------------------------------------------------
+
+RecallLC solves a common DSA learning problem: students solve LeetCode
+questions but forget their approaches after a few days.
+
+The extension detects when the user opens a new LeetCode problem and shows a
+small, non-intrusive reminder for an older problem that is due for revision.
+
+Example flow:
+  - User opens "Number of Islands".
+  - RecallLC detects that "Climbing Stairs" was attempted three days ago and
+    is due for revision.
+  - A compact card appears in the bottom-right corner:
+
+      +------------------------------------+
+      | (symbol) TIME TO REVISE!  2 days late
+      +------------------------------------+
+      | Climbing Stairs                    |
+      | [Medium] [Dynamic Programming]     |
+      | Last attempted: 3 days ago         |
+      | 2 attempts                         |
+      | [ Revise Now ] [ Remind Tomorrow ] [ Dismiss ]
+      +------------------------------------+
+
+  - "Revise Now" opens the original LeetCode problem.
+  - "Remind Tomorrow" snoozes it until the next local midnight.
+  - "Dismiss" hides it for the rest of today WITHOUT rescheduling it.
+
+
+--------------------------------------------------------------------------------
+2. TECH STACK (installed and working)
+--------------------------------------------------------------------------------
+
+  React              19.3.1
+  TypeScript         5.9.3   (strict, noUncheckedIndexedAccess, verbatimModuleSyntax)
+  Tailwind CSS       4.3.3   (CSS-first config, @theme inline, custom "dark" variant)
+  Vite               8.3.4   (Rolldown-based)
+  @crxjs/vite-plugin 3.0.0   (MV3 + HMR)
+  Dexie              4.4.6   (IndexedDB, schema versioning)
+  Vitest             5.0.5   (+ fake-indexeddb 6.2.6, jsdom 30.1.3)
+  Node               24.21.0 / npm 11.19.0
+  Chrome             155.0.8059.40
+
+Local-first architecture. No backend, no paid API, no telemetry.
+
+
+--------------------------------------------------------------------------------
+3. LIVE RESEARCH FINDINGS — DO NOT RE-DO THESE
+--------------------------------------------------------------------------------
+
+These were established by probing the real LeetCode endpoints. They changed
+several design decisions and are load-bearing.
+
+  (a) POST https://leetcode.com/graphql  from curl  ->  403 Forbidden
+      LeetCode's GraphQL is behind bot protection. It only answers requests
+      that originate from a real browser session on leetcode.com.
+      CONSEQUENCE: the content script (which runs on leetcode.com with the
+      user's own session) must issue GraphQL requests — NOT the service
+      worker, whose cross-origin fetch would not carry SameSite cookies.
+
+  (b) GET https://leetcode.com/api/problems/all/  ->  200 OK (public, no auth)
+      Returns 4087 problems with question__title, question__title_slug,
+      difficulty.level, paid_only, total_acs / total_submitted.
+      CONSEQUENCE: usable as a service-worker-side fallback for title and
+      difficulty enrichment. It does NOT contain topic_tags.
+
+  (c) GET https://leetcode.com/problems/two-sum/  from curl  ->  403
+      The DOM can only be inspected in a live browser.
+      CONSEQUENCE: the submission tracker must use resilient multi-selector
+      fallbacks and fail silently rather than record wrong data.
+
+  (d) Vite 8 uses Rolldown. `build.minify: 'esbuild'` fails with
+      "transformWithEsbuild ... deprecated ... install esbuild separately".
+      CONSEQUENCE: do not set `minify` in vite.config.ts at all (default 'oxc').
+
+  (e) CRXJS 3.0.0 does NOT run a manifest-declared `content_scripts[].css`
+      through Tailwind. It emits the raw source file, so the `@import
+      "tailwindcss/utilities.css"` statements survive into dist and break.
+      CONSEQUENCE (ALREADY APPLIED): remove `css:` from the manifest config and
+      import the stylesheet from the content script instead —
+        // src/content/content.tsx
+        import '../styles/content.css';
+      CRXJS then adds the built CSS to `content_scripts[].css` automatically.
+      Verified: dist/assets/src-content-content-*.css is 25 KB with zero
+      leftover @import statements.
+
+  (f) Chrome >= 137 disables the `--load-extension` command-line switch by
+      default. Use the DevTools `Extensions.loadUnpacked` command over
+      `--remote-debugging-pipe` + `--enable-unsafe-extension-debugging`.
+
+  (g) In a service-worker DevTools execution context, `chrome` is NOT defined.
+      CONSEQUENCE: drive the extension's message API from an extension PAGE
+      (popup/dashboard), not from the worker context.
+
+  (h) `chrome.runtime.sendMessage` sent FROM the service worker does NOT reach
+      the service worker's own `onMessage` listener.
+
+  (i) Extension content-script assets appear in `web_accessible_resources`
+      automatically (CRXJS default). Harmless but worth knowing.
+
+
+--------------------------------------------------------------------------------
+4. WHAT IS IMPLEMENTED AND VERIFIED
+--------------------------------------------------------------------------------
+
+4.1 MANIFEST (src/manifest.config.ts)
+    - manifest_version 3, name "RecallLC — Smart LeetCode Revision", v1.0.0
+    - permissions: ["storage"]                       <- nothing else
+    - host_permissions: ["https://leetcode.com/*"]
+    - action.default_popup: src/popup/index.html
+    - options_ui: src/dashboard/index.html (open_in_tab)
+    - background.service_worker: src/background/serviceWorker.ts (module)
+    - content_scripts: https://leetcode.com/problems/*, document_idle,
+      all_frames false, js src/content/content.tsx
+    - icons 16/32/48/128 generated from scripts/generate-icons.mjs
+    NO "tabs", "scripting", "cookies", "webRequest", "history", "notifications".
+
+4.2 REVISION ENGINE (src/services/revisionEngine.ts) — PURE FUNCTIONS
+    Every function takes `now` as an argument; nothing calls Date.now() inside.
+    That is what makes the whole scheduling model deterministic and testable.
+
+    DEFAULT_INTERVALS = { forgot: 1, hard: 2, good: 5, easy: 14 }   (days)
+    DEFAULT_INITIAL_INTERVAL_DAYS = 1
+
+    nextDueDate(rating, reviewedAt, intervals) -> local midnight + days
+    initialDueDate(lastAttemptAt, initialIntervalDays)
+    isDue / isDueToday / isOverdue / overdueDays / daysUntilDue
+    applyRating()  -> rating 'forgot' resets stage to 0; clears snooze/dismiss
+    applySnooze()  -> sets snoozedUntil = next local midnight, NEVER touches dueAt
+    applyDismiss() -> sets dismissedAt = now, NEVER touches dueAt
+    isReminderEligible() -> excludes paused, snoozed, dismissed-today
+    pickReminder() -> excludes the currently open slug
+    sortByPriority() / priorityScore()
+      overdue +1000 (+10 per overdue day, capped 500)
+      due today +500
+      struggleScore * 100
+      attemptCount (capped 20)
+      ties -> oldest dueAt -> slug (deterministic)
+    computeStreak() -> consecutive days ending today or yesterday
+    summarizeDue() -> { dueToday, overdue, due }
+
+    DESIGN NOTE: "dismiss" and "snooze" live in SEPARATE FIELDS from dueAt.
+    This is what guarantees the spec requirement "Do not reschedule a problem
+    merely because the user dismissed a notification."
+
+4.3 DATA MODEL (src/types/index.ts)
+    Problem           slug, title, url, difficulty, topics[], notes,
+                      firstAttemptAt, lastAttemptAt, lastViewedAt,
+                      attemptCount, accepted, lastLanguage, struggleScore,
+                      createdAt, updatedAt
+    SubmissionAttempt id, slug, title, attemptedAt, accepted, language,
+                      submissionId, source ('import'|'manual'|'auto'), createdAt
+    RevisionRecord    slug, stage, lastRating, lastReviewedAt, dueAt,
+                      snoozedUntil, dismissedAt, paused, createdAt, updatedAt
+    ReviewEvent       id, slug, rating, reviewedAt, previousDueAt, nextDueAt,
+                      elapsedDays, source ('review'|'snooze'|'dismiss'|'manual'|'import')
+    UserSettings      schemaVersion, theme, intervals, initialIntervalDays,
+                      remindersEnabled, reminderDelayMs, maxRemindersPerSession,
+                      autoTrackSubmissions, accountSyncEnabled, accountSyncLimit,
+                      showTopicInReminder, onboardingCompleted
+    ImportResult      imported, skipped, duplicated, invalid, merged,
+                      problemsCreated, problemsUpdated, errors[], warnings[]
+    ImportPreview     fileName, format, totalRows, valid[], invalid[],
+                      duplicates, warnings[], problems[]
+
+    - The problem slug is the stable identifier everywhere.
+    - Attempts are kept separate from revision records on purpose.
+    - Historical timestamps are preserved verbatim (never replaced with "now").
+
+4.4 STORAGE
+    settings  -> chrome.storage.local, key "recalllc:settings"
+                readable from every extension context incl. the content script
+    bulk data -> IndexedDB via Dexie, EXTENSION ORIGIN ONLY
+                tables: problems, attempts, revisions, events, catalog,
+                        imports, meta
+                schema v1 -> v2 (v2 adds catalog + imports and backfills
+                topics/notes/struggleScore/accepted on existing problems)
+
+    *** CRITICAL ARCHITECTURAL RULE ***
+    A content script's IndexedDB resolves to the PAGE'S ORIGIN (leetcode.com).
+    Storing revision history there would expose it to the website.
+    Therefore the service worker is the ONLY writer/reader of IndexedDB and
+    all other contexts go through typed chrome.runtime.sendMessage.
+
+4.5 IMPORT PIPELINE
+    src/services/historyNormalizer.ts
+      - FIELD_ALIASES for slug/title/url/attemptedAt/accepted/language/
+        submissionId/difficulty/topics (snake/camel/kebab/space tolerant)
+      - parseAccepted(): true/false/1/0/"yes"/"Accepted"/"Wrong Answer"/...
+      - parseDifficulty(): names and 1/2/3
+      - normalizeRecord(): slug required (URLs reduced to slugs, case folded,
+        charset validated), attemptedAt required, everything else optional
+    src/services/historyImporter.ts
+      - detectFormat(): extension first, then content sniffing; .tsv supported
+      - parseImportFile(): JSON array / {attempts|problems|records|items|data|
+        history} / single record object; CSV+TSV with header validation
+      - buildPreview(): validates every row, groups by slug, counts duplicates
+      - commitImport(): dedupes against the store AND within the file, writes,
+        records the import in the import history
+      - importFile(): convenience wrapper
+    src/utils/csv.ts
+      - RFC-4180-flavoured parser: quoted fields, "" escapes, embedded
+        newlines, CRLF/LF/CR, UTF-8 BOM, ragged rows, alternate delimiter
+      - toCsv() / escapeCsvValue()
+
+4.6 TIMESTAMP NORMALISATION (src/utils/time.ts)
+      < 1e11            -> Unix SECONDS
+      >= 1e11           -> Unix MILLISECONDS
+      numeric string    -> same rule as a number
+      ISO 8601 / offset -> absolute
+      "2026-10-21"      -> LOCAL midnight  (flagged as an ambiguity warning)
+      "2026-10-21 09:30"-> LOCAL time      (flagged as an ambiguity warning)
+      Date object       -> getTime()
+      invalid/missing   -> rejected with a reason
+    Threshold rationale: 1e11 ms = 1973, 1e11 s = year 5138, so the two
+    interpretations never overlap for real data. Ambiguous FORMS are never
+    silently shifted — they are read as local and reported in the preview.
+
+4.7 LOCAL-DAY ARITHMETIC (src/utils/date.ts)
+    startOfLocalDay / startOfNextLocalDay / endOfLocalDay / addLocalDays /
+    isSameLocalDay / localDayDiff (noon-anchored, DST-proof)
+    plus formatting: formatDate, formatDateTime, formatRelativeTime,
+    formatDueLabel, formatAttempts, formatDuration
+
+4.8 SUBMISSION TRACKER (src/services/submissionTracker.ts)
+    - Listens (capture phase) for a click on a <button>/[role=button] whose
+      text matches /^submit\b/i and is NOT "Run Code".
+    - Then watches for a verdict:
+        * verdict-ish containers ([class*=verdict], [class*=toast],
+          [role=alert], [role=status], [data-e2e-locator*=submission|result])
+          matched with matchExactVerdict() — the WHOLE element text must be
+          the verdict, which stops prose like "your solution is accepted"
+          from being mistaken for a result
+        * fallback: loose scan of the last 900 chars of document.body.innerText
+    - Verdicts: Accepted, Wrong Answer, Runtime Error, Time Limit Exceeded,
+      Memory Limit Exceeded, Output Limit Exceeded, Compilation Error,
+      Answer Too Long
+    - Same verdict is never recorded twice within 5 s.
+    - detectLanguage(): best-effort, prefers a dropdown inside the editor,
+      returns null rather than guessing.
+    - Opening a problem NEVER records an attempt (markViewed only).
+
+4.9 LEETCODE ADAPTER (src/services/leetcodeApi.ts)
+    - fetchCatalogViaGraphQL()  — page context only (see finding (a))
+    - fetchCatalogViaLegacyApi()— SW fallback via host permission, no topics
+    - fetchSubmissionHistory(limit) — OPT-IN account sync, page context,
+      paginated, walks submissionList until the limit or the end
+    - statusToAccepted(status)
+    Every request goes to leetcode.com and nowhere else. Cookies are attached
+    by the browser itself; RecallLC never reads or forwards them.
+
+4.10 MESSAGING (src/services/messaging.ts)
+    Typed ServiceMap with method -> { payload, response }.
+    callService(method, payload) unwraps the { ok, data } envelope.
+    Methods: get-reminder, list-due, list-problems, get-problem, save-problem,
+    update-notes, delete-problem, rate, snooze, dismiss, set-paused,
+    record-attempt, mark-viewed, stats, import-preview, import-commit,
+    import-history, export, restore, clear-all, catalog-merge,
+    catalog-needed, catalog-legacy-refresh, account-sync, get-settings,
+    update-settings, open-problem, open-dashboard.
+
+4.11 UI
+    POPUP (src/popup/App.tsx, 380px)
+      header: R mark + RecallLC + tagline + theme toggle
+      hero card: "DUE TODAY" big number, overdue count, tracked count,
+                 [Review next] [Dashboard]
+      revision queue (top 6) with difficulty/topic/attempts and "Nd late"
+      footer: "All data stays on this device." + Import + Settings
+      empty state and error state included
+
+    IN-PAGE REMINDER (src/components/RevisionReminder.tsx)
+      role="dialog", aria-label, Esc to dismiss, autoFocus on the primary
+      button, shows title, difficulty, topic, "Last attempted: N days ago",
+      attempt count, and the three required actions, plus an "N more due" link.
+
+    DASHBOARD (src/dashboard/Dashboard.tsx, custom 40-line hash router)
+      #/            Overview  — 5 stat tiles, due list, topic breakdown,
+                                 quick actions
+      #/problems    Problems  — search, topic/difficulty/due filters, sort by
+                                 due date / last attempt / topic / difficulty /
+                                 title + direction, inline notes editor,
+                                 pause/resume, delete with confirmation
+      #/recall/:slug Recall   — 3 steps: recall checklist (4 prompts) ->
+                                 reveal notes (hidden by default) ->
+                                 Forgot/Hard/Good/Easy rating
+      #/import      Import    — drag & drop, preview, summary, format docs,
+                                 import history, sample downloads
+      #/settings    Settings  — theme, intervals, first-review interval,
+                                 reminder behaviour, tracking toggles,
+                                 account-sync opt-in + explanation, metadata
+                                 refresh, export/restore/clear, permissions
+      #/onboarding  Onboarding — 3-step first-run page
+
+4.12 STYLING
+    src/styles/palette.css  — one palette, two themes, scoped to
+                              `:root, #recalllc-root` and
+                              `:root[data-theme='light'], #recalllc-root[data-theme='light']`
+    src/styles/theme.css    — `@theme inline` mapping + custom variant
+                              `@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *))`
+    src/styles/app.css      — full Tailwind build (WITH preflight) + .rlc-*
+                              component classes for extension pages
+    src/styles/content.css  — Tailwind theme + utilities ONLY (NO preflight),
+                              scoped isolation under #recalllc-root,
+                              .rlc-* classes written so LeetCode's resets
+                              cannot affect them
+    IMPORTANT: do not add Tailwind `border` utilities inside the content
+    bundle — border-style is forced to `solid` with border-width 0 as the
+    default. Use `ring-*` or the .rlc-* classes instead.
+
+4.13 DEV-ONLY SAMPLE DATA
+    src/dev/sampleData.ts + src/dev/DevPanel.tsx
+    Loaded via:  const DevPanel = import.meta.env.DEV
+                   ? lazy(() => import('../dev/DevPanel').then(m => ({ default: m.DevPanel })))
+                   : null;
+    VERIFIED ABSENT from the production bundle (grep for "demo-1" in dist/
+    returns nothing). A "Load demo data" / "Wipe all data" panel appears in
+    development builds only.
+
+
+--------------------------------------------------------------------------------
+5. VERIFICATION PERFORMED
+--------------------------------------------------------------------------------
+
+5.1 UNIT TESTS — 133 tests, 9 files, all passing
+    npm test
+
+    src/tests/setup.ts                 chrome.* mock (in-memory storage.local,
+                                      tabs.create, runtime.sendMessage) +
+                                      fake-indexeddb/auto
+    src/tests/utils/time.test.ts       seconds vs ms, ISO, local date-times,
+                                      date-only, invalid/impossible dates
+    src/tests/utils/date.test.ts       midnight snapping, month/year rollover,
+                                      DST-proof day differences
+    src/tests/utils/csv.test.ts        quoting, "" escapes, embedded newlines,
+                                      CRLF, BOM, ragged rows, TSV, round trip
+    src/tests/services/revisionEngine.test.ts
+                                      interval math, due-today/overdue,
+                                      snooze (hides, never reschedules),
+                                      dismiss (today only, never reschedules),
+                                      paused, current-problem exclusion,
+                                      overdue & struggle prioritisation,
+                                      deterministic ordering, streaks
+    src/tests/services/historyNormalizer.test.ts
+                                      slug from URL, aliases, missing required
+                                      fields, accepted parsing, warnings
+    src/tests/services/historyImporter.test.ts
+                                      JSON array/wrappers/single record,
+                                      malformed JSON, unrecognised structure,
+                                      5 MB cap, CSV header/blank rows/missing
+                                      slug column, duplicates, merging
+    src/tests/services/repository.test.ts
+                                      attempt merging, dedup by submission id
+                                      and by (slug,timestamp), scheduling,
+                                      review events, notes, pause, markViewed
+                                      (NOT an attempt), statistics, backup and
+                                      restore, deletion, and PERSISTENCE
+                                      across closing/reopening the database
+    src/tests/services/submissionTracker.test.ts  (jsdom)
+                                      no attempt on plain page view, attempt
+                                      after Submit + verdict, failed verdict,
+                                      "Run Code" ignored, no double record
+    src/tests/content/reminder.test.ts  (jsdom)
+                                      slug extraction, off-problem pages, SPA
+                                      navigation, no duplicate notifications
+
+    The repository tests run against a REAL IndexedDB implementation
+    (fake-indexeddb), so schema versioning and the actual database code path
+    are exercised.
+
+5.2 REAL-CHROME E2E — 30/30 checks passing
+    node scripts/verify-extension.mjs dist
+
+    Loads dist/ into headless Chrome 155 via Extensions.loadUnpacked and:
+      - manifest: MV3, permissions ["storage"], host_permissions
+        ["https://leetcode.com/*"], SW registered, content script matches,
+        popup + options_ui registered
+      - message API + IndexedDB driven from the dashboard page:
+          import preview 2 valid; import 2 imported / 2 created;
+          stats 2 tracked; 2 due; re-import 0 imported / 2 duplicated;
+          rating reschedules and leaves the due list;
+          get-reminder with currentSlug returns null (current excluded);
+          another due problem is offered;
+          snooze leaves the queue AND does not change dueAt
+      - popup + dashboard render, contain "RecallLC", zero console errors
+      - after ServiceWorker.stopAllWorkers: SW restarts and ALL data survives
+        (problems, attempts, review events, rating)
+
+5.3 VISUAL — screenshots captured and reviewed
+    node scripts/screenshot.mjs /tmp/recalllc-shots
+    Produces dashboard-overview / -problems / -import / -settings / -recall
+    and popup PNGs at 2x. All screens were inspected and confirmed to have a
+    clean, premium dark theme with correct hierarchy and real data.
+
+5.4 TWO REAL BUGS THE TESTS CAUGHT (fixed — do not reintroduce)
+    (1) sortByPriority sorted ASCENDING by score, so the reminder showed the
+        LEAST urgent problem. Fixed to descending.
+    (2) `import.meta.env.DEV ? lazy(() => import('../dev/DevPanel')) : null`
+        shipped the demo dataset in production because the module had no
+        default export. Fixed with .then(m => ({ default: m.DevPanel })).
+    Also: src/utils/date.ts originally lost its calendar-day helpers to an
+    overwrite; it now contains BOTH the day arithmetic and the formatting.
+
+
+--------------------------------------------------------------------------------
+6. OPEN GAPS — WHAT THE NEXT AI SHOULD FINISH
+--------------------------------------------------------------------------------
+
+PRIORITY 1 — VERIFY THE IN-PAGE REMINDER ON A REAL LEETCODE PAGE
+    This is the ONLY untested runtime path. Everything else is verified.
+    Suggested approach (a script was designed but NOT written):
+      a) copy dist/ to a temp directory
+      b) patch the copied manifest.json:
+           content_scripts[0].matches += "http://localhost:8765/*"
+      c) serve a fake LeetCode-ish page over http://localhost:8765 containing
+         a <button>Submit</button> and a verdict element
+      d) load the extension via Extensions.loadUnpacked
+      e) import sample data first (so something is actually due)
+      f) open http://localhost:8765/problems/two-sum/
+      g) assert: the reminder card exists, is position:fixed bottom-right,
+         shows a DIFFERENT problem (current slug excluded), and that clicking
+         Submit + rendering a verdict records an attempt
+      h) screenshot the page to confirm the CSS isolation looks right
+    Suggested file name: scripts/verify-content-script.mjs
+
+PRIORITY 2 — VALIDATE THE VERDICT SELECTORS AGAINST LIVE LEETCODE
+    VERDICT_SELECTORS in src/services/submissionTracker.ts has never been run
+    against the real page (curl gets 403). Multiple fallbacks exist; confirm
+    the real class names / roles LeetCode uses for the verdict panel and the
+    submit toast, and tighten VERDICT_SELECTORS if needed.
+
+PRIORITY 3 — ADD THE VERIFICATION SCRIPTS TO package.json
+    "verify":    "node scripts/verify-extension.mjs dist"
+    "screenshot":"node scripts/screenshot.mjs"
+    Also mention them in the README (currently missing there).
+
+PRIORITY 4 — BALANCE THE OVERVIEW LAYOUT
+    The right column of the Overview screen is empty below "Quick actions"
+    while the due list on the left is long. Limit the due list to ~4 items and
+    add a "See all N problems" link at the bottom.
+
+PRIORITY 5 — IMPROVE FIRST-RUN DIFFICULTY/TOPIC COVERAGE
+    Difficulty shows "Unknown" and topics show "Uncategorised" until the
+    catalogue enrichment runs, which currently requires a visit to a
+    leetcode.com page. Consider calling the service worker's
+    'catalog-legacy-refresh' once on first run so titles + difficulty are
+    populated immediately (topics would still need the GraphQL path).
+
+PRIORITY 6 — THE OPT-IN ACCOUNT SYNC IS UNEXERCISED
+    fetchSubmissionHistory() and statusToAccepted() have never run against a
+    logged-in session. They fail soft by design; verify the shape of
+    LeetCode's `submissionList` response if you have a session available.
+
+PRIORITY 7 — TOOLING POLISH
+    No ESLint / Prettier config is committed (Prettier was run ad-hoc via
+    `npx prettier --write`). A flat ESLint config plus a .prettierrc would
+    make the style consistent for future contributors.
+
+PRIORITY 8 — README UPDATES
+    Add the verify/screenshot scripts, and a short "verified in Chrome 155"
+    note with the date.
+
+
+--------------------------------------------------------------------------------
+7. ARCHITECTURAL RULES — DO NOT UNDO THESE
+--------------------------------------------------------------------------------
+
+  1. SINGLE WRITER. All IndexedDB access lives in
+     src/background/serviceWorker.ts -> src/services/repository.ts.
+     Content script and UI pages use typed chrome.runtime.sendMessage
+     (src/services/messaging.ts). Rationale in 4.4.
+
+  2. THE REVISION ENGINE STAYS PURE. Every function in
+     src/services/revisionEngine.ts takes `now` as an argument and never
+     calls Date.now() internally. This is what makes it testable.
+
+  3. CONTENT CSS ISOLATION. src/styles/content.css has NO preflight and
+     scopes everything under `#recalllc-root { all: initial; ... }`.
+     The .rlc-* classes set border/background/font/colour explicitly so the
+     host page's resets cannot leak in and our styles cannot leak out.
+     Tailwind's own `border` utility does not work in that bundle.
+
+  4. ONE THEME SYSTEM. src/styles/palette.css holds the palette; the custom
+     Tailwind `dark` variant is attribute based, so the extension pages set
+     data-theme on <html> and the reminder sets it on #recalllc-root.
+
+  5. DISMISS AND SNOOZE NEVER RESCHEDULE. They are separate fields
+     (dismissedAt / snoozedUntil) from dueAt. Keep them separate.
+
+  6. NO PASSWORDS, NO COOKIES, NO TELEMETRY, NO REMOTE CODE.
+
+  7. DEMO DATA STAYS OUT OF PRODUCTION. Keep the import.meta.env.DEV guard.
+
+
+--------------------------------------------------------------------------------
+8. COMMANDS
+--------------------------------------------------------------------------------
+
+  cd "/Users/pranavsharma/Documents/Projects /RecalLc"
+
+  npm install
+  npm run typecheck      # tsc --noEmit  (clean)
+  npm test               # 133 tests, 9 files
+  npm run test:watch
+  npm run build          # typecheck + vite build -> dist/
+  npm run dev            # Vite dev server with CRXJS HMR
+  npm run preview
+  npm run icons          # regenerate the PNG icons
+
+  node scripts/verify-extension.mjs dist      # real-Chrome E2E
+  node scripts/screenshot.mjs /tmp/shots      # visual capture
+  node scripts/generate-icons.mjs
+
+
+--------------------------------------------------------------------------------
+9. HOW TO LOAD RECALLLC IN CHROME
+--------------------------------------------------------------------------------
+
+  1. npm install && npm run build
+  2. Open chrome://extensions
+  3. Enable "Developer mode" (top right)
+  4. "Load unpacked" -> select the `dist/` folder
+  5. Pin RecallLC from the puzzle-piece icon
+  6. Visit https://leetcode.com/problems/two-sum/ — the onboarding page opens
+     automatically on first install; the dashboard is always reachable from
+     the popup -> "Dashboard" button, or chrome-extension://<id>/src/dashboard/index.html
+
+  After changing the code, press the reload (⟳) button on the extension card
+  at chrome://extensions.
+
+  Note: Chrome >= 137 ignores --load-extension. Use the UI, or the automated
+  Extensions.loadUnpacked route in scripts/verify-extension.mjs.
+
+
+--------------------------------------------------------------------------------
+10. FILE MAP
+--------------------------------------------------------------------------------
+
+  src/
+    manifest.config.ts          MV3 manifest (defineManifest)
+    types/index.ts              domain types, labels, message protocol types
+    utils/
+      time.ts                   timestamp normalisation + ambiguity reporting
+      date.ts                   local-day arithmetic + formatting
+      csv.ts                    RFC-4180-flavoured CSV reader/writer
+      slug.ts                   slug extraction, normalisation, titles, URLs
+      id.ts                     ids, deterministic attempt ids, FNV-1a hash
+    services/
+      db.ts                     Dexie schema v1 -> v2 + migration
+      storage.ts                chrome.storage.local settings + defaults
+      repository.ts             ALL data operations (the single writer)
+      revisionEngine.ts         PURE scheduling model
+      historyNormalizer.ts      record validation + normalisation
+      historyImporter.ts        JSON/CSV parsing, preview, commit
+      submissionTracker.ts      DOM verdict detection, language detection
+      leetcodeApi.ts            GraphQL + legacy catalogue + opt-in sync
+      messaging.ts              typed ServiceMap + callService
+    background/
+      serviceWorker.ts          message router, install handling
+    content/
+      content.tsx               SPA detection, React island, tracker, sync
+      ReminderRoot.tsx          the React island that renders the card
+      reminder.ts               slug extraction + SPA navigation observer
+    components/
+      RevisionReminder.tsx      the in-page card
+      RevisionCard.tsx          dashboard/popup problem card
+      RecallRating.tsx          Forgot/Hard/Good/Easy buttons
+      ImportPreview.tsx         import preview + summary
+      ui/                       Button, Badge, Card/StatTile, States
+    hooks/
+      useAsync.ts, useSettings.ts, useTheme.ts, useHashRoute.ts
+    popup/
+      index.html, main.tsx, App.tsx
+    dashboard/
+      index.html, main.tsx, Dashboard.tsx
+      screens/OverviewScreen.tsx, ProblemsScreen.tsx, RecallScreen.tsx,
+              ImportScreen.tsx, SettingsScreen.tsx, OnboardingScreen.tsx
+    styles/
+      palette.css, theme.css, app.css, content.css
+    dev/
+      sampleData.ts, DevPanel.tsx      (development builds only)
+    tests/
+      setup.ts + 9 spec files
+
+  public/    icons/icon{16,32,48,128}.png, sample-import.json, sample-import.csv
+  samples/   sample-import.json
+  scripts/   generate-icons.mjs, verify-extension.mjs, screenshot.mjs
+  README.md, tsconfig.json, vite.config.ts, vitest.config.ts, .gitignore
+
+
+--------------------------------------------------------------------------------
+11. DOCUMENTED IMPORT FORMAT (also in README.md)
+--------------------------------------------------------------------------------
+
+  JSON — each object is ONE attempt:
+    {
+      "slug": "two-sum",
+      "title": "Two Sum",
+      "url": "https://leetcode.com/problems/two-sum/",
+      "attemptedAt": 1792454400000,
+      "accepted": true,
+      "language": "java",
+      "submissionId": "optional-id"
+    }
+  Required: slug, attemptedAt. Everything else optional.
+  The file may be a bare array, or an object with an
+  attempts/problems/records/items/data/history array.
+
+  CSV — first row must be a header. Loose, separator-insensitive matching:
+    slug          : slug, titleSlug, title_slug, problemSlug, problem_slug,
+                    questionSlug, name, problem, question
+    timestamp     : attemptedAt, attempted_at, timestamp, time, date, datetime,
+                    createdAt, created_at, submittedAt, submitted_at,
+                    submissionTime, lastAttempted, last_attempted, solvedAt
+    title         : title, problemTitle, questionTitle, name
+    url           : url, problemUrl, link, href
+    accepted      : accepted, isAccepted, success, solved, status, result,
+                    verdict, outcome
+    language      : language, lang, programmingLanguage, programming_language
+    submission id : submissionId, submission_id, subId, id, submission
+
+  Example CSV:
+    slug,title,attemptedAt,accepted,language,submissionId
+    two-sum,Two Sum,1792454400000,true,java,88012301
+    coin-change,Coin Change,1792281600000,false,java,88014777
+
+
+--------------------------------------------------------------------------------
+12. PRIVACY SUMMARY (as implemented)
+--------------------------------------------------------------------------------
+
+  permissions["storage"]           persist settings + revision schedule locally
+  host_permissions leetcode.com    read the problem page you are already on,
+                                   detect the current slug, detect the submit
+                                   verdict, (opt-in) fetch the public catalogue
+
+  RecallLC NEVER: asks for your LeetCode password; reads, stores or forwards
+  session cookies (the browser attaches them to same-origin page requests, and
+  RecallLC never sees them); sends your revision history anywhere; contains
+  analytics, telemetry or remote code; modifies LeetCode's page; injects a
+  solution or hint into the editor; requests tab URLs, cookies or history
+  access.
+
+  Imported files are untrusted input: every field is validated, and content is
+  rendered as text, never as HTML.
+
+
+--------------------------------------------------------------------------------
+13. DOCUMENTED LIMITATIONS (honest, not bugs waiting to be fixed)
+--------------------------------------------------------------------------------
+
+  - LeetCode's GraphQL is bot-protected, so catalogue/sync requests must be
+    made from a page context while signed in. The public legacy endpoint works
+    without a session but has no topic tags.
+  - Automatic history retrieval is incomplete by design: `submissionList` is
+    paginated and returns only a limited window of recent submissions.
+    RecallLC cannot recover a complete archive and does not claim to. The
+    import workflow is the complete path for bulk history.
+  - Account sync is opt-in and off by default; it requires a signed-in
+    leetcode.com visit and runs at most once every six hours. Review
+    LeetCode's Terms of Service before enabling it.
+  - LeetCode's DOM is not a stable API. The verdict detector uses several
+    fallbacks but a redesign could break it. It fails silently rather than
+    recording wrong data, and manual saving remains available as a fallback.
+  - Difficulty and topics are best-effort and come from the public catalogue.
+  - Premium problems are tracked by slug only; their editor and submissions
+    are not read.
+
+
+================================================================================
+END OF DOCUMENT
+================================================================================

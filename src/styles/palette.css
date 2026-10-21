@@ -1,0 +1,75 @@
+/**
+ * RecallLC palette.
+ *
+ * The same file is used by the extension pages and by the in-page reminder.
+ * `:root` covers the extension pages; `#recalllc-root` scopes the same
+ * variables inside the LeetCode page so nothing leaks onto the host site.
+ */
+
+:root,
+#recalllc-root {
+  color-scheme: dark;
+
+  --rlc-bg: #0b0d12;
+  --rlc-surface: #12151c;
+  --rlc-surface-2: #171b24;
+  --rlc-surface-3: #1e2330;
+  --rlc-line: #242a36;
+  --rlc-line-strong: #333b4b;
+
+  --rlc-fg: #e7eaf0;
+  --rlc-fg-muted: #9aa4b5;
+  --rlc-fg-subtle: #6b7688;
+
+  --rlc-accent: #7c5cff;
+  --rlc-accent-hover: #8e72ff;
+  --rlc-accent-contrast: #ffffff;
+  --rlc-accent-soft: rgba(124, 92, 255, 0.16);
+
+  --rlc-success: #34d399;
+  --rlc-success-soft: rgba(52, 211, 153, 0.14);
+  --rlc-warning: #fbbf24;
+  --rlc-warning-soft: rgba(251, 191, 36, 0.14);
+  --rlc-danger: #f87171;
+  --rlc-danger-soft: rgba(248, 113, 113, 0.14);
+  --rlc-info: #38bdf8;
+  --rlc-info-soft: rgba(56, 189, 248, 0.14);
+
+  --rlc-shadow: 0 20px 50px -18px rgba(0, 0, 0, 0.72), 0 2px 8px -4px rgba(0, 0, 0, 0.6);
+  --rlc-shadow-sm: 0 6px 18px -10px rgba(0, 0, 0, 0.7);
+  --rlc-ring: rgba(124, 92, 255, 0.45);
+}
+
+:root[data-theme='light'],
+#recalllc-root[data-theme='light'] {
+  color-scheme: light;
+
+  --rlc-bg: #f5f6fa;
+  --rlc-surface: #ffffff;
+  --rlc-surface-2: #f1f3f8;
+  --rlc-surface-3: #e7ebf2;
+  --rlc-line: #e2e6ee;
+  --rlc-line-strong: #c9d1de;
+
+  --rlc-fg: #11141b;
+  --rlc-fg-muted: #596372;
+  --rlc-fg-subtle: #8993a3;
+
+  --rlc-accent: #6538f5;
+  --rlc-accent-hover: #5525e0;
+  --rlc-accent-contrast: #ffffff;
+  --rlc-accent-soft: rgba(101, 56, 245, 0.1);
+
+  --rlc-success: #0f9d68;
+  --rlc-success-soft: rgba(15, 157, 104, 0.12);
+  --rlc-warning: #b45309;
+  --rlc-warning-soft: rgba(180, 83, 9, 0.12);
+  --rlc-danger: #d93a3a;
+  --rlc-danger-soft: rgba(217, 58, 58, 0.12);
+  --rlc-info: #0284c7;
+  --rlc-info-soft: rgba(2, 132, 199, 0.12);
+
+  --rlc-shadow: 0 18px 44px -20px rgba(16, 22, 40, 0.28), 0 2px 6px -3px rgba(16, 22, 40, 0.12);
+  --rlc-shadow-sm: 0 6px 16px -10px rgba(16, 22, 40, 0.25);
+  --rlc-ring: rgba(101, 56, 245, 0.35);
+}

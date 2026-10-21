@@ -1,0 +1,205 @@
+/**
+ * Extension page styles (popup + dashboard).
+ *
+ * These pages are our own origin, so the full Tailwind build (including
+ * preflight) is safe here.
+ */
+
+@import 'tailwindcss';
+@import './theme.css';
+@import './palette.css';
+
+@source "../**/*.{ts,tsx}";
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--rlc-bg);
+    color: var(--rlc-fg);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--rlc-accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background-color: var(--rlc-accent-soft);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--rlc-line-strong);
+    border: 3px solid var(--rlc-bg);
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--rlc-fg-subtle);
+  }
+}
+
+@layer components {
+  .rlc-card {
+    background-color: var(--rlc-surface);
+    border: 1px solid var(--rlc-line);
+    border-radius: 12px;
+    box-shadow: var(--rlc-shadow-sm);
+  }
+
+  .rlc-card-flat {
+    background-color: var(--rlc-surface);
+    border: 1px solid var(--rlc-line);
+    border-radius: 10px;
+  }
+
+  .rlc-input {
+    width: 100%;
+    background-color: var(--rlc-surface-2);
+    border: 1px solid var(--rlc-line);
+    border-radius: 8px;
+    padding: 0.5rem 0.7rem;
+    font-size: 0.875rem;
+    color: var(--rlc-fg);
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease;
+  }
+
+  .rlc-input::placeholder {
+    color: var(--rlc-fg-subtle);
+  }
+
+  .rlc-input:focus {
+    outline: none;
+    border-color: var(--rlc-accent);
+    box-shadow: 0 0 0 3px var(--rlc-accent-soft);
+  }
+
+  .rlc-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-radius: 8px;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.8125rem;
+    font-weight: 550;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease,
+      color 120ms ease,
+      transform 120ms ease;
+  }
+
+  .rlc-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .rlc-btn-primary {
+    background-color: var(--rlc-accent);
+    color: var(--rlc-accent-contrast);
+  }
+
+  .rlc-btn-primary:hover:not(:disabled) {
+    background-color: var(--rlc-accent-hover);
+  }
+
+  .rlc-btn-secondary {
+    background-color: var(--rlc-surface-2);
+    border-color: var(--rlc-line);
+    color: var(--rlc-fg);
+  }
+
+  .rlc-btn-secondary:hover:not(:disabled) {
+    border-color: var(--rlc-line-strong);
+    background-color: var(--rlc-surface-3);
+  }
+
+  .rlc-btn-ghost {
+    background-color: transparent;
+    color: var(--rlc-fg-muted);
+  }
+
+  .rlc-btn-ghost:hover:not(:disabled) {
+    background-color: var(--rlc-surface-2);
+    color: var(--rlc-fg);
+  }
+
+  .rlc-btn-danger {
+    background-color: var(--rlc-danger-soft);
+    color: var(--rlc-danger);
+    border-color: transparent;
+  }
+
+  .rlc-btn-danger:hover:not(:disabled) {
+    background-color: var(--rlc-danger);
+    color: var(--rlc-accent-contrast);
+  }
+
+  .rlc-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 999px;
+    padding: 0.1rem 0.45rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    line-height: 1.5;
+    border: 1px solid transparent;
+  }
+
+  .rlc-badge-easy {
+    background-color: var(--rlc-success-soft);
+    color: var(--rlc-success);
+  }
+
+  .rlc-badge-medium {
+    background-color: var(--rlc-warning-soft);
+    color: var(--rlc-warning);
+  }
+
+  .rlc-badge-hard {
+    background-color: var(--rlc-danger-soft);
+    color: var(--rlc-danger);
+  }
+
+  .rlc-badge-unknown {
+    background-color: var(--rlc-surface-3);
+    color: var(--rlc-fg-muted);
+  }
+
+  .rlc-badge-accent {
+    background-color: var(--rlc-accent-soft);
+    color: var(--rlc-accent);
+  }
+
+  .rlc-badge-neutral {
+    background-color: var(--rlc-surface-2);
+    color: var(--rlc-fg-muted);
+    border-color: var(--rlc-line);
+  }
+}

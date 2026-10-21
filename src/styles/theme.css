@@ -1,0 +1,47 @@
+/**
+ * Tailwind theme mapping.
+ *
+ * `@theme inline` keeps the generated utilities pointing at the CSS custom
+ * properties, so switching `data-theme` between "dark" and "light" re-themes
+ * the whole UI instantly — no JavaScript re-render required.
+ *
+ * The `dark` variant is redefined to be attribute based so the extension
+ * pages (`<html data-theme="dark">`) and the in-page reminder
+ * (`#recalllc-root[data-theme="dark"]`) share one token set.
+ */
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme inline {
+  --color-bg: var(--rlc-bg);
+  --color-surface: var(--rlc-surface);
+  --color-surface-2: var(--rlc-surface-2);
+  --color-surface-3: var(--rlc-surface-3);
+  --color-line: var(--rlc-line);
+  --color-line-strong: var(--rlc-line-strong);
+
+  --color-fg: var(--rlc-fg);
+  --color-muted: var(--rlc-fg-muted);
+  --color-subtle: var(--rlc-fg-subtle);
+
+  --color-accent: var(--rlc-accent);
+  --color-accent-hover: var(--rlc-accent-hover);
+  --color-accent-contrast: var(--rlc-accent-contrast);
+  --color-accent-soft: var(--rlc-accent-soft);
+
+  --color-success: var(--rlc-success);
+  --color-success-soft: var(--rlc-success-soft);
+  --color-warning: var(--rlc-warning);
+  --color-warning-soft: var(--rlc-warning-soft);
+  --color-danger: var(--rlc-danger);
+  --color-danger-soft: var(--rlc-danger-soft);
+  --color-info: var(--rlc-info);
+  --color-info-soft: var(--rlc-info-soft);
+
+  --font-sans:
+    ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --shadow-card: var(--rlc-shadow);
+  --shadow-soft: var(--rlc-shadow-sm);
+}
