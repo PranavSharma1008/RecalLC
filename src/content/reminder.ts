@@ -9,25 +9,56 @@ const PROBLEM_PATH = '/problems/';
 /** The slug of the problem currently on screen, or `null` off a problem page. */
 export function currentProblemSlug(): string | null {
   const { pathname } = window.location;
-  if (!pathname.startsWith(PROBLEM_PATH)) return null;
-  const segment = pathname.slice(PROBLEM_PATH.length).split('/')[0] ?? '';
-  if (!segment) return null;
-  return extractSlugFromUrl(`https://leetcode.com${pathname}`);
+  if (pathname.startsWith(PROBLEM_PATH)) {
+    const segment = pathname.slice(PROBLEM_PATH.length).split('/')[0] ?? '';
+    if (segment) {
+      const slug = extractSlugFromUrl(`https://leetcode.com${pathname}`);
+      if (slug) return slug;
+    }
+  }
+
+  // Fallback 1: check window.location.href
+  const fromHref = extractSlugFromUrl(window.location.href);
+  if (fromHref) return fromHref;
+
+  // Fallback 2: check any link on the page pointing to /problems/<slug>
+  try {
+    const problemLinks = Array.from(document.querySelectorAll('a[href*="/problems/"]'));
+    for (const link of problemLinks) {
+      const href = link.getAttribute('href') || '';
+      const slug = extractSlugFromUrl(`https://leetcode.com${href}`);
+      if (slug) return slug;
+    }
+  } catch {
+    // ignore
+  }
+
+  // Fallback 3: check document.title (e.g. "Median of Two Sorted Arrays - LeetCode")
+  try {
+    if (document.title && document.title.includes('LeetCode')) {
+      const rawTitle = document.title.split('-')[0]?.trim() || '';
+      if (rawTitle && rawTitle.toLowerCase() !== 'leetcode') {
+        const derivedSlug = rawTitle
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-+|-+$/g, '');
+        if (derivedSlug) return derivedSlug;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
 }
 
 /** True when the current page is a LeetCode problem page. */
 export function isProblemPage(): boolean {
-  return window.location.pathname.startsWith(PROBLEM_PATH);
+  return currentProblemSlug() !== null || window.location.pathname.startsWith(PROBLEM_PATH);
 }
 
 /**
  * Watch for single-page-application navigation.
- *
- * LeetCode is a Next.js app: moving between problems changes the URL without
- * a page load. Content scripts live in an isolated world, so patching
- * `history.pushState` does *not* intercept the page's own calls — the
- * reliable signal is a DOM mutation (which always accompanies a navigation)
- * combined with `popstate` for back/forward.
  */
 export function observeUrlChanges(callback: (slug: string | null) => void): () => void {
   let lastHref = window.location.href;

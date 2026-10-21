@@ -5,48 +5,75 @@ import { InlineRocketButton } from './InlineRocketButton';
 const INLINE_HOST_ID = 'recalllc-inline-rocket';
 
 let inlineHost: HTMLDivElement | null = null;
+let currentHost: HTMLDivElement | null = null;
 let inlineRoot: Root | null = null;
 let observer: MutationObserver | null = null;
+
+function getClickableAncestor(el: HTMLElement): HTMLElement {
+  const candidate = el.closest('button, a, [role="button"], [class*="cursor-pointer"]');
+  if (candidate instanceof HTMLElement) return candidate;
+  return el;
+}
 
 export function findInlineTarget(): {
   container: HTMLElement;
   referenceNode: HTMLElement | null;
   position: 'after' | 'before' | 'append';
 } | null {
-  const elements = Array.from(document.querySelectorAll('button, a, [role="button"], div[class*="btn"]'));
+  // Strategy 1: Search for buttons or clickable elements containing "Analysis" and "Solution"
+  const allElements = Array.from(document.querySelectorAll('button, a, [role="button"], div, span'));
 
   let analysisBtn: HTMLElement | null = null;
   let solutionBtn: HTMLElement | null = null;
 
-  for (const el of elements) {
+  for (const el of allElements) {
     if (!(el instanceof HTMLElement)) continue;
     if (el.id === INLINE_HOST_ID || el.closest(`#${INLINE_HOST_ID}`)) continue;
+    if (el.id === 'recalllc-root' || el.closest('#recalllc-root')) continue;
 
     const text = (el.innerText || el.textContent || '').trim();
+    if (!text || text.length > 40) continue;
 
-    // Check for Analysis button (e.g. "Analysis" or "✨ Analysis")
-    if (
-      !analysisBtn &&
-      (/analysis/i.test(text) || el.getAttribute('data-e2e-locator')?.toLowerCase().includes('analysis'))
-    ) {
-      analysisBtn = el;
+    // Check for "Analysis" (e.g. "Analysis" or "✨ Analysis")
+    if (!analysisBtn && /analysis/i.test(text) && !/solutions/i.test(text)) {
+      if (text.length <= 20) {
+        analysisBtn = getClickableAncestor(el);
+      }
     }
 
-    // Check for Solution button (e.g. "Solution" or "📝 Solution")
-    // Notice: we do NOT match "Solutions" (plural tab at top of screen)
-    if (
-      !solutionBtn &&
-      ((/solution/i.test(text) && !/solutions/i.test(text)) ||
-        el.getAttribute('data-e2e-locator')?.toLowerCase().includes('solution') ||
-        (text.includes('Solution') && el.classList.toString().includes('green')) ||
-        (text.includes('Solution') && (el.style.backgroundColor?.includes('green') || el.style.backgroundColor?.includes('rgb(34'))))
-    ) {
-      solutionBtn = el;
+    // Check for "Solution" (e.g. "Solution" or "📝 Solution"), strictly exclude "Solutions" tab
+    if (!solutionBtn && /solution/i.test(text) && !/solutions/i.test(text)) {
+      if (!text.includes('class') && text.length <= 20) {
+        solutionBtn = getClickableAncestor(el);
+      }
     }
   }
 
   // 1. Ideal: both Analysis and Solution found -> insert right between them!
   if (analysisBtn && solutionBtn) {
+    if (analysisBtn.parentElement === solutionBtn.parentElement && analysisBtn.parentElement) {
+      return {
+        container: analysisBtn.parentElement,
+        referenceNode: analysisBtn,
+        position: 'after',
+      };
+    }
+
+    // If wrapped in nested container
+    let aParent: HTMLElement | null = analysisBtn;
+    let sParent: HTMLElement | null = solutionBtn;
+    while (aParent && aParent.parentElement && aParent.parentElement !== document.body) {
+      if (aParent.parentElement === sParent?.parentElement) {
+        return {
+          container: aParent.parentElement,
+          referenceNode: aParent,
+          position: 'after',
+        };
+      }
+      aParent = aParent.parentElement;
+      sParent = sParent?.parentElement ?? null;
+    }
+
     if (analysisBtn.parentElement) {
       return {
         container: analysisBtn.parentElement,
@@ -109,10 +136,11 @@ function ensureInlineHost(): HTMLDivElement {
 
   const element = existing instanceof HTMLDivElement ? existing : document.createElement('div');
   element.id = INLINE_HOST_ID;
-  element.style.display = 'inline-flex';
-  element.style.alignItems = 'center';
-  element.style.margin = '0 6px';
-  element.style.verticalAlign = 'middle';
+  element.style.setProperty('display', 'inline-flex', 'important');
+  element.style.setProperty('align-items', 'center', 'important');
+  element.style.setProperty('margin', '0 6px', 'important');
+  element.style.setProperty('vertical-align', 'middle', 'important');
+  element.style.setProperty('z-index', '20', 'important');
   inlineHost = element;
   return inlineHost;
 }
@@ -143,8 +171,18 @@ export function updateInlineRocket(slug: string | null): void {
     }
   }
 
-  if (!inlineRoot || !host.isConnected) {
+  // FIX: Always re-bind React root if the host DOM element changed
+  if (!inlineRoot || currentHost !== host || !host.isConnected) {
+    if (inlineRoot) {
+      try {
+        inlineRoot.unmount();
+      } catch {
+        // ignore
+      }
+      inlineRoot = null;
+    }
     inlineRoot = createRoot(host);
+    currentHost = host;
   }
 
   inlineRoot.render(<InlineRocketButton currentSlug={slug} />);
@@ -152,13 +190,18 @@ export function updateInlineRocket(slug: string | null): void {
 
 export function removeInlineRocket(): void {
   if (inlineRoot) {
-    inlineRoot.unmount();
+    try {
+      inlineRoot.unmount();
+    } catch {
+      // ignore
+    }
     inlineRoot = null;
   }
   if (inlineHost && inlineHost.parentElement) {
     inlineHost.remove();
   }
   inlineHost = null;
+  currentHost = null;
 }
 
 export function startInlineRocketObserver(getSlug: () => string | null): () => void {
@@ -174,8 +217,8 @@ export function startInlineRocketObserver(getSlug: () => string | null): () => v
   observer = new MutationObserver(check);
   observer.observe(document.documentElement, { childList: true, subtree: true });
 
-  // Periodic safeguard
-  const timer = setInterval(check, 1000);
+  // Fast check every 400ms
+  const timer = setInterval(check, 400);
 
   // Initial check
   check();

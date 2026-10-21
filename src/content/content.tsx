@@ -95,10 +95,21 @@ function ensureHost(): HTMLDivElement {
   return host;
 }
 
+let currentHostElement: HTMLDivElement | null = null;
+
 function renderReminder(slug: string | null): void {
   const element = ensureHost();
-  if (!reactRoot || !element.isConnected) {
+  if (!reactRoot || currentHostElement !== element || !element.isConnected) {
+    if (reactRoot) {
+      try {
+        reactRoot.unmount();
+      } catch {
+        // ignore
+      }
+      reactRoot = null;
+    }
     reactRoot = createRoot(element);
+    currentHostElement = element;
   }
   reactRoot.render(<ReminderRoot currentSlug={slug} />);
 }

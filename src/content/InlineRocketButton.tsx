@@ -86,6 +86,24 @@ export function InlineRocketButton({ currentSlug }: InlineRocketButtonProps) {
           onClick={(e) => void handlePush(e)}
           disabled={launching}
           className={`rlc-inline-rocket-btn ${success ? 'rlc-inline-rocket-btn-success' : ''}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '32px',
+            minWidth: '38px',
+            padding: '0 10px',
+            borderRadius: '8px',
+            background: success
+              ? 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)'
+              : 'linear-gradient(135deg, #2e1065 0%, #170e30 100%)',
+            border: success ? '1.5px solid #34d399' : '1.5px solid #a855f7',
+            boxShadow: '0 2px 10px rgba(147, 51, 234, 0.45)',
+            color: '#fff',
+            fontSize: '16px',
+            cursor: 'pointer',
+            userSelect: 'none',
+          }}
           title="Push to RecallLC 🚀"
           aria-label="Push to RecallLC 🚀"
         >
