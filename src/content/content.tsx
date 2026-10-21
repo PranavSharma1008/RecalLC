@@ -18,6 +18,7 @@
 import { createRoot, type Root } from 'react-dom/client';
 
 import { ReminderRoot } from './ReminderRoot';
+import { startInlineRocketObserver, updateInlineRocket } from './inlineInjector';
 import { currentProblemSlug, observeUrlChanges } from './reminder';
 import { callService } from '../services/messaging';
 import { readSettings } from '../services/storage';
@@ -212,6 +213,7 @@ async function maybeSyncAccountHistory(): Promise<void> {
 function onSlugChange(slug: string | null): void {
   currentSlug = slug;
   renderReminder(slug);
+  updateInlineRocket(slug);
 
   if (!slug) {
     stopTracker();
@@ -259,6 +261,9 @@ function boot(): void {
       }
     }
   }, 1500);
+
+  // Start watching for submission result rows to inject inline rocket between Analysis and Solution
+  startInlineRocketObserver(() => currentProblemSlug());
 
   void maybeEnrichCatalogue();
   void maybeSyncAccountHistory();
