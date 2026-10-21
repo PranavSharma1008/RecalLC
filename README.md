@@ -506,4 +506,5 @@ Node 20.19+ is required.
 ## License
 
 MIT.
+
 # RecalLC

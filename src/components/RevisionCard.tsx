@@ -90,22 +90,22 @@ export function RevisionCard({
         <div className="mt-3 flex flex-wrap items-center gap-1.5">
           {onRevise ? (
             <button type="button" className="rlc-btn rlc-btn-primary" onClick={onRevise}>
-              Revise
+              🎯 Revise
             </button>
           ) : null}
           {onSnooze ? (
             <button type="button" className="rlc-btn rlc-btn-secondary" onClick={onSnooze}>
-              Tomorrow
+              ⏰ Tomorrow
             </button>
           ) : null}
           {onPause ? (
             <button type="button" className="rlc-btn rlc-btn-ghost" onClick={onPause}>
-              {revision?.paused ? 'Resume' : 'Pause'}
+              {revision?.paused ? '▶️ Resume' : '⏸️ Pause'}
             </button>
           ) : null}
           {onDelete ? (
             <button type="button" className="rlc-btn rlc-btn-ghost" onClick={onDelete}>
-              Remove
+              🗑️ Remove
             </button>
           ) : null}
         </div>

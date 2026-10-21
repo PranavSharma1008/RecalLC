@@ -90,8 +90,8 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
     if (!rating) return;
     setBusy(true);
     try {
-      await callService('rate', { slug, rating });
-      setNextDue(revision?.dueAt ?? null);
+      const outcome = await callService('rate', { slug, rating });
+      setNextDue(outcome?.dueAt ?? null);
       setSavedAt(Date.now());
       onChanged();
     } finally {
@@ -138,10 +138,10 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
           variant="secondary"
           size="sm"
           onClick={() => {
-            void callService('open-problem', { url: tracked.url });
+            void callService('open-problem', { url: tracked.url || `https://leetcode.com/problems/${tracked.slug}/` });
           }}
         >
-          Open on LeetCode
+          🌐 Open on LeetCode
         </Button>
       </div>
 
@@ -154,10 +154,10 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
           </p>
           <div className="mt-3 flex gap-2">
             <Button variant="secondary" size="sm" onClick={() => navigate('/')}>
-              Back to overview
+              📊 Back to overview
             </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate(`/problems`)}>
-              All problems
+              📚 All problems
             </Button>
           </div>
         </div>
@@ -185,7 +185,7 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
           ))}
           <div className="flex flex-wrap items-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => void saveAnswersToNotes()}>
-              Save these answers to my notes
+              💾 Save answers to my notes
             </Button>
             <span className="text-[11px] text-subtle">Optional — your notes stay hidden until you reveal them.</span>
           </div>
@@ -205,7 +205,7 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
             )
           ) : (
             <Button variant="secondary" size="sm" onClick={() => setNotesRevealed(true)}>
-              Reveal my notes
+              👁️ Reveal my notes
             </Button>
           )}
         </div>
@@ -225,7 +225,7 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
               <span className="text-[11px] text-subtle">Not scheduled yet</span>
             )}
             <Button variant="primary" size="sm" disabled={!rating || busy} onClick={() => void submitRating()}>
-              {busy ? 'Saving…' : 'Save rating & schedule'}
+              {busy ? 'Saving…' : '✓ Save rating & schedule'}
             </Button>
           </div>
         </div>

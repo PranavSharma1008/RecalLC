@@ -77,7 +77,7 @@ export function OverviewScreen({ navigate, onChanged }: OverviewScreenProps) {
             action={
               dueList.length > 0 ? (
                 <Button variant="primary" size="sm" onClick={() => navigate(`/recall/${dueList[0]!.slug}`)}>
-                  Review next
+                  🎯 Review next
                 </Button>
               ) : null
             }
@@ -88,10 +88,10 @@ export function OverviewScreen({ navigate, onChanged }: OverviewScreenProps) {
             ) : dueList.length === 0 ? (
               <EmptyState
                 title="You are all caught up"
-                description="Solve a new problem on LeetCode — RecallLC will remind you when an older problem is due."
+                description="Solve a new problem on LeetCode with the 🚀 rocket button — RecallLC will remind you when it is due."
                 action={
                   <Button variant="secondary" size="sm" onClick={() => navigate('/import')}>
-                    Import attempt history
+                    📥 Import attempt history
                   </Button>
                 }
               />
@@ -183,13 +183,13 @@ export function OverviewScreen({ navigate, onChanged }: OverviewScreenProps) {
             <CardHeader title="Quick actions" />
             <div className="grid grid-cols-2 gap-2 p-4">
               <Button variant="secondary" size="sm" onClick={() => navigate('/problems')}>
-                Browse problems
+                📚 Browse problems
               </Button>
               <Button variant="secondary" size="sm" onClick={() => navigate('/import')}>
-                Import history
+                📥 Import history
               </Button>
               <Button variant="secondary" size="sm" onClick={() => navigate('/settings')}>
-                Settings
+                ⚙️ Settings
               </Button>
               <Button
                 variant="secondary"
@@ -198,7 +198,7 @@ export function OverviewScreen({ navigate, onChanged }: OverviewScreenProps) {
                   void callService('open-problem', { url: 'https://leetcode.com/problemset/' }).catch(() => undefined);
                 }}
               >
-                Open LeetCode
+                🌐 Open LeetCode
               </Button>
             </div>
           </Card>

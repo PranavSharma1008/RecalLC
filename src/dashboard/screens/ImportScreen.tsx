@@ -58,6 +58,15 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
     }
   };
 
+  const triggerDownload = (fileName: string) => {
+    const a = document.createElement('a');
+    a.href = chrome.runtime.getURL(fileName);
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
+
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <Card>
@@ -66,7 +75,7 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
           subtitle="Bring the problems you have already solved into RecallLC."
           action={
             <Button variant="ghost" size="sm" onClick={() => inputRef.current?.click()}>
-              Choose file
+              📁 Choose file
             </Button>
           }
         />
@@ -195,23 +204,11 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => {
-                void chrome.tabs.create({ url: chrome.runtime.getURL('sample-import.json') });
-              }}
-            >
-              Download the sample file
+            <Button variant="secondary" size="sm" onClick={() => triggerDownload('sample-import.json')}>
+              💾 Download sample JSON
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                void chrome.tabs.create({ url: chrome.runtime.getURL('sample-import.csv') });
-              }}
-            >
-              Sample CSV
+            <Button variant="ghost" size="sm" onClick={() => triggerDownload('sample-import.csv')}>
+              📄 Download sample CSV
             </Button>
           </div>
         </div>

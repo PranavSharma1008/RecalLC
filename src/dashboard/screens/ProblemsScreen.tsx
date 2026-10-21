@@ -97,6 +97,17 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
     await refresh();
   }
 
+  async function loadSampleProblems(): Promise<void> {
+    try {
+      const res = await fetch(chrome.runtime.getURL('sample-import.json'));
+      const text = await res.text();
+      await callService('import-commit', { fileName: 'sample-import.json', content: text });
+      await refresh();
+    } catch (err) {
+      console.warn('Could not load sample problems:', err);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <Card>
@@ -109,7 +120,7 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
             <input
               className="rlc-input"
               type="search"
-              placeholder="Search by title, slug or topic…"
+              placeholder="🔍 Search by title, slug or topic…"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               aria-label="Search problems"
@@ -205,7 +216,7 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                 onClick={() => setDirection((value) => (value === 'asc' ? 'desc' : 'asc'))}
                 aria-label={`Sort ${direction === 'asc' ? 'descending' : 'ascending'}`}
               >
-                {direction === 'asc' ? '↑ Asc' : '↓ Desc'}
+                {direction === 'asc' ? '🔼 Asc' : '🔽 Desc'}
               </Button>
             </div>
             {(search || topic || difficulty || due !== 'all' || attemptedWithin !== 'all') && (
@@ -220,7 +231,7 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                   setAttemptedWithin('all');
                 }}
               >
-                Clear filters
+                ✕ Clear filters
               </Button>
             )}
           </div>
@@ -229,18 +240,37 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
 
       {filtered.length === 0 ? (
         <EmptyState
-          title="Nothing matches"
+          title={entries.length === 0 ? 'No problems tracked yet' : 'Nothing matches your filters'}
           description={
             entries.length === 0
-              ? 'You have not tracked any problems yet. Solve a problem on LeetCode or import your attempt history.'
+              ? 'Click the 🚀 rocket button while on any LeetCode problem, import your history, or load sample problems.'
               : 'Try loosening the filters or clearing the search.'
           }
           action={
             entries.length === 0 ? (
-              <Button variant="secondary" size="sm" onClick={() => navigate('/import')}>
-                Import history
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button variant="primary" size="sm" onClick={() => void loadSampleProblems()}>
+                  ⚡ Load sample problems
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => navigate('/import')}>
+                  📥 Import history
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => {
+                  setSearch('');
+                  setTopic('');
+                  setDifficulty('');
+                  setDue('all');
+                  setAttemptedWithin('all');
+                }}
+              >
+                ✕ Reset all filters
               </Button>
-            ) : null
+            )
           }
         />
       ) : (
@@ -287,10 +317,10 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                             disabled={notesBusy}
                             onClick={() => void saveNotes(entry.problem.slug)}
                           >
-                            {notesBusy ? 'Saving…' : 'Save notes'}
+                            {notesBusy ? 'Saving…' : '💾 Save notes'}
                           </Button>
                           <Button variant="ghost" size="sm" onClick={() => setNotesFor(null)}>
-                            Cancel
+                            ✕ Cancel
                           </Button>
                         </div>
                       </div>
@@ -304,7 +334,7 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                             setNotesDraft(entry.problem.notes);
                           }}
                         >
-                          {entry.problem.notes ? 'Edit notes' : '+ Add notes'}
+                          {entry.problem.notes ? '✏️ Edit notes' : '📝 + Add notes'}
                         </Button>
 
                         <Button
@@ -314,7 +344,7 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                             setRescheduleFor(rescheduleFor === entry.problem.slug ? null : entry.problem.slug);
                           }}
                         >
-                          Change schedule ▾
+                          📅 Change schedule ▾
                         </Button>
                       </div>
                     )}
@@ -356,10 +386,10 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                             size="sm"
                             onClick={() => handleReschedule(entry.problem.slug, customRescheduleDays)}
                           >
-                            Set
+                            ✓ Set
                           </Button>
                           <Button variant="ghost" size="sm" onClick={() => setRescheduleFor(null)}>
-                            Close
+                            ✕ Close
                           </Button>
                         </div>
                       </div>
@@ -381,7 +411,7 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(null)}>
-                Cancel
+                ✕ Cancel
               </Button>
               <Button
                 variant="danger"
@@ -392,7 +422,7 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                   await refresh();
                 }}
               >
-                Remove
+                🗑️ Remove
               </Button>
             </div>
           </div>

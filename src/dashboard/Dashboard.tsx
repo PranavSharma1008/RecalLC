@@ -14,6 +14,7 @@ import { ProblemsScreen } from './screens/ProblemsScreen';
 import { RecallScreen } from './screens/RecallScreen';
 import { RemindersScreen } from './screens/RemindersScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { SupportScreen } from './screens/SupportScreen';
 
 /**
  * The development-only tools panel. The `import.meta.env.DEV` guard is
@@ -36,6 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/problems', label: 'Problems', icon: '📝' },
   { path: '/import', label: 'Import', icon: '📥' },
   { path: '/settings', label: 'Settings', icon: '⚙️' },
+  { path: '/support', label: 'Support', icon: '💖' },
 ];
 
 export function Dashboard() {
@@ -146,7 +148,24 @@ export function Dashboard() {
 
       <footer className="border-t border-line px-4 py-4">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-2 text-[11px] text-subtle">
-          <span>RecallLC · local-first · no telemetry, no accounts, no cloud.</span>
+          <div className="flex items-center gap-2">
+            <span>RecallLC · local-first · Created by Pranav Sharma</span>
+            <span>·</span>
+            <button
+              type="button"
+              onClick={() => navigate('/support')}
+              className="text-accent hover:underline font-medium flex items-center gap-1"
+            >
+              💖 Support & Donate
+            </button>
+            <span>·</span>
+            <a
+              href="mailto:shpranav1008@gmail.com?subject=RecallLC%20Feedback"
+              className="hover:text-fg text-muted transition-colors"
+            >
+              ✉️ Contact
+            </a>
+          </div>
           <span>
             {dueCount > 0 ? `${dueCount} problem${dueCount === 1 ? '' : 's'} due` : 'Nothing due'} · theme: {theme}
           </span>
@@ -174,6 +193,8 @@ function renderScreen(segments: string[], navigate: Navigate, refresh: () => voi
       return <ImportScreen onChanged={refresh} />;
     case 'settings':
       return <SettingsScreen onChanged={refresh} />;
+    case 'support':
+      return <SupportScreen />;
     default:
       return (
         <div className="rlc-card p-8 text-center">

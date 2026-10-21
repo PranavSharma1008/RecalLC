@@ -65,20 +65,30 @@ async function setLocal(key: string, value: unknown): Promise<void> {
 
 /* -------------------------------------------------------------- the island */
 
+function applyHostStyles(element: HTMLElement): void {
+  element.style.setProperty('position', 'fixed', 'important');
+  element.style.setProperty('right', '24px', 'important');
+  element.style.setProperty('bottom', '44px', 'important');
+  element.style.setProperty('z-index', '2147483647', 'important');
+  element.style.setProperty('pointer-events', 'none', 'important');
+  element.style.setProperty('display', 'block', 'important');
+}
+
 function ensureHost(): HTMLDivElement {
-  if (host && host.isConnected) return host;
-  const existing = document.getElementById(HOST_ID);
-  if (existing instanceof HTMLDivElement) {
-    host = existing;
+  if (host && host.isConnected) {
+    applyHostStyles(host);
     return host;
   }
-  const element = document.createElement('div');
+  const existing = document.getElementById(HOST_ID);
+  if (existing instanceof HTMLDivElement && existing.isConnected) {
+    host = existing;
+    applyHostStyles(host);
+    return host;
+  }
+  const element = existing instanceof HTMLDivElement ? existing : document.createElement('div');
   element.id = HOST_ID;
   element.setAttribute('data-theme', 'dark');
-  // Keep the host out of the page's layout entirely.
-  element.style.setProperty('all', 'initial');
-  element.style.setProperty('display', 'block');
-  element.style.setProperty('position', 'static');
+  applyHostStyles(element);
   (document.body ?? document.documentElement).appendChild(element);
   host = element;
   return host;
@@ -86,7 +96,9 @@ function ensureHost(): HTMLDivElement {
 
 function renderReminder(slug: string | null): void {
   const element = ensureHost();
-  if (!reactRoot) reactRoot = createRoot(element);
+  if (!reactRoot || !element.isConnected) {
+    reactRoot = createRoot(element);
+  }
   reactRoot.render(<ReminderRoot currentSlug={slug} />);
 }
 
@@ -235,6 +247,18 @@ function boot(): void {
     if (slug === currentSlug) return;
     onSlugChange(slug);
   });
+
+  // Periodic safeguard: ensure host is attached and reminder is mounted on problem pages
+  setInterval(() => {
+    const slug = currentProblemSlug();
+    if (slug) {
+      const el = document.getElementById(HOST_ID);
+      if (!el || !el.isConnected) {
+        ensureHost();
+        renderReminder(slug);
+      }
+    }
+  }, 1500);
 
   void maybeEnrichCatalogue();
   void maybeSyncAccountHistory();

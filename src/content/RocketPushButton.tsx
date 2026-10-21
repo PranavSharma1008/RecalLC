@@ -9,6 +9,7 @@ export interface RocketPushButtonProps {
 }
 
 function extractEditorCode(): string {
+  // 1. Monaco editor view lines
   try {
     const lines = Array.from(document.querySelectorAll('.monaco-editor .view-line'));
     if (lines.length > 0) {
@@ -20,10 +21,34 @@ function extractEditorCode(): string {
     // ignore
   }
 
+  // 2. Monaco editor view-lines container text
+  try {
+    const viewLines = document.querySelector('.monaco-editor .view-lines');
+    if (viewLines && viewLines.textContent?.trim()) {
+      return viewLines.textContent.trim();
+    }
+  } catch {
+    // ignore
+  }
+
+  // 3. Monaco textarea
   try {
     const ta = document.querySelector('.monaco-editor textarea');
     if (ta instanceof HTMLTextAreaElement && ta.value.trim()) {
       return ta.value;
+    }
+  } catch {
+    // ignore
+  }
+
+  // 4. Accepted submission or code pre block on page
+  try {
+    const codeBlocks = Array.from(document.querySelectorAll('pre code, pre, [class*="submission"] code'));
+    for (const block of codeBlocks) {
+      const text = block.textContent || '';
+      if (text.includes('class Solution') || text.includes('def ') || text.includes('function') || text.length > 30) {
+        return text.trim();
+      }
     }
   } catch {
     // ignore
@@ -35,6 +60,7 @@ function extractEditorCode(): string {
 export function RocketPushButton({ currentSlug }: RocketPushButtonProps) {
   const [launching, setLaunching] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(false);
 
   async function handlePush(): Promise<void> {
     if (launching || !currentSlug) return;
@@ -116,20 +142,31 @@ export function RocketPushButton({ currentSlug }: RocketPushButtonProps) {
         </div>
       ) : null}
 
-      {/* Rocket Button */}
-      <div className="rlc-rocket-wrapper">
+      {/* Rocket Button with Tooltip */}
+      <div
+        className="rlc-rocket-wrapper"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+      >
+        {showTooltip && !launching && !success ? (
+          <div className="rlc-rocket-tooltip" role="tooltip">
+            <span>Push to RecallLC 🚀</span>
+            <span className="rlc-rocket-tooltip-arrow" />
+          </div>
+        ) : null}
+
         <button
           type="button"
           onClick={() => void handlePush()}
           disabled={launching}
           className={`rlc-rocket-btn ${success ? 'rlc-rocket-btn-success' : ''}`}
-          title="Push to RecallLC"
-          aria-label="Push to RecallLC"
+          title="Push this question to RecallLC 🚀"
+          aria-label="Push this question to RecallLC 🚀"
         >
           {success ? (
-            <span className="text-sm font-bold text-emerald-300">✓</span>
+            <span className="text-base font-bold text-emerald-300">✓</span>
           ) : (
-            <span className="text-base select-none leading-none">🚀</span>
+            <span className="text-xl select-none leading-none">🚀</span>
           )}
         </button>
       </div>

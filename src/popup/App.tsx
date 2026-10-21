@@ -107,10 +107,10 @@ export function App() {
                 if (next) void startReview(next);
               }}
             >
-              Review next
+              🎯 Review next
             </Button>
             <Button variant="secondary" size="sm" onClick={() => openDashboard('#/')}>
-              Dashboard
+              📊 Dashboard
             </Button>
           </div>
         </div>
@@ -138,7 +138,7 @@ export function App() {
             }
             action={
               <Button variant="secondary" size="sm" onClick={() => openDashboard('#/import')}>
-                Import history
+                📥 Import history
               </Button>
             }
           />
@@ -153,15 +153,45 @@ export function App() {
         )}
       </section>
 
-      <footer className="flex items-center justify-between gap-2 border-t border-line px-4 py-2.5">
-        <span className="text-[10px] text-subtle">All data stays on this device.</span>
-        <div className="flex gap-1">
-          <Button variant="ghost" size="sm" onClick={() => openDashboard('#/import')}>
-            Import
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => openDashboard('#/settings')}>
-            Settings
-          </Button>
+      <footer className="border-t border-line px-4 py-3 space-y-2">
+        <div className="flex items-center justify-between text-[11px] text-subtle">
+          <span>Covers the editor, tracker, reminders and queue.</span>
+          <div className="flex gap-1.5">
+            <button
+              type="button"
+              onClick={() => openDashboard('#/import')}
+              className="text-subtle hover:text-fg transition-colors"
+            >
+              📥 Import
+            </button>
+            <span>·</span>
+            <button
+              type="button"
+              onClick={() => openDashboard('#/settings')}
+              className="text-subtle hover:text-fg transition-colors"
+            >
+              ⚙️ Settings
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between pt-0.5">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => openDashboard('#/support')}
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3 py-1 text-xs font-medium text-fg hover:border-line-strong hover:bg-surface-3 transition-colors"
+            >
+              <span className="text-pink-400">💖</span> Support
+            </button>
+            <a
+              href="mailto:shpranav1008@gmail.com?subject=RecallLC%20Bug%20Report&body=Hi%20Pranav,%0A%0AI%20found%20a%20bug%20in%20RecallLC%20v1.0.0:%0A"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3 py-1 text-xs font-medium text-fg hover:border-line-strong hover:bg-surface-3 transition-colors"
+            >
+              <span>🪲</span> Report bug
+            </a>
+          </div>
+          <span className="text-[11px] font-mono text-subtle">v1.0.0</span>
         </div>
       </footer>
     </div>

@@ -79,7 +79,7 @@ export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
             dueList.length > 0 ? (
               <div className="flex gap-2">
                 <Button variant="primary" size="sm" onClick={() => navigate(`/recall/${dueList[0]!.slug}`)}>
-                  Revise next
+                  🎯 Revise next
                 </Button>
                 <Button
                   variant="secondary"
@@ -88,7 +88,7 @@ export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
                     void callService('open-problem', { url: dueList[0]!.url });
                   }}
                 >
-                  Open on LeetCode
+                  🌐 Open on LeetCode
                 </Button>
               </div>
             ) : null
@@ -181,10 +181,10 @@ export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
                               disabled={notesBusy}
                               onClick={() => void saveNotes(candidate.slug)}
                             >
-                              {notesBusy ? 'Saving…' : 'Save notes'}
+                              {notesBusy ? 'Saving…' : '💾 Save notes'}
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => setNotesFor(null)}>
-                              Cancel
+                              ✕ Cancel
                             </Button>
                           </div>
                         </div>
@@ -198,7 +198,7 @@ export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
                               setNotesDraft(notes);
                             }}
                           >
-                            {notes ? 'Edit notes' : '+ Add notes'}
+                            {notes ? '✏️ Edit notes' : '📝 + Add notes'}
                           </Button>
 
                           <Button
@@ -208,7 +208,7 @@ export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
                               setRescheduleFor(rescheduleFor === candidate.slug ? null : candidate.slug);
                             }}
                           >
-                            Change schedule ▾
+                            📅 Change schedule ▾
                           </Button>
                         </div>
                       )}
@@ -247,10 +247,10 @@ export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
                               size="sm"
                               onClick={() => handleReschedule(candidate.slug, customDays)}
                             >
-                              Set
+                              ✓ Set
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => setRescheduleFor(null)}>
-                              Close
+                              ✕ Close
                             </Button>
                           </div>
                         </div>

@@ -251,7 +251,7 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
                       void callService('open-problem', { url: 'https://leetcode.com/problemset/' });
                     }}
                   >
-                    Open leetcode.com to sync
+                    🌐 Open leetcode.com to sync
                   </Button>
                 </div>
               </div>
@@ -275,7 +275,7 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
               }
             }}
           >
-            Refresh problem metadata
+            🔄 Refresh problem metadata
           </Button>
         </div>
       </Card>
@@ -285,10 +285,10 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
         <div className="space-y-3 p-4">
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" disabled={busy} onClick={() => void exportBackup()}>
-              Export backup
+              💾 Export backup
             </Button>
             <Button variant="secondary" size="sm" disabled={busy} onClick={() => restoreRef.current?.click()}>
-              Restore backup
+              📥 Restore backup
             </Button>
             <input
               ref={restoreRef}
@@ -327,15 +327,15 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
                       }
                     }}
                   >
-                    Yes, delete it all
+                    ⚠️ Yes, delete it all
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setConfirmClear(false)}>
-                    Cancel
+                    ✕ Cancel
                   </Button>
                 </div>
               ) : (
                 <Button variant="danger" size="sm" onClick={() => setConfirmClear(true)}>
-                  Delete all data
+                  🗑️ Delete all data
                 </Button>
               )}
             </div>
@@ -357,6 +357,37 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
             RecallLC contains no analytics, no telemetry and no remote code. It never asks for your LeetCode password,
             never reads or forwards your session cookies, and never sends your revision history anywhere.
           </p>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="Developer & Support" subtitle="About the creator and ways to support development." />
+        <div className="space-y-3 p-4 text-xs text-muted">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-fg">Developer</span>
+            <span className="font-semibold text-fg">Pranav Sharma</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-fg">Email</span>
+            <a href="mailto:shpranav1008@gmail.com" className="text-accent hover:underline">
+              shpranav1008@gmail.com
+            </a>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-fg">Phone</span>
+            <a href="tel:+919317290976" className="text-fg hover:text-accent">
+              +91 9317290976
+            </a>
+          </div>
+          <div className="pt-2 border-t border-line flex items-center justify-between">
+            <span>Free & Open Source</span>
+            <a
+              href="#/support"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-contrast hover:bg-accent-hover transition-colors"
+            >
+              💖 Support & Donate
+            </a>
+          </div>
         </div>
       </Card>
     </div>
