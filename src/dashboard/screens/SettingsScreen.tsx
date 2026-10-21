@@ -374,9 +374,14 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
             </a>
           </div>
           <div className="flex items-center justify-between">
-            <span className="font-medium text-fg">Phone</span>
-            <a href="tel:+919317290976" className="text-fg hover:text-accent">
-              +91 9317290976
+            <span className="font-medium text-fg">LinkedIn</span>
+            <a
+              href="https://www.linkedin.com/in/pranavsharma1008/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline flex items-center gap-1"
+            >
+              linkedin.com/in/pranavsharma1008 ↗
             </a>
           </div>
           <div className="pt-2 border-t border-line flex items-center justify-between">

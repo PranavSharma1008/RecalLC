@@ -160,10 +160,12 @@ export function Dashboard() {
             </button>
             <span>·</span>
             <a
-              href="mailto:shpranav1008@gmail.com?subject=RecallLC%20Feedback"
-              className="hover:text-fg text-muted transition-colors"
+              href="https://www.linkedin.com/in/pranavsharma1008/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-fg text-muted transition-colors flex items-center gap-1"
             >
-              ✉️ Contact
+              💼 Contact (LinkedIn) ↗
             </a>
           </div>
           <span>

@@ -6,7 +6,6 @@ export function SupportScreen() {
   const [selectedPlan, setSelectedPlan] = useState<'coffee' | 'claude' | 'custom'>('coffee');
   const [customAmount, setCustomAmount] = useState<string>('');
   const [email, setEmail] = useState<string>('');
-  const [phone, setPhone] = useState<string>('');
   const [message, setMessage] = useState<string>('');
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
   const [copiedUpi, setCopiedUpi] = useState<boolean>(false);
@@ -14,7 +13,6 @@ export function SupportScreen() {
 
   const customInputId = useId();
   const emailInputId = useId();
-  const phoneInputId = useId();
   const messageInputId = useId();
 
   const currentAmount =
@@ -145,7 +143,7 @@ export function SupportScreen() {
           {/* Contact Details */}
           <div className="rounded-xl border border-line bg-surface p-4">
             <p className="text-xs font-bold text-fg">Contact Us:</p>
-            <div className="mt-3 space-y-2 text-xs">
+            <div className="mt-3 space-y-2.5 text-xs">
               <div className="flex items-center gap-2 text-muted">
                 <span>✉️</span>
                 <a
@@ -156,9 +154,14 @@ export function SupportScreen() {
                 </a>
               </div>
               <div className="flex items-center gap-2 text-muted">
-                <span>📞</span>
-                <a href="tel:+919317290976" className="font-medium text-fg hover:text-accent">
-                  +91 9317290976
+                <span>💼</span>
+                <a
+                  href="https://www.linkedin.com/in/pranavsharma1008/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-accent hover:underline hover:text-accent-hover flex items-center gap-1"
+                >
+                  linkedin.com/in/pranavsharma1008 ↗
                 </a>
               </div>
               <div className="flex items-center gap-2 text-muted">
@@ -287,27 +290,6 @@ export function SupportScreen() {
               />
             </div>
 
-            {/* Phone Field */}
-            <div>
-              <label htmlFor={phoneInputId} className="block text-xs font-medium text-muted">
-                Phone <span className="text-danger">*</span>
-              </label>
-              <div className="mt-1 flex rounded-lg border border-line bg-surface-2">
-                <span className="flex items-center border-r border-line px-3 text-xs font-semibold text-muted">
-                  IN +91
-                </span>
-                <input
-                  id={phoneInputId}
-                  type="tel"
-                  placeholder="9317290976"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full bg-transparent px-3 py-2 text-xs text-fg focus:outline-none"
-                  required
-                />
-              </div>
-            </div>
-
             {/* Message Field */}
             <div>
               <label htmlFor={messageInputId} className="block text-xs font-medium text-muted">
@@ -326,12 +308,11 @@ export function SupportScreen() {
 
           {/* Payment Badges & Action Button */}
           <div className="mt-6 border-t border-line pt-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-[10px] text-subtle">
-                <span className="rounded bg-surface-2 px-1.5 py-0.5 font-bold text-fg border border-line">UPI</span>
-                <span className="rounded bg-surface-2 px-1.5 py-0.5 font-bold text-fg border border-line">VISA</span>
-                <span className="rounded bg-surface-2 px-1.5 py-0.5 font-bold text-fg border border-line">RuPay</span>
-                <span className="rounded bg-surface-2 px-1.5 py-0.5 text-muted border border-line">🔒 PCI Compliant</span>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center text-xs text-subtle">
+                <span className="flex items-center gap-1.5 rounded-lg bg-surface-2 px-2.5 py-1 text-[11px] font-medium text-muted border border-line">
+                  🔒 PCI Compliant & Secure
+                </span>
               </div>
               <button
                 type="button"
