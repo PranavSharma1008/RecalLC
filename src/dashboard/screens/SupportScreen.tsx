@@ -6,14 +6,21 @@ import { generateQrDataUrl } from '../../utils/qr';
 /**
  * Razorpay & UPI Payment Configuration
  *
- * Edit these values with your actual Razorpay details from https://dashboard.razorpay.com:
- * 1. paymentLink: Create a Payment Page or Payment Link in Razorpay Dashboard and paste it here.
- * 2. upiId: Your UPI ID (from Google Pay, PhonePe, Paytm, or your Razorpay VPA).
+ * Configured for Razorpay Standard Checkout & UPI test mode:
+ * - checkoutUrl: Target website running the Razorpay Standard Checkout.
+ * - testCredentials: Provided by Razorpay to verify integration without real money.
+ * - upiId: Your UPI ID for optional direct UPI transfers.
  */
 export const RAZORPAY_CONFIG = {
-  // Replace with your Razorpay Payment Link / Page (e.g., https://rzp.io/l/your-page)
-  paymentLink: 'https://rzp.io/l/recalllc',
-  // Replace with your UPI ID
+  checkoutUrl: 'http://localhost:3000',
+  paymentLink: 'http://localhost:3000/?checkout=true',
+  testCredentials: {
+    card: '4100 2800 0000 1007',
+    expiry: '12/26',
+    cvv: '123',
+    otp: '123456',
+    upi: 'test@razorpay',
+  },
   upiId: 'pranavsharma@upi',
   developerName: 'Pranav Sharma',
 };
@@ -26,6 +33,8 @@ export function SupportScreen() {
   const [message, setMessage] = useState<string>('');
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
   const [copiedUpi, setCopiedUpi] = useState<boolean>(false);
+  const [copiedCard, setCopiedCard] = useState<boolean>(false);
+  const [copiedTestUpi, setCopiedTestUpi] = useState<boolean>(false);
   const [paymentSuccess, setPaymentSuccess] = useState<boolean>(false);
 
   const customInputId = useId();
@@ -41,11 +50,28 @@ export function SupportScreen() {
   )}&am=${currentAmount}&cu=INR&tn=${encodeURIComponent(message || 'Support RecallLC extension')}`;
   const qrCodeUrl = generateQrDataUrl(upiDeepLink, 220);
 
-  function handleCopyUpi(): void {
+  function handleCopy(text: string, type: 'upi' | 'card' | 'testUpi'): void {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      void navigator.clipboard.writeText(upiId);
-      setCopiedUpi(true);
-      setTimeout(() => setCopiedUpi(false), 2000);
+      void navigator.clipboard.writeText(text);
+      if (type === 'upi') {
+        setCopiedUpi(true);
+        setTimeout(() => setCopiedUpi(false), 2000);
+      } else if (type === 'card') {
+        setCopiedCard(true);
+        setTimeout(() => setCopiedCard(false), 2000);
+      } else if (type === 'testUpi') {
+        setCopiedTestUpi(true);
+        setTimeout(() => setCopiedTestUpi(false), 2000);
+      }
+    }
+  }
+
+  function handleLaunchCheckout(amount: number): void {
+    const url = `${RAZORPAY_CONFIG.checkoutUrl}/?checkout=true&amount=${amount}`;
+    if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
+      chrome.tabs.create({ url });
+    } else if (typeof window !== 'undefined') {
+      window.open(url, '_blank');
     }
   }
 
@@ -406,22 +432,66 @@ export function SupportScreen() {
                 </div>
 
                 {/* Razorpay Gateway Direct Button */}
-                <div className="rounded-xl border border-accent/40 bg-accent/10 p-3.5 text-center">
-                  <p className="text-[11px] font-semibold text-accent uppercase tracking-wide">Razorpay Gateway</p>
-                  <p className="text-xs text-muted mt-0.5">Supports Credit/Debit Cards, NetBanking, and UPI</p>
-                  <a
-                    href={RAZORPAY_CONFIG.paymentLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2.5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2 text-xs font-bold text-accent-contrast shadow-sm hover:bg-accent-hover transition-all"
+                <div className="rounded-xl border border-accent/40 bg-accent/10 p-4 text-center space-y-3">
+                  <div>
+                    <p className="text-[11px] font-semibold text-accent uppercase tracking-wide">Razorpay Gateway</p>
+                    <p className="text-xs text-muted mt-0.5">Supports Credit/Debit Cards, NetBanking, and UPI</p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleLaunchCheckout(currentAmount)}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-2.5 text-xs font-bold text-accent-contrast shadow-md hover:bg-accent-hover transition-all"
                   >
-                    <span>💳</span> Pay via Razorpay Link ↗
-                  </a>
+                    <span>💳</span> Launch Razorpay Checkout (₹{' '}
+                    {currentAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}) ↗
+                  </button>
+
+                  {/* Razorpay Test Mode Card Details */}
+                  <div className="rounded-lg bg-surface-2 p-3 text-left border border-line text-[11px] space-y-1.5">
+                    <div className="flex items-center justify-between font-semibold text-amber-400">
+                      <span>🧪 Razorpay Test Mode Active</span>
+                      <span className="text-[10px] text-muted font-normal">No real money charged</span>
+                    </div>
+                    <p className="text-muted text-[10px]">
+                      Use these credentials in Razorpay checkout to complete Step 3 on your Razorpay Dashboard:
+                    </p>
+                    <div className="flex items-center justify-between font-mono bg-surface-1 px-2.5 py-1.5 rounded border border-line/60">
+                      <span>
+                        Card: <strong>{RAZORPAY_CONFIG.testCredentials.card}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(RAZORPAY_CONFIG.testCredentials.card, 'card')}
+                        className="text-[11px] font-sans font-semibold text-accent hover:underline ml-2"
+                      >
+                        {copiedCard ? '✓ Copied' : 'Copy'}
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between font-mono bg-surface-1 px-2.5 py-1 rounded border border-line/60 text-[10px] text-muted">
+                      <span>
+                        CVV: <strong className="text-fg">123</strong> | Exp: <strong className="text-fg">12/26</strong>{' '}
+                        | OTP: <strong className="text-fg">123456</strong>
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between font-mono bg-surface-1 px-2.5 py-1.5 rounded border border-line/60">
+                      <span>
+                        UPI: <strong>{RAZORPAY_CONFIG.testCredentials.upi}</strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(RAZORPAY_CONFIG.testCredentials.upi, 'testUpi')}
+                        className="text-[11px] font-sans font-semibold text-accent hover:underline ml-2"
+                      >
+                        {copiedTestUpi ? '✓ Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 text-[10px] uppercase font-semibold text-subtle">
                   <div className="h-px flex-1 bg-line" />
-                  <span>or scan UPI QR code</span>
+                  <span>or direct personal UPI transfer</span>
                   <div className="h-px flex-1 bg-line" />
                 </div>
 
@@ -449,7 +519,7 @@ export function SupportScreen() {
                   </div>
                   <button
                     type="button"
-                    onClick={handleCopyUpi}
+                    onClick={() => handleCopy(upiId, 'upi')}
                     className="rounded-lg bg-surface-3 px-3 py-1.5 text-xs font-semibold text-fg hover:bg-line-strong transition-colors"
                   >
                     {copiedUpi ? '✓ Copied!' : 'Copy UPI'}

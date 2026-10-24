@@ -116,7 +116,8 @@ function initContactForm() {
  * 1. POST /api/create-order to obtain order_id
  * 2. Razorpay checkout modal launch with options and order_id
  * 3. POST /api/verify-payment with razorpay_payment_id, razorpay_order_id, razorpay_signature
- * 4. Error handling: modal dismiss, payment.failed, network errors
+ * 4. Automatic trigger when URL has ?checkout=true&amount=X (e.g. from Chrome extension)
+ * 5. Error handling: modal dismiss, payment.failed, network errors
  */
 function initRazorpayIntegration() {
   const payButtons = document.querySelectorAll('.btn-razorpay-trigger, a[href="#pay-razorpay"]');
@@ -138,110 +139,147 @@ function initRazorpayIntegration() {
   payButtons.forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       e.preventDefault();
-
-      const originalText = btn.innerHTML;
-      btn.innerHTML = '<span>⏳ Preparing Order...</span>';
-      btn.setAttribute('disabled', 'true');
-
-      try {
-        // Step 1: Obtain Public Key ID (from /api/config or config.js)
-        let keyId = '';
-        try {
-          const configRes = await fetch('/api/config');
-          if (configRes.ok) {
-            const configData = await configRes.json();
-            keyId = configData.razorpay_key_id;
-          }
-        } catch {
-          // Fallback to client config if server config endpoint not reached
-        }
-
-        if (!keyId && typeof RECALLC_CONFIG !== 'undefined') {
-          keyId = RECALLC_CONFIG.razorpay?.keyId || '';
-        }
-
-        // Step 2: Call backend to create Razorpay Order
-        const orderRes = await fetch('/api/create-order', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            amount: 29900, // 29900 paise = ₹299.00 (min 100 paise)
-            currency: 'INR',
-            receipt: `rcpt_${Date.now()}`,
-            notes: {
-              product: 'RecallLC Pro / Supporter License',
-            },
-          }),
-        });
-
-        if (!orderRes.ok) {
-          const errData = await orderRes.json().catch(() => ({}));
-          throw new Error(errData.error || `Order creation failed with HTTP ${orderRes.status}`);
-        }
-
-        const order = await orderRes.json();
-        console.log('[Razorpay] Order created:', order.order_id);
-
-        // Step 3: Load Razorpay Checkout SDK and Open Modal
-        loadRazorpayScript(() => {
-          btn.innerHTML = originalText;
-          btn.removeAttribute('disabled');
-
-          const options = {
-            key: keyId || 'rzp_test_TrfV1O5whxyt69',
-            amount: order.amount,
-            currency: order.currency,
-            name: 'RecallLC',
-            description: 'RecallLC Pro / Supporter License',
-            image: 'assets/icon32.png',
-            order_id: order.order_id,
-            handler: async function (response) {
-              console.log('[Razorpay] Payment successful, verifying signature...', response);
-              await verifyPaymentSignature(response);
-            },
-            modal: {
-              ondismiss: function () {
-                console.log('[Razorpay] Checkout modal dismissed by user.');
-                showPaymentNotification('Payment cancelled. You can try again anytime.', 'warning');
-              },
-            },
-            theme: {
-              color: '#7c5cff',
-            },
-            prefill: {
-              name: '',
-              email: '',
-            },
-          };
-
-          // @ts-ignore
-          const rzp = new window.Razorpay(options);
-
-          // Handle payment failure event
-          rzp.on('payment.failed', function (failureResponse) {
-            console.error('[Razorpay] Payment failed:', failureResponse.error);
-            showPaymentNotification(
-              `Payment failed: ${failureResponse.error.description || 'Transaction declined'} (Code: ${failureResponse.error.code})`,
-              'danger',
-            );
-          });
-
-          rzp.open();
-        });
-      } catch (err) {
-        console.warn('[Razorpay] Standard checkout API unavailable, opening payment options:', err);
-        btn.innerHTML = originalText;
-        btn.removeAttribute('disabled');
-
-        // Fallback: If backend server is not running or network failed, open manual options modal
-        if (modal) {
-          modal.style.display = 'flex';
-        } else {
-          alert(`Could not initiate Razorpay Checkout: ${err.message}`);
-        }
-      }
+      const amountPaise = btn.dataset.amount ? Number.parseInt(btn.dataset.amount, 10) : 29900;
+      await triggerRazorpayCheckout(amountPaise, btn);
     });
   });
+
+  // Auto-trigger if accessed via URL parameters (e.g. from Chrome extension or test link)
+  try {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') === 'true' || params.get('pay') === 'true') {
+      const paramAmt = Number.parseFloat(params.get('amount'));
+      const amountPaise = !Number.isNaN(paramAmt) && paramAmt > 0 ? Math.max(100, Math.round(paramAmt * 100)) : 29900;
+
+      const pricingCard = document.getElementById('pricing-note');
+      if (pricingCard) {
+        pricingCard.scrollIntoView({ behavior: 'smooth' });
+      }
+
+      setTimeout(() => {
+        const primaryBtn = document.querySelector('.btn-razorpay-trigger');
+        void triggerRazorpayCheckout(amountPaise, primaryBtn);
+      }, 700);
+    }
+  } catch (err) {
+    console.warn('[Razorpay] Could not check URL query parameters:', err);
+  }
+}
+
+/**
+ * Trigger Razorpay Order Creation and Modal
+ */
+async function triggerRazorpayCheckout(amountPaise = 29900, btn = null) {
+  const originalText = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.innerHTML = '<span>⏳ Preparing Order...</span>';
+    btn.setAttribute('disabled', 'true');
+  }
+
+  const modal = document.getElementById('razorpay-modal');
+
+  try {
+    // Step 1: Obtain Public Key ID (from /api/config or config.js)
+    let keyId = '';
+    try {
+      const configRes = await fetch('/api/config');
+      if (configRes.ok) {
+        const configData = await configRes.json();
+        keyId = configData.razorpay_key_id;
+      }
+    } catch {
+      // Fallback to client config if server config endpoint not reached
+    }
+
+    if (!keyId && typeof RECALLC_CONFIG !== 'undefined') {
+      keyId = RECALLC_CONFIG.razorpay?.keyId || '';
+    }
+
+    // Step 2: Call backend to create Razorpay Order
+    const orderRes = await fetch('/api/create-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amount: amountPaise,
+        currency: 'INR',
+        receipt: `rcpt_${Date.now()}`,
+        notes: {
+          product: 'RecallLC Pro / Supporter License',
+        },
+      }),
+    });
+
+    if (!orderRes.ok) {
+      const errData = await orderRes.json().catch(() => ({}));
+      throw new Error(errData.error || `Order creation failed with HTTP ${orderRes.status}`);
+    }
+
+    const order = await orderRes.json();
+    console.log('[Razorpay] Order created:', order.order_id);
+
+    // Step 3: Load Razorpay Checkout SDK and Open Modal
+    loadRazorpayScript(() => {
+      if (btn) {
+        btn.innerHTML = originalText;
+        btn.removeAttribute('disabled');
+      }
+
+      const options = {
+        key: keyId || 'rzp_test_TrfV1O5whxyt69',
+        amount: order.amount,
+        currency: order.currency,
+        name: 'RecallLC',
+        description: `RecallLC (₹${(order.amount / 100).toFixed(2)})`,
+        image: 'assets/icon32.png',
+        order_id: order.order_id,
+        handler: async function (response) {
+          console.log('[Razorpay] Payment successful, verifying signature...', response);
+          await verifyPaymentSignature(response);
+        },
+        modal: {
+          ondismiss: function () {
+            console.log('[Razorpay] Checkout modal dismissed by user.');
+            showPaymentNotification('Payment cancelled. You can try again anytime.', 'warning');
+          },
+        },
+        theme: {
+          color: '#7c5cff',
+        },
+        prefill: {
+          name: 'Pranav Sharma',
+          email: 'support@recalllc.dev',
+          contact: '9999999999',
+        },
+      };
+
+      // @ts-ignore
+      const rzp = new window.Razorpay(options);
+
+      // Handle payment failure event
+      rzp.on('payment.failed', function (failureResponse) {
+        console.error('[Razorpay] Payment failed:', failureResponse.error);
+        showPaymentNotification(
+          `Payment failed: ${failureResponse.error.description || 'Transaction declined'} (Code: ${failureResponse.error.code})`,
+          'danger',
+        );
+      });
+
+      rzp.open();
+    });
+  } catch (err) {
+    console.warn('[Razorpay] Standard checkout API unavailable, opening payment options:', err);
+    if (btn) {
+      btn.innerHTML = originalText;
+      btn.removeAttribute('disabled');
+    }
+
+    // Fallback: If backend server is not running or network failed, open manual options modal
+    if (modal) {
+      modal.style.display = 'flex';
+    } else {
+      alert(`Could not initiate Razorpay Checkout: ${err.message}`);
+    }
+  }
 }
 
 /**
@@ -263,8 +301,9 @@ async function verifyPaymentSignature(paymentResponse) {
 
     if (verifyRes.ok && verifyData.success) {
       showPaymentNotification(
-        `🎉 Payment Verified! Payment ID: ${paymentResponse.razorpay_payment_id}. Thank you for supporting RecallLC!`,
+        `🎉 Test Payment Verified! Payment ID: ${paymentResponse.razorpay_payment_id}. Your Razorpay gateway integration is fully working! Return to Razorpay Dashboard to finish step 3.`,
         'success',
+        10000,
       );
     } else {
       showPaymentNotification(
@@ -281,7 +320,7 @@ async function verifyPaymentSignature(paymentResponse) {
 /**
  * In-page Toast / Notification Alert
  */
-function showPaymentNotification(message, type = 'success') {
+function showPaymentNotification(message, type = 'success', duration = 6000) {
   const existing = document.getElementById('razorpay-toast');
   if (existing) existing.remove();
 
@@ -303,7 +342,7 @@ function showPaymentNotification(message, type = 'success') {
     box-shadow: 0 10px 30px rgba(0,0,0,0.6);
     font-size: 0.9rem;
     font-weight: 500;
-    max-width: 400px;
+    max-width: 420px;
     animation: fadeIn 0.3s ease;
   `;
   toast.innerText = message;
@@ -313,7 +352,7 @@ function showPaymentNotification(message, type = 'success') {
     toast.style.opacity = '0';
     toast.style.transition = 'opacity 0.4s ease';
     setTimeout(() => toast.remove(), 400);
-  }, 6000);
+  }, duration);
 }
 
 function loadRazorpayScript(callback) {
