@@ -26,8 +26,9 @@ Everything runs **locally**. No account, no server, no telemetry.
 
 ## Table of contents
 
+- [Install from Chrome Web Store](#install-from-chrome-web-store)
 - [Features](#features)
-- [Install the built extension](#install-the-built-extension)
+- [Install the built extension manually](#install-the-built-extension-manually)
 - [Build it yourself](#build-it-yourself)
 - [Importing your attempt history](#importing-your-attempt-history)
 - [How the revision schedule works](#how-the-revision-schedule-works)
@@ -39,6 +40,14 @@ Everything runs **locally**. No account, no server, no telemetry.
 - [Testing](#testing)
 - [Project layout](#project-layout)
 - [Troubleshooting](#troubleshooting)
+
+---
+
+## Install from Chrome Web Store
+
+RecalLC is published on the official **Chrome Web Store**:
+
+👉 **[Install RecalLC on Chrome Web Store](https://chromewebstore.google.com/detail/jacijplemaiemipphfcihkjccbbbfhkh)**
 
 ---
 
@@ -57,7 +66,7 @@ Everything runs **locally**. No account, no server, no telemetry.
 
 ---
 
-## Install the built extension
+## Install the built extension manually
 
 The repository ships without a prebuilt `dist/`, so build it first (below), or
 use a release build if one is provided.
@@ -103,7 +112,7 @@ npm run preview    # preview the production build
 | `npm run dev`            | Vite dev server with CRXJS HMR (content scripts reload too).                                 |
 | `npm run build`          | `tsc --noEmit` then `vite build` → `dist/`.                                                  |
 | `npm run server`         | Starts the local backend server (port 3000) for Razorpay checkout & landing page.            |
-| `npm test`               | Vitest, single run (258 unit & integration tests across 26 test suites).                     |
+| `npm test`               | Vitest, single run (273 unit, integration & penetration tests across 29 test suites).        |
 | `npm run test:watch`     | Vitest in watch mode.                                                                        |
 | `npm run typecheck`      | Strict TypeScript check (`tsc --noEmit`).                                                    |
 | `npm run verify`         | Real-Chrome E2E verification of manifest, SW restart, IndexedDB, and UI pages via CDP.       |
