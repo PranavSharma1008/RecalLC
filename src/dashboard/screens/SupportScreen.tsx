@@ -19,7 +19,17 @@ export function SupportScreen() {
   const [email, setEmail] = useState<string>('');
   const [message, setMessage] = useState<string>('');
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
-  const [paymentSuccess, setPaymentSuccess] = useState<boolean>(false);
+  const [thankYouInfo, setThankYouInfo] = useState<{
+    paymentId?: string;
+    amount?: number;
+  } | null>(null);
+
+  const customInputId = useId();
+  const emailInputId = useId();
+  const messageInputId = useId();
+
+  const customVal = Number.parseFloat(customAmount) || 0;
+  const currentAmount = (coffeeSelected ? 89 : 0) + (claudeSelected ? 2399 : 0) + (customVal > 0 ? customVal : 0);
 
   // Dismiss modal on Escape key press
   useEffect(() => {
@@ -35,33 +45,30 @@ export function SupportScreen() {
 
   // Listen for payment events from embedded checkout iframe
   useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
     function handleMessage(event: MessageEvent) {
       if (event.data?.type === 'PAYMENT_SUCCESS') {
-        setPaymentSuccess(true);
-        // Automatically redirect back to the previous screen after 2 seconds
-        timer = setTimeout(() => {
-          setShowPaymentModal(false);
-          setPaymentSuccess(false);
-        }, 2000);
+        // Close modal immediately and return to previous page with thank-you message
+        setShowPaymentModal(false);
+        setThankYouInfo({
+          paymentId: event.data.payment_id,
+          amount: event.data.amount || currentAmount,
+        });
       } else if (event.data?.type === 'PAYMENT_CANCELLED' || event.data?.type === 'PAYMENT_REDIRECT') {
         setShowPaymentModal(false);
-        setPaymentSuccess(false);
       }
     }
     window.addEventListener('message', handleMessage);
-    return () => {
-      window.removeEventListener('message', handleMessage);
-      if (timer) clearTimeout(timer);
-    };
-  }, []);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [currentAmount]);
 
-  const customInputId = useId();
-  const emailInputId = useId();
-  const messageInputId = useId();
-
-  const customVal = Number.parseFloat(customAmount) || 0;
-  const currentAmount = (coffeeSelected ? 89 : 0) + (claudeSelected ? 2399 : 0) + (customVal > 0 ? customVal : 0);
+  // Thank-you message remains on screen for 8 seconds
+  useEffect(() => {
+    if (!thankYouInfo) return;
+    const timer = setTimeout(() => {
+      setThankYouInfo(null);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [thankYouInfo]);
 
   function handlePayClick(): void {
     setShowPaymentModal(true);
@@ -69,6 +76,80 @@ export function SupportScreen() {
 
   return (
     <div className="space-y-10">
+      <style>{`
+        @keyframes shrinkWidth {
+          from { width: 100%; }
+          to { width: 0%; }
+        }
+      `}</style>
+
+      {/* Thankful Message Banner from Pranav Sharma (8 seconds with cross button) */}
+      {thankYouInfo ? (
+        <div className="relative overflow-hidden rounded-2xl border border-emerald-500/40 bg-gradient-to-r from-emerald-950/70 via-surface-2 to-surface-2 p-5 shadow-2xl animate-in slide-in-from-top-4 duration-300">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/20 text-2xl border border-emerald-500/40 text-emerald-400 shadow-inner">
+                💖
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base font-bold text-fg">A heartfelt thank you from Pranav Sharma!</h3>
+                  <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/30">
+                    Contribution Received
+                  </span>
+                </div>
+                <p className="text-xs text-muted leading-relaxed">
+                  Thank you so much for your generous contribution of{' '}
+                  <strong className="text-fg font-semibold">
+                    ₹
+                    {(thankYouInfo.amount || currentAmount).toLocaleString('en-IN', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
+                  </strong>
+                  {thankYouInfo.paymentId ? (
+                    <>
+                      {' '}
+                      (Payment ID:{' '}
+                      <code className="text-fg font-mono text-[11px] bg-white/10 px-1.5 py-0.5 rounded">
+                        {thankYouInfo.paymentId}
+                      </code>
+                      )
+                    </>
+                  ) : null}
+                  . Your support keeps RecallLC completely free, private, and continuously updated for developers
+                  everywhere!
+                </p>
+                <p className="text-[11px] text-accent font-medium pt-1">
+                  Wishing you the best on your LeetCode problem-solving journey! 🚀
+                </p>
+              </div>
+            </div>
+
+            {/* Cross Button to dismiss immediately */}
+            <button
+              type="button"
+              onClick={() => setThankYouInfo(null)}
+              className="rounded-lg p-1.5 text-muted hover:text-fg hover:bg-surface-3 transition-colors text-base cursor-pointer shrink-0"
+              aria-label="Dismiss message"
+              title="Close"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* 8-second progress indicator bar */}
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/5 overflow-hidden">
+            <div
+              className="h-full bg-emerald-400/80"
+              style={{
+                animation: 'shrinkWidth 8s linear forwards',
+              }}
+            />
+          </div>
+        </div>
+      ) : null}
+
       {/* Page Header */}
       <div className="text-center">
         <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">Support my extensions</h1>
@@ -370,69 +451,37 @@ export function SupportScreen() {
         </div>
       </div>
 
-      {/* Full-Mode Razorpay Gateway Overlay on Same Page */}
+      {/* Full-Mode Razorpay Gateway Overlay on Same Page (Clean full-bleed, no top bar) */}
       {showPaymentModal ? (
         <div className="fixed inset-0 z-50 flex flex-col bg-[#0b0e14] animate-in fade-in duration-150">
-          {/* Top Bar with Back Button and Live Gateway Info */}
-          <div className="flex h-14 shrink-0 items-center justify-between border-b border-line bg-surface-1 px-4 sm:px-6">
-            <button
-              type="button"
-              onClick={() => {
-                setShowPaymentModal(false);
-                setPaymentSuccess(false);
-              }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3.5 py-1.5 text-xs font-semibold text-fg hover:bg-surface-3 transition-colors cursor-pointer"
-            >
-              <span>← Back</span>
-            </button>
+          {/* Floating Back Button */}
+          <button
+            type="button"
+            onClick={() => setShowPaymentModal(false)}
+            className="absolute top-3 left-4 z-50 inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-surface-1/90 backdrop-blur-md px-3.5 py-1.5 text-xs font-semibold text-fg hover:bg-surface-2 transition-all cursor-pointer shadow-lg"
+            title="Return to options"
+          >
+            <span>← Back</span>
+          </button>
 
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-2">
-                <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                <h3 className="text-sm font-bold text-fg">Razorpay Gateway</h3>
-              </div>
-              <p className="text-[10px] text-muted">
-                ₹ {currentAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} •
-                Recipient: {RAZORPAY_CONFIG.developerName}
-              </p>
-            </div>
+          {/* Floating Close Button */}
+          <button
+            type="button"
+            onClick={() => setShowPaymentModal(false)}
+            className="absolute top-3 right-4 z-50 rounded-lg p-2 text-subtle hover:text-fg bg-surface-1/90 backdrop-blur-md hover:bg-surface-2 transition-all text-sm cursor-pointer border border-white/10 shadow-lg"
+            aria-label="Close modal"
+          >
+            ✕
+          </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setShowPaymentModal(false);
-                setPaymentSuccess(false);
-              }}
-              className="rounded-lg p-1.5 text-subtle hover:text-fg hover:bg-surface-2 transition-colors text-sm cursor-pointer"
-              aria-label="Close modal"
-            >
-              ✕
-            </button>
-          </div>
-
-          {/* Full-bleed Content Area */}
-          <div className="relative flex-1 w-full h-full overflow-hidden bg-[#0b0e14]">
-            {paymentSuccess ? (
-              <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                <span className="text-6xl animate-bounce">🎉</span>
-                <h3 className="text-2xl font-bold text-fg">Payment Successful!</h3>
-                <p className="text-sm text-muted max-w-md">
-                  Thank you for your generous support of RecallLC! Your contribution helps keep this extension open and
-                  private.
-                </p>
-                <div className="flex items-center gap-2 text-xs text-emerald-400 font-semibold pt-2">
-                  <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
-                  <span>Redirecting back to dashboard...</span>
-                </div>
-              </div>
-            ) : (
-              <iframe
-                src={`${RAZORPAY_CONFIG.checkoutUrl}/checkout.html?amount=${currentAmount}${email.trim() ? `&email=${encodeURIComponent(email.trim())}` : ''}`}
-                className="w-full h-full border-0"
-                allow="payment *"
-                title="Razorpay Secure Checkout"
-              />
-            )}
+          {/* 100% Full-bleed iframe Area */}
+          <div className="relative w-full h-full flex-1 overflow-hidden bg-[#0b0e14]">
+            <iframe
+              src={`${RAZORPAY_CONFIG.checkoutUrl}/checkout.html?amount=${currentAmount}${email.trim() ? `&email=${encodeURIComponent(email.trim())}` : ''}`}
+              className="w-full h-full border-0"
+              allow="payment *"
+              title="Razorpay Secure Checkout"
+            />
           </div>
         </div>
       ) : null}

@@ -110,4 +110,43 @@ describe('SupportScreen checkboxes', () => {
       root.unmount();
     });
   });
+
+  it('displays thankful message from Pranav Sharma upon payment success and dismisses with cross button', async () => {
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(<SupportScreen />);
+    });
+
+    // Simulate PAYMENT_SUCCESS event from iframe
+    await act(async () => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: {
+            type: 'PAYMENT_SUCCESS',
+            payment_id: 'pay_test_thankyou_999',
+            amount: 89,
+          },
+        }),
+      );
+    });
+
+    // The thankful message banner from Pranav Sharma should appear on screen
+    expect(container.textContent).toContain('A heartfelt thank you from Pranav Sharma!');
+    expect(container.textContent).toContain('pay_test_thankyou_999');
+
+    // Find the cross button (✕) to dismiss
+    const dismissBtn = container.querySelector<HTMLButtonElement>('button[aria-label="Dismiss message"]');
+    expect(dismissBtn).not.toBeNull();
+
+    await act(async () => {
+      dismissBtn?.click();
+    });
+
+    // The thankful message should be dismissed
+    expect(container.textContent).not.toContain('A heartfelt thank you from Pranav Sharma!');
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
 });
