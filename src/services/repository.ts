@@ -139,6 +139,7 @@ export async function listProblems(): Promise<Problem[]> {
       .catch(() => undefined);
   }
 
+  const changedProblems: Problem[] = [];
   for (const problem of problems) {
     let changed = false;
     if (problem.difficulty === 'Unknown' || !problem.difficulty) {
@@ -161,8 +162,12 @@ export async function listProblems(): Promise<Problem[]> {
       changed = true;
     }
     if (changed) {
-      await db().problems.put(problem);
+      changedProblems.push(problem);
     }
+  }
+
+  if (changedProblems.length > 0) {
+    await db().problems.bulkPut(changedProblems);
   }
 
   // Natural default order: newest attempt/problem first (new on top, old at bottom)
@@ -727,15 +732,16 @@ export async function listProblemSchedule(now: number = Date.now()): Promise<Pro
 
 /** Dashboard statistics, computed from the real stored data. */
 export async function getStats(now: number = Date.now()): Promise<DashboardStats> {
-  const [problems, revisions, attempts, events] = await Promise.all([
+  const [problems, revisions, totalAttempts, events] = await Promise.all([
     listProblems(),
     listRevisions(),
-    listAttempts(),
+    db().attempts.count(),
     listEvents(),
   ]);
 
   const summary = summarizeDue(revisions, now);
   const problemBySlug = new Map(problems.map((p) => [p.slug, p]));
+  const revisionBySlug = new Map(revisions.map((r) => [r.slug, r]));
 
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000;
   const revisedThisWeek = events.filter((event) => event.source === 'review' && event.reviewedAt >= weekAgo).length;
@@ -746,30 +752,24 @@ export async function getStats(now: number = Date.now()): Promise<DashboardStats
   const topicMap = new Map<string, TopicStat>();
   for (const problem of problems) {
     const topics = problem.topics.length > 0 ? problem.topics : ['Uncategorised'];
+    const revision = revisionBySlug.get(problem.slug);
+    const isDue = revision ? isReminderEligible(revision, now) : false;
+
     for (const topic of topics) {
       const stat = topicMap.get(topic) ?? { topic, count: 0, due: 0 };
       stat.count += 1;
-      const revision = revisions.find((r) => r.slug === problem.slug);
-      if (revision && isReminderEligible(revision, now)) stat.due += 1;
+      if (isDue) stat.due += 1;
       topicMap.set(topic, stat);
     }
   }
 
   const byTopic = [...topicMap.values()].sort((a, b) => b.count - a.count || a.topic.localeCompare(b.topic));
 
-  // Problems with no schedule at all (e.g. imported metadata only).
-  const scheduled = new Set(revisions.map((r) => r.slug));
-  for (const problem of problems) {
-    if (scheduled.has(problem.slug)) continue;
-    const stat = topicMap.get('Uncategorised');
-    if (stat) stat.count += 0;
-  }
-
   return {
     dueToday: summary.dueToday,
     overdue: summary.overdue,
     totalProblems: problemBySlug.size,
-    totalAttempts: attempts.length,
+    totalAttempts,
     revisedThisWeek,
     streak,
     byTopic,

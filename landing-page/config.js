@@ -72,8 +72,8 @@ const RECALLC_CONFIG = {
   // Loaded dynamically from /api/config or environment variables
   razorpay: {
     keyId: '',
-    merchantName: 'RecallLC',
-    merchantDescription: 'Support RecallLC Development',
+    merchantName: 'RecalLC',
+    merchantDescription: 'Support RecalLC Development',
     currency: 'INR',
     themeColor: '#7c5cff',
   },

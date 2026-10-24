@@ -103,7 +103,7 @@ npm run preview    # preview the production build
 | `npm run dev`            | Vite dev server with CRXJS HMR (content scripts reload too).                                 |
 | `npm run build`          | `tsc --noEmit` then `vite build` → `dist/`.                                                  |
 | `npm run server`         | Starts the local backend server (port 3000) for Razorpay checkout & landing page.            |
-| `npm test`               | Vitest, single run (251 unit & integration tests across 25 test suites).                     |
+| `npm test`               | Vitest, single run (258 unit & integration tests across 26 test suites).                     |
 | `npm run test:watch`     | Vitest in watch mode.                                                                        |
 | `npm run typecheck`      | Strict TypeScript check (`tsc --noEmit`).                                                    |
 | `npm run verify`         | Real-Chrome E2E verification of manifest, SW restart, IndexedDB, and UI pages via CDP.       |
@@ -417,7 +417,12 @@ npm run verify
 npm run verify:content
 ```
 
-251 unit & integration tests across 25 test files plus full Chrome E2E automation suites, covering:
+258 unit & integration tests across 26 test files plus full Chrome E2E automation suites, covering:
+
+- **Ultra-Fast Request & Response Acceleration** — in-flight request coalescing/deduplication
+  for both network and IPC messaging channels, sub-millisecond in-memory read micro-caching
+  with instant mutation invalidation, IndexedDB batching (`bulkPut` and direct count queries),
+  storage read caching, and fast network timeout protections (`AbortSignal.timeout`).
 
 - **Security & Penetration Hardening** — timing-safe comparisons (`timingSafeEqual`),
   passcode cryptographic hashing (SHA-256 + salt + pepper) with pure TS FIPS fallback,

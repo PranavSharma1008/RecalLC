@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  clearCatalogCache,
   fetchCatalogViaGraphQL,
   fetchCatalogViaLegacyApi,
   fetchSubmissionHistory,
@@ -42,6 +43,7 @@ describe('fetchCatalogViaLegacyApi', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    clearCatalogCache();
   });
 
   afterEach(() => {
@@ -111,6 +113,7 @@ describe('fetchCatalogViaGraphQL', () => {
 
   beforeEach(() => {
     vi.restoreAllMocks();
+    clearCatalogCache();
   });
 
   afterEach(() => {

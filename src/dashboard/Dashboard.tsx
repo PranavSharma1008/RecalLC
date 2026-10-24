@@ -47,6 +47,23 @@ const NAV_ITEMS: NavItem[] = [
   { path: '/support', label: 'Support', icon: '💖' },
 ];
 
+/**
+ * Determines whether a dashboard navigation tab is currently active.
+ * Handles hash routes without leading slashes and maps sub-routes like `/recall/*` to Problems.
+ */
+export function isTabActive(itemPath: string, route: { path: string; segments: string[] }): boolean {
+  const target = itemPath.replace(/^\//, '');
+  const currentSection = route.segments[0] ?? '';
+
+  if (target === '') {
+    return currentSection === '' || currentSection === 'overview';
+  }
+  if (target === 'problems') {
+    return currentSection === 'problems' || currentSection === 'recall';
+  }
+  return currentSection === target;
+}
+
 export function Dashboard() {
   const [route, navigate] = useHashRoute();
   const { settings, update, reload: reloadSettings } = useSettings();
@@ -114,7 +131,7 @@ export function Dashboard() {
     return value + overdue;
   }, [stats.data]);
 
-  const isOnboarding = route.path === '/onboarding';
+  const isOnboarding = route.path === 'onboarding' || route.path === '/onboarding';
 
   if (settings === null) {
     return (
@@ -159,43 +176,67 @@ export function Dashboard() {
           >
             <img
               src="/icons/icon48.png"
-              alt="RecallLC Logo"
+              alt="RecalLC Logo"
               className="h-7 w-7 rounded-lg object-contain drop-shadow-sm transition-transform group-hover:scale-105"
             />
             <span>
-              <span className="block text-sm font-semibold tracking-tight">RecallLC</span>
+              <span className="block text-sm font-semibold tracking-tight">RecalLC</span>
               <span className="hidden text-[11px] text-subtle sm:block">Solve it. Remember it. Master it.</span>
             </span>
           </button>
 
-          <nav className="flex items-center gap-1.5 overflow-x-auto">
+          <nav className="flex items-center gap-1.5 overflow-x-auto py-1">
             {NAV_ITEMS.map((item) => {
-              const active = route.path === item.path;
+              const active = isTabActive(item.path, route);
               return (
                 <button
                   key={item.path}
                   type="button"
                   onClick={() => navigate(item.path)}
                   aria-current={active ? 'page' : undefined}
-                  className={`group relative flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-150 cursor-pointer ${
+                  className={`group relative flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-200 cursor-pointer ${
                     active
-                      ? 'border border-accent/60 bg-accent-soft text-accent shadow-sm'
+                      ? 'border border-accent/50 bg-gradient-to-b from-accent/20 via-accent/10 to-accent-soft text-accent font-semibold shadow-[0_0_16px_-2px_rgba(124,92,255,0.35)]'
                       : 'border border-transparent text-muted hover:border-line hover:bg-surface-2 hover:text-fg'
                   }`}
                 >
+                  {/* Subtle top lighting sheen for active tab */}
+                  {active ? (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-x-2.5 top-0 h-[1px] bg-gradient-to-r from-transparent via-accent/60 to-transparent"
+                    />
+                  ) : null}
+
                   <span aria-hidden="true">{item.icon}</span>
                   <span>{item.label}</span>
                   {item.path === '/reminders' && dueBadge > 0 ? (
-                    <span className="rounded-full bg-accent px-1.5 text-[10px] font-bold text-accent-contrast">
+                    <span className="rounded-full bg-accent px-1.5 text-[10px] font-bold text-accent-contrast shadow-sm">
                       {dueBadge}
                     </span>
                   ) : null}
-                  {/* Indicator line for all tabs on click and hover */}
-                  <span
-                    className={`absolute bottom-0 left-2.5 right-2.5 h-[2px] rounded-full transition-all duration-150 ${
-                      active ? 'bg-accent opacity-100' : 'bg-accent/50 opacity-0 group-hover:opacity-100'
-                    }`}
-                  />
+
+                  {/* Active Lighting & Indicator Bar */}
+                  {active ? (
+                    <>
+                      {/* Ambient lighting glow beneath the bar */}
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute inset-x-2 -bottom-0.5 h-3 rounded-full bg-accent/40 blur-[5px]"
+                      />
+                      {/* Illuminated radiant bar */}
+                      <span
+                        aria-hidden="true"
+                        className="absolute inset-x-2 bottom-0 h-[3px] rounded-full bg-accent shadow-[0_0_10px_var(--rlc-accent),0_0_18px_var(--rlc-accent)]"
+                      />
+                    </>
+                  ) : (
+                    /* Subtle hover bar on inactive tabs */
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-x-2.5 bottom-0 h-[2px] rounded-full bg-accent/30 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                    />
+                  )}
                 </button>
               );
             })}

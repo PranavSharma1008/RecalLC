@@ -8,7 +8,7 @@ import { SupportScreen } from '../../dashboard/screens/SupportScreen';
 // @ts-expect-error React act environment flag
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
-describe('SupportScreen checkboxes', () => {
+describe('SupportScreen', () => {
   let container: HTMLDivElement;
 
   beforeEach(() => {
@@ -16,126 +16,57 @@ describe('SupportScreen checkboxes', () => {
     document.body.appendChild(container);
   });
 
-  it('allows selecting both Coffee and Claude Pro simultaneously', async () => {
+  it('renders both Razorpay and GitHub Sponsors option cards with direct external links opening in new tabs', async () => {
     const root = createRoot(container);
     await act(async () => {
       root.render(<SupportScreen />);
     });
 
-    // First select "Pay with Razorpay" to reveal payment options
-    const razorpayBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Pay with Razorpay'),
+    // Check main title
+    expect(container.textContent).toContain('Support my Free Extensions');
+
+    // Razorpay Card
+    expect(container.textContent).toContain('In India');
+    expect(container.textContent).toContain('Razorpay');
+    expect(container.textContent).toContain('Pay once, in rupees (UPI, Cards, NetBanking).');
+
+    const razorpayLink = Array.from(container.querySelectorAll('a')).find((a) =>
+      a.textContent?.includes('Pay with Razorpay'),
     );
-    expect(razorpayBtn).toBeDefined();
-    await act(async () => {
-      razorpayBtn?.click();
-    });
+    expect(razorpayLink).toBeDefined();
+    expect(razorpayLink?.getAttribute('href')).toBe('https://razorpay.me/@recallc');
+    expect(razorpayLink?.getAttribute('target')).toBe('_blank');
+    expect(razorpayLink?.getAttribute('rel')).toBe('noopener noreferrer');
 
-    const coffeeCheckbox = container.querySelector<HTMLInputElement>('input[name="coffee"]');
-    const claudeCheckbox = container.querySelector<HTMLInputElement>('input[name="claude"]');
-    expect(coffeeCheckbox).not.toBeNull();
-    expect(claudeCheckbox).not.toBeNull();
+    // GitHub Sponsors Card
+    expect(container.textContent).toContain('Outside India');
+    expect(container.textContent).toContain('GitHub Sponsors');
+    expect(container.textContent).toContain('Sponsor through GitHub, from any country.');
 
-    // Default: Coffee is checked (₹89.00), Claude is not checked
-    expect(coffeeCheckbox?.checked).toBe(true);
-    expect(claudeCheckbox?.checked).toBe(false);
-    expect(container.textContent).toContain('Pay ₹ 89.00');
+    const githubLink = Array.from(container.querySelectorAll('a')).find((a) =>
+      a.textContent?.includes('Sponsor on GitHub'),
+    );
+    expect(githubLink).toBeDefined();
+    expect(githubLink?.getAttribute('href')).toBe('https://github.com/sponsors/PranavSharma1008');
+    expect(githubLink?.getAttribute('target')).toBe('_blank');
+    expect(githubLink?.getAttribute('rel')).toBe('noopener noreferrer');
 
-    // Select Claude Pro as well (both checked)
-    await act(async () => {
-      claudeCheckbox?.click();
-    });
-
-    expect(coffeeCheckbox?.checked).toBe(true);
-    expect(claudeCheckbox?.checked).toBe(true);
-    // 89 + 2399 = 2488
-    expect(container.textContent).toContain('Pay ₹ 2,488.00');
-
-    // Unselect Coffee (only Claude Pro checked)
-    await act(async () => {
-      coffeeCheckbox?.click();
-    });
-
-    expect(coffeeCheckbox?.checked).toBe(false);
-    expect(claudeCheckbox?.checked).toBe(true);
-    expect(container.textContent).toContain('Pay ₹ 2,399.00');
-
-    // Enter custom amount
-    const customInput = container.querySelector<HTMLInputElement>('input[type="number"]');
-    expect(customInput).not.toBeNull();
-
-    await act(async () => {
-      if (customInput) {
-        const nativeSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-        nativeSetter?.call(customInput, '101');
-        customInput.dispatchEvent(new Event('input', { bubbles: true }));
-      }
-    });
-
-    // 2399 + 101 = 2500
-    expect(container.textContent).toContain('Pay ₹ 2,500.00');
+    // Does not render bottom contact/terms section
+    expect(container.textContent).not.toContain('Terms & Conditions:');
+    expect(container.textContent).not.toContain('Open in Gmail');
 
     await act(async () => {
       root.unmount();
     });
   });
 
-  it('opens payment modal, renders Back buttons, and closes when Back button is clicked', async () => {
+  it('displays thankful message banner from Pranav Sharma upon receiving PAYMENT_SUCCESS and dismisses with cross button', async () => {
     const root = createRoot(container);
     await act(async () => {
       root.render(<SupportScreen />);
     });
 
-    // First select "Pay with Razorpay" to reveal payment options
-    const razorpayBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Pay with Razorpay'),
-    );
-    expect(razorpayBtn).toBeDefined();
-    await act(async () => {
-      razorpayBtn?.click();
-    });
-
-    // Modal is initially not open
-    expect(container.querySelector('.fixed.inset-0')).toBeNull();
-
-    // Find and click the Pay button to open modal
-    const payBtn = Array.from(container.querySelectorAll('button')).find((b) => b.textContent?.includes('Pay ₹'));
-    expect(payBtn).toBeDefined();
-
-    await act(async () => {
-      payBtn?.click();
-    });
-
-    // Modal is now open
-    expect(container.querySelector('.fixed.inset-0')).not.toBeNull();
-    expect(container.querySelector('iframe')).not.toBeNull();
-
-    // Find the header "← Back" button
-    const backButtons = Array.from(container.querySelectorAll('button')).filter((b) =>
-      b.textContent?.includes('← Back'),
-    );
-    expect(backButtons.length).toBeGreaterThanOrEqual(1);
-
-    // Click the top Back button to close modal
-    await act(async () => {
-      backButtons[0]?.click();
-    });
-
-    // Modal should now be closed
-    expect(container.querySelector('.fixed.inset-0')).toBeNull();
-
-    await act(async () => {
-      root.unmount();
-    });
-  });
-
-  it('displays thankful message from Pranav Sharma upon payment success and dismisses with cross button', async () => {
-    const root = createRoot(container);
-    await act(async () => {
-      root.render(<SupportScreen />);
-    });
-
-    // Simulate PAYMENT_SUCCESS event from iframe
+    // Simulate PAYMENT_SUCCESS event
     await act(async () => {
       window.dispatchEvent(
         new MessageEvent('message', {
@@ -150,6 +81,7 @@ describe('SupportScreen checkboxes', () => {
 
     // The thankful message banner from Pranav Sharma should appear on screen
     expect(container.textContent).toContain('A heartfelt thank you from Pranav Sharma!');
+    expect(container.textContent).toContain('₹89.00');
     expect(container.textContent).toContain('pay_test_thankyou_999');
 
     // Find the cross button (✕) to dismiss
@@ -162,50 +94,6 @@ describe('SupportScreen checkboxes', () => {
 
     // The thankful message should be dismissed
     expect(container.textContent).not.toContain('A heartfelt thank you from Pranav Sharma!');
-
-    await act(async () => {
-      root.unmount();
-    });
-  });
-
-  it('hides both payment option cards when Razorpay details page is opened, and restores them on Back', async () => {
-    const root = createRoot(container);
-    await act(async () => {
-      root.render(<SupportScreen />);
-    });
-
-    // Both option cards are initially present
-    expect(container.textContent).toContain('Pay with Razorpay');
-    expect(container.textContent).toContain('Sponsor on GitHub');
-    expect(container.querySelector('#payment-details-section')).toBeNull();
-
-    // Click "Pay with Razorpay"
-    const razorpayBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Pay with Razorpay'),
-    );
-    await act(async () => {
-      razorpayBtn?.click();
-    });
-
-    // Next page: both option cards are REMOVED from the view
-    expect(container.querySelector('#payment-details-section')).not.toBeNull();
-    expect(container.textContent).not.toContain('Sponsor on GitHub');
-    expect(container.textContent).toContain('Back to all payment options');
-
-    // Click "Back to all payment options"
-    const backToOptionsBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Back to all payment options'),
-    );
-    expect(backToOptionsBtn).toBeDefined();
-
-    await act(async () => {
-      backToOptionsBtn?.click();
-    });
-
-    // Both payment option cards are restored
-    expect(container.querySelector('#payment-details-section')).toBeNull();
-    expect(container.textContent).toContain('Pay with Razorpay');
-    expect(container.textContent).toContain('Sponsor on GitHub');
 
     await act(async () => {
       root.unmount();

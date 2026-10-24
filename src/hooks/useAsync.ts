@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { invalidateServiceCache } from '../services/messaging';
+
 export interface AsyncState<T> {
   data: T | null;
   loading: boolean;
@@ -49,7 +51,10 @@ export function useAsync<T>(loader: () => Promise<T>, deps: unknown[] = []): Asy
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [...deps, nonce]);
 
-  const reload = useCallback(() => setNonce((value) => value + 1), []);
+  const reload = useCallback(() => {
+    invalidateServiceCache();
+    setNonce((value) => value + 1);
+  }, []);
 
   const update = useCallback((updater: T | ((current: T | null) => T | null)) => {
     setData((current) =>

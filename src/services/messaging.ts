@@ -101,24 +101,103 @@ function isServiceEnvelope(value: unknown): value is ServiceEnvelope | ServiceEr
   );
 }
 
-/** Call a service method on the background worker. */
+/** Read methods eligible for high-speed in-memory caching & request coalescing */
+const CACHABLE_READ_METHODS = new Set<ServiceMethod>([
+  'stats',
+  'list-due',
+  'list-problems',
+  'get-problem',
+  'get-reminder',
+  'get-settings',
+  'catalog-needed',
+  'import-history',
+]);
+
+interface CacheEntry<T> {
+  data: T;
+  cachedAt: number;
+}
+
+const serviceCache = new Map<string, CacheEntry<unknown>>();
+const inFlightRequests = new Map<string, Promise<unknown>>();
+const DEFAULT_CACHE_TTL_MS = 1200;
+
+/** Invalidate all or specific cached service responses */
+export function invalidateServiceCache(method?: ServiceMethod): void {
+  if (method) {
+    const prefix = `${method}:`;
+    for (const key of serviceCache.keys()) {
+      if (key.startsWith(prefix)) {
+        serviceCache.delete(key);
+      }
+    }
+  } else {
+    serviceCache.clear();
+  }
+}
+
+export interface CallOptions {
+  bypassCache?: boolean;
+}
+
+/** Call a service method on the background worker with ultra-fast caching and coalescing. */
 export async function callService<K extends ServiceMethod>(
   method: K,
   payload?: ServiceMap[K]['payload'],
+  options?: CallOptions,
 ): Promise<ServiceMap[K]['response']> {
-  const envelope: Envelope<K> = { channel: MESSAGE_CHANNEL, method, payload };
-  const response = (await chrome.runtime.sendMessage(envelope)) as ServiceEnvelope | ServiceErrorEnvelope | undefined;
+  const isCachable = CACHABLE_READ_METHODS.has(method);
+  const cacheKey = `${method}:${payload ? JSON.stringify(payload) : ''}`;
 
-  if (!response) {
-    throw new Error('The RecallLC background worker did not respond.');
+  // If a mutation/write method is called, immediately invalidate cached reads
+  if (!isCachable) {
+    invalidateServiceCache();
   }
-  if (isServiceEnvelope(response)) {
-    if (!response.ok) {
-      throw new Error((response as ServiceErrorEnvelope).error);
+
+  // Check ultra-fast in-memory cache for read methods
+  if (isCachable && !options?.bypassCache) {
+    const cached = serviceCache.get(cacheKey);
+    if (cached && Date.now() - cached.cachedAt < DEFAULT_CACHE_TTL_MS) {
+      return cached.data as ServiceMap[K]['response'];
     }
-    return response.data as ServiceMap[K]['response'];
   }
-  throw new Error('The RecallLC background worker returned an unreadable response.');
+
+  // Deduplicate in-flight requests for identical method + payload
+  if (inFlightRequests.has(cacheKey) && !options?.bypassCache) {
+    return inFlightRequests.get(cacheKey) as Promise<ServiceMap[K]['response']>;
+  }
+
+  const envelope: Envelope<K> = { channel: MESSAGE_CHANNEL, method, payload };
+
+  const execute = async (): Promise<ServiceMap[K]['response']> => {
+    try {
+      const response = (await chrome.runtime.sendMessage(envelope)) as
+        ServiceEnvelope | ServiceErrorEnvelope | undefined;
+
+      if (!response) {
+        throw new Error('The RecallLC background worker did not respond.');
+      }
+      if (isServiceEnvelope(response)) {
+        if (!response.ok) {
+          throw new Error((response as ServiceErrorEnvelope).error);
+        }
+        const data = response.data as ServiceMap[K]['response'];
+        if (isCachable) {
+          serviceCache.set(cacheKey, { data, cachedAt: Date.now() });
+        } else {
+          invalidateServiceCache();
+        }
+        return data;
+      }
+      throw new Error('The RecallLC background worker returned an unreadable response.');
+    } finally {
+      inFlightRequests.delete(cacheKey);
+    }
+  };
+
+  const promise = execute();
+  inFlightRequests.set(cacheKey, promise);
+  return promise;
 }
 
 /** Build the success envelope (service-worker side). */

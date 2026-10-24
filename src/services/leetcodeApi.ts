@@ -80,39 +80,81 @@ interface GraphQLResponse<T> {
   errors?: Array<{ message?: string }>;
 }
 
+const inFlightGraphQL = new Map<string, Promise<unknown>>();
+let cachedGraphQLCatalog: LeetCodeProblemMeta[] | null = null;
+let cachedGraphQLCatalogTime = 0;
+let cachedLegacyCatalog: LeetCodeProblemMeta[] | null = null;
+let cachedLegacyCatalogTime = 0;
+const CATALOG_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+/** Clear the catalogue cache (used in tests or manual refresh) */
+export function clearCatalogCache(): void {
+  cachedGraphQLCatalog = null;
+  cachedGraphQLCatalogTime = 0;
+  cachedLegacyCatalog = null;
+  cachedLegacyCatalogTime = 0;
+  inFlightGraphQL.clear();
+}
+
 async function graphql<T>(query: string, variables: Record<string, unknown> = {}): Promise<T> {
-  let response: Response;
-  try {
-    response = await fetch(GRAPHQL_ENDPOINT, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ query, variables }),
-    });
-  } catch (error) {
-    throw new Error(
-      `Could not reach LeetCode: ${error instanceof Error ? error.message : 'network error'}. ` +
-        'Check your connection and try again.',
-    );
+  const cacheKey = JSON.stringify({ query, variables });
+  if (inFlightGraphQL.has(cacheKey)) {
+    return inFlightGraphQL.get(cacheKey) as Promise<T>;
   }
 
-  if (response.status === 401 || response.status === 403) {
-    throw new Error('LeetCode refused the request. Open leetcode.com in a tab and try again.');
-  }
-  if (!response.ok) {
-    throw new Error(`LeetCode responded with HTTP ${response.status}.`);
-  }
+  const execute = async (): Promise<T> => {
+    let response: Response;
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timeoutId = controller ? setTimeout(() => controller.abort(), 10000) : null;
 
-  const payload = (await response.json()) as GraphQLResponse<T>;
-  if (payload.errors && payload.errors.length > 0) {
-    const first = payload.errors[0];
-    throw new Error(first?.message ? `LeetCode error: ${first.message}` : 'LeetCode rejected the query.');
-  }
-  if (!payload.data) throw new Error('LeetCode returned an empty response.');
-  return payload.data;
+    try {
+      response = await fetch(GRAPHQL_ENDPOINT, {
+        method: 'POST',
+        credentials: 'include',
+        signal: controller?.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'Cache-Control': 'no-cache',
+        },
+        body: JSON.stringify({ query, variables }),
+      });
+    } catch (error) {
+      if (controller?.signal.aborted) {
+        throw new Error('LeetCode request timed out. Check your connection and try again.');
+      }
+      throw new Error(
+        `Could not reach LeetCode: ${error instanceof Error ? error.message : 'network error'}. ` +
+          'Check your connection and try again.',
+      );
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('LeetCode refused the request. Open leetcode.com in a tab and try again.');
+    }
+    if (response.status === 429) {
+      throw new Error('Rate limit exceeded. Please wait a moment before trying again.');
+    }
+    if (!response.ok) {
+      throw new Error(`LeetCode responded with HTTP ${response.status}.`);
+    }
+
+    const payload = (await response.json()) as GraphQLResponse<T>;
+    if (payload.errors && payload.errors.length > 0) {
+      const first = payload.errors[0];
+      throw new Error(first?.message ? `LeetCode error: ${first.message}` : 'LeetCode rejected the query.');
+    }
+    if (!payload.data) throw new Error('LeetCode returned an empty response.');
+    return payload.data;
+  };
+
+  const promise = execute().finally(() => {
+    inFlightGraphQL.delete(cacheKey);
+  });
+  inFlightGraphQL.set(cacheKey, promise);
+  return promise;
 }
 
 function mapDifficulty(value: unknown): Difficulty {
@@ -126,7 +168,11 @@ function mapDifficulty(value: unknown): Difficulty {
  * Fetch the full public problem catalogue, including topic tags.
  * Must be called from a leetcode.com page context.
  */
-export async function fetchCatalogViaGraphQL(): Promise<LeetCodeProblemMeta[]> {
+export async function fetchCatalogViaGraphQL(bypassCache: boolean = false): Promise<LeetCodeProblemMeta[]> {
+  if (!bypassCache && cachedGraphQLCatalog && Date.now() - cachedGraphQLCatalogTime < CATALOG_CACHE_TTL_MS) {
+    return cachedGraphQLCatalog;
+  }
+
   const data = await graphql<{
     problemsetQuestionList: {
       questions: Array<{
@@ -140,13 +186,17 @@ export async function fetchCatalogViaGraphQL(): Promise<LeetCodeProblemMeta[]> {
   }>(CATALOG_QUERY);
 
   const questions = data?.problemsetQuestionList?.questions ?? [];
-  return questions.map((question) => ({
+  const result = questions.map((question) => ({
     slug: question.titleSlug,
     title: question.title,
     difficulty: mapDifficulty(question.difficulty),
     topics: (question.topicTags ?? []).map((tag) => tag.name).filter(Boolean),
     paidOnly: Boolean(question.paidOnly),
   }));
+
+  cachedGraphQLCatalog = result;
+  cachedGraphQLCatalogTime = Date.now();
+  return result;
 }
 
 interface LegacyCatalogEntry {
@@ -160,24 +210,47 @@ interface LegacyCatalogEntry {
  * Works from the service worker (host permission) and from the page.
  * Does **not** include topic tags — those come from GraphQL only.
  */
-export async function fetchCatalogViaLegacyApi(): Promise<LeetCodeProblemMeta[]> {
-  const response = await fetch(LEGACY_CATALOG_ENDPOINT, {
-    method: 'GET',
-    credentials: 'omit',
-    headers: { Accept: 'application/json' },
-  });
+export async function fetchCatalogViaLegacyApi(bypassCache: boolean = false): Promise<LeetCodeProblemMeta[]> {
+  if (!bypassCache && cachedLegacyCatalog && Date.now() - cachedLegacyCatalogTime < CATALOG_CACHE_TTL_MS) {
+    return cachedLegacyCatalog;
+  }
+
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeoutId = controller ? setTimeout(() => controller.abort(), 10000) : null;
+  let response: Response;
+
+  try {
+    response = await fetch(LEGACY_CATALOG_ENDPOINT, {
+      method: 'GET',
+      credentials: 'omit',
+      signal: controller?.signal,
+      headers: { Accept: 'application/json' },
+    });
+  } catch (error) {
+    if (controller?.signal.aborted) {
+      throw new Error('Public problem list request timed out.');
+    }
+    throw error;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+
   if (!response.ok) {
     throw new Error(`The public problem list responded with HTTP ${response.status}.`);
   }
   const payload = (await response.json()) as { stat_status_pairs?: LegacyCatalogEntry[] };
   const pairs = payload?.stat_status_pairs ?? [];
-  return pairs.map((pair) => ({
+  const result = pairs.map((pair) => ({
     slug: pair.stat?.question__title_slug ?? '',
     title: pair.stat?.question__title ?? '',
     difficulty: mapDifficultyLevel(pair.difficulty?.level),
     topics: [],
     paidOnly: Boolean(pair.paid_only),
   }));
+
+  cachedLegacyCatalog = result;
+  cachedLegacyCatalogTime = Date.now();
+  return result;
 }
 
 function mapDifficultyLevel(level: number | undefined): Difficulty {

@@ -344,6 +344,8 @@ function isPrivilegedSender(sender: chrome.runtime.MessageSender): boolean {
   return false;
 }
 
+const inFlightWorkerHandlers = new Map<string, Promise<unknown>>();
+
 chrome.runtime.onMessage.addListener(
   (message: unknown, sender: chrome.runtime.MessageSender, sendResponse: (response: unknown) => void) => {
     if (typeof message !== 'object' || message === null) return false;
@@ -368,7 +370,30 @@ chrome.runtime.onMessage.addListener(
       return false;
     }
 
-    handler(envelope.payload as never)
+    const cacheKey = `${method}:${envelope.payload ? JSON.stringify(envelope.payload) : ''}`;
+    const isCoalescable =
+      method === 'stats' ||
+      method === 'list-due' ||
+      method === 'list-problems' ||
+      method === 'get-problem' ||
+      method === 'get-reminder';
+
+    if (isCoalescable && inFlightWorkerHandlers.has(cacheKey)) {
+      (inFlightWorkerHandlers.get(cacheKey) as Promise<unknown>)
+        .then((data) => sendResponse(ok(data) satisfies ServiceEnvelope))
+        .catch((error: unknown) => sendResponse(fail(error) satisfies ServiceErrorEnvelope));
+      return true;
+    }
+
+    const handlerPromise = handler(envelope.payload as never);
+    if (isCoalescable) {
+      inFlightWorkerHandlers.set(cacheKey, handlerPromise);
+      handlerPromise.finally(() => {
+        inFlightWorkerHandlers.delete(cacheKey);
+      });
+    }
+
+    handlerPromise
       .then((data) => sendResponse(ok(data) satisfies ServiceEnvelope))
       .catch((error: unknown) => sendResponse(fail(error) satisfies ServiceErrorEnvelope));
 

@@ -13,16 +13,16 @@ import { defineManifest } from '@crxjs/vite-plugin';
  */
 export default defineManifest({
   manifest_version: 3,
-  name: 'RecallLC — Smart LeetCode Revision',
-  short_name: 'RecallLC',
+  name: 'RecalLC — Smart LeetCode Revision',
+  short_name: 'RecalLC',
   version: '1.0.0',
   description:
-    'Revise the LeetCode problems you already solved — RecallLC nudges you to review an older problem, at the moment you open a new one.',
+    'Revise the LeetCode problems you already solved — RecalLC nudges you to review an older problem, at the moment you open a new one.',
   minimum_chrome_version: '116',
 
   action: {
     default_popup: 'src/popup/index.html',
-    default_title: 'RecallLC — Smart LeetCode Revision',
+    default_title: 'RecalLC — Smart LeetCode Revision',
     default_icon: {
       16: 'icons/icon16.png',
       32: 'icons/icon32.png',

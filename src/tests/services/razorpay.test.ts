@@ -12,6 +12,10 @@ function createMockReqRes(body: unknown, method = 'POST') {
   let statusCode = 200;
   let headers: Record<string, string> = {};
   let responseData = '';
+  let resolveResult: (val: { status: number; headers: Record<string, string>; data: any }) => void;
+  const resultPromise = new Promise<{ status: number; headers: Record<string, string>; data: any }>((resolve) => {
+    resolveResult = resolve;
+  });
 
   const res = {
     writeHead: (code: number, hdrs: Record<string, string>) => {
@@ -20,6 +24,11 @@ function createMockReqRes(body: unknown, method = 'POST') {
     },
     end: (chunk?: string) => {
       if (chunk) responseData += chunk;
+      try {
+        resolveResult({ status: statusCode, headers, data: JSON.parse(responseData) });
+      } catch {
+        resolveResult({ status: statusCode, headers, data: responseData });
+      }
     },
   } as unknown as http.ServerResponse;
 
@@ -32,16 +41,7 @@ function createMockReqRes(body: unknown, method = 'POST') {
   return {
     req,
     res,
-    getResult: () =>
-      new Promise<{ status: number; headers: Record<string, string>; data: any }>((resolve) => {
-        setTimeout(() => {
-          try {
-            resolve({ status: statusCode, headers, data: JSON.parse(responseData) });
-          } catch {
-            resolve({ status: statusCode, headers, data: responseData });
-          }
-        }, 1500);
-      }),
+    getResult: () => resultPromise,
   };
 }
 

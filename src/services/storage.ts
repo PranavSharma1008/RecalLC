@@ -175,13 +175,40 @@ function storageArea(): chrome.storage.StorageArea | null {
   return null;
 }
 
-/** Read the effective settings. Falls back to defaults when unavailable. */
+let cachedSettings: UserSettings | null = null;
+let cachedSettingsTime = 0;
+const SETTINGS_CACHE_TTL_MS = 2500;
+
+/** Clear in-memory settings cache */
+export function clearSettingsCache(): void {
+  cachedSettings = null;
+  cachedSettingsTime = 0;
+}
+
+try {
+  globalThis.chrome?.storage?.onChanged?.addListener((changes, areaName) => {
+    if (areaName === 'local' && changes[SETTINGS_KEY]) {
+      cachedSettings = mergeSettings(changes[SETTINGS_KEY].newValue);
+      cachedSettingsTime = Date.now();
+    }
+  });
+} catch {
+  // Ignore in environments without chrome.storage
+}
+
+/** Read the effective settings with ultra-fast memory cache. Falls back to defaults when unavailable. */
 export async function readSettings(): Promise<UserSettings> {
+  if (cachedSettings && Date.now() - cachedSettingsTime < SETTINGS_CACHE_TTL_MS) {
+    return cachedSettings;
+  }
   const area = storageArea();
   if (!area) return { ...DEFAULT_SETTINGS, intervals: { ...DEFAULT_INTERVALS } };
   try {
     const result = await area.get(SETTINGS_KEY);
-    return mergeSettings(result?.[SETTINGS_KEY]);
+    const settings = mergeSettings(result?.[SETTINGS_KEY]);
+    cachedSettings = settings;
+    cachedSettingsTime = Date.now();
+    return settings;
   } catch {
     return { ...DEFAULT_SETTINGS, intervals: { ...DEFAULT_INTERVALS } };
   }
@@ -191,6 +218,8 @@ export async function readSettings(): Promise<UserSettings> {
 export async function writeSettings(patch: Partial<UserSettings>): Promise<UserSettings> {
   const current = await readSettings();
   const next = mergeSettings({ ...current, ...patch });
+  cachedSettings = next;
+  cachedSettingsTime = Date.now();
   const area = storageArea();
   if (area) await area.set({ [SETTINGS_KEY]: next });
   return next;
@@ -200,6 +229,8 @@ export async function writeSettings(patch: Partial<UserSettings>): Promise<UserS
 export async function resetSettings(): Promise<UserSettings> {
   const area = storageArea();
   const next = { ...DEFAULT_SETTINGS, intervals: { ...DEFAULT_INTERVALS } };
+  cachedSettings = next;
+  cachedSettingsTime = Date.now();
   if (area) await area.set({ [SETTINGS_KEY]: next });
   return next;
 }

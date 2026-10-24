@@ -2,7 +2,7 @@
   "name": "recalllc",
   "version": "1.0.0",
   "private": true,
-  "description": "RecallLC — Smart LeetCode revision. Solve it. Remember it. Master it.",
+  "description": "RecalLC — Smart LeetCode revision. Solve it. Remember it. Master it.",
   "type": "module",
   "scripts": {
     "dev": "vite",
