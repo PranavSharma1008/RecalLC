@@ -1,7 +1,5 @@
 import { useEffect, useId, useState } from 'react';
 
-import { Button } from '../../components/ui/Button';
-
 /**
  * Razorpay Payment Configuration
  *
@@ -37,15 +35,25 @@ export function SupportScreen() {
 
   // Listen for payment events from embedded checkout iframe
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     function handleMessage(event: MessageEvent) {
       if (event.data?.type === 'PAYMENT_SUCCESS') {
         setPaymentSuccess(true);
-      } else if (event.data?.type === 'PAYMENT_CANCELLED') {
+        // Automatically redirect back to the previous screen after 2 seconds
+        timer = setTimeout(() => {
+          setShowPaymentModal(false);
+          setPaymentSuccess(false);
+        }, 2000);
+      } else if (event.data?.type === 'PAYMENT_CANCELLED' || event.data?.type === 'PAYMENT_REDIRECT') {
         setShowPaymentModal(false);
+        setPaymentSuccess(false);
       }
     }
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      if (timer) clearTimeout(timer);
+    };
   }, []);
 
   const customInputId = useId();
@@ -54,15 +62,6 @@ export function SupportScreen() {
 
   const customVal = Number.parseFloat(customAmount) || 0;
   const currentAmount = (coffeeSelected ? 89 : 0) + (claudeSelected ? 2399 : 0) + (customVal > 0 ? customVal : 0);
-
-  function handleLaunchCheckout(amount: number): void {
-    const url = `${RAZORPAY_CONFIG.checkoutUrl}/checkout.html?amount=${amount}`;
-    if (typeof chrome !== 'undefined' && chrome.tabs && chrome.tabs.create) {
-      chrome.tabs.create({ url });
-    } else if (typeof window !== 'undefined') {
-      window.open(url, '_blank');
-    }
-  }
 
   function handlePayClick(): void {
     setShowPaymentModal(true);
@@ -372,107 +371,68 @@ export function SupportScreen() {
         </div>
       </div>
 
-      {/* Interactive Razorpay Embedded Modal */}
+      {/* Full-Mode Razorpay Gateway Overlay on Same Page */}
       {showPaymentModal ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-3 sm:p-4"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowPaymentModal(false);
-          }}
-        >
-          <div className="rlc-card w-full max-w-lg my-auto max-h-[94vh] flex flex-col p-0 shadow-2xl border border-line overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-50 flex flex-col bg-[#0b0e14] animate-in fade-in duration-150">
+          {/* Top Bar with Back Button and Live Gateway Info */}
+          <div className="flex h-14 shrink-0 items-center justify-between border-b border-line bg-surface-1 px-4 sm:px-6">
+            <button
+              type="button"
+              onClick={() => {
+                setShowPaymentModal(false);
+                setPaymentSuccess(false);
+              }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3.5 py-1.5 text-xs font-semibold text-fg hover:bg-surface-3 transition-colors cursor-pointer"
+            >
+              <span>← Back</span>
+            </button>
+
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-2">
+                <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                <h3 className="text-sm font-bold text-fg">Razorpay Gateway</h3>
+              </div>
+              <p className="text-[10px] text-muted">
+                ₹ {currentAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} •
+                Recipient: {RAZORPAY_CONFIG.developerName}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setShowPaymentModal(false);
+                setPaymentSuccess(false);
+              }}
+              className="rounded-lg p-1.5 text-subtle hover:text-fg hover:bg-surface-2 transition-colors text-sm cursor-pointer"
+              aria-label="Close modal"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Full-bleed Content Area */}
+          <div className="relative flex-1 w-full h-full overflow-hidden bg-[#0b0e14]">
             {paymentSuccess ? (
-              <div className="text-center p-6 sm:p-8 space-y-4">
-                <span className="text-5xl">🎉</span>
-                <h3 className="text-xl font-bold text-fg">Thank You for Your Support!</h3>
-                <p className="text-xs text-muted">
-                  Your contribution helps keep RecallLC free, open, and private for developers everywhere.
+              <div className="h-full flex flex-col items-center justify-center p-6 text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                <span className="text-6xl animate-bounce">🎉</span>
+                <h3 className="text-2xl font-bold text-fg">Payment Successful!</h3>
+                <p className="text-sm text-muted max-w-md">
+                  Thank you for your generous support of RecallLC! Your contribution helps keep this extension open and
+                  private.
                 </p>
-                <div className="pt-2">
-                  <Button
-                    variant="primary"
-                    size="md"
-                    onClick={() => {
-                      setPaymentSuccess(false);
-                      setShowPaymentModal(false);
-                    }}
-                  >
-                    Close
-                  </Button>
+                <div className="flex items-center gap-2 text-xs text-emerald-400 font-semibold pt-2">
+                  <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin" />
+                  <span>Redirecting back to dashboard...</span>
                 </div>
               </div>
             ) : (
-              <>
-                {/* Sticky Header with Back Button */}
-                <div className="sticky top-0 z-10 flex items-center justify-between border-b border-line bg-surface-1 px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowPaymentModal(false)}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-xs font-semibold text-fg hover:bg-surface-3 transition-colors"
-                  >
-                    <span>←</span> Back
-                  </button>
-
-                  <div className="text-center">
-                    <h3 className="text-sm font-bold text-fg">Razorpay Gateway</h3>
-                    <p className="text-[10px] text-muted">
-                      ₹ {currentAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{' '}
-                      • Recipient: {RAZORPAY_CONFIG.developerName}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowPaymentModal(false)}
-                    className="rounded-lg p-1.5 text-subtle hover:text-fg hover:bg-surface-2 transition-colors text-sm"
-                    aria-label="Close modal"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                {/* Scrollable Content Area */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  <div className="rounded-xl bg-surface-2 p-3 text-left border border-line text-[11px] space-y-1">
-                    <div className="flex items-center gap-1.5 font-semibold text-emerald-400">
-                      <span>🔒</span> Razorpay Live Secure Gateway
-                    </div>
-                    <p className="text-muted text-[10px]">
-                      Payments are secured with 256-bit SSL encryption. Accepts UPI (GPay, PhonePe, Paytm), Credit/Debit
-                      Cards, and NetBanking.
-                    </p>
-                  </div>
-
-                  {/* Embedded Razorpay Checkout iframe (Runs directly inside extension) */}
-                  <div className="relative w-full rounded-xl overflow-hidden border border-line bg-surface-2 shadow-inner">
-                    <iframe
-                      src={`${RAZORPAY_CONFIG.checkoutUrl}/checkout.html?amount=${currentAmount}`}
-                      className="w-full h-[500px] border-0"
-                      allow="payment *"
-                      title="Razorpay Secure Checkout"
-                    />
-                  </div>
-                </div>
-
-                {/* Bottom Navigation with Back Button */}
-                <div className="border-t border-line bg-surface-1 px-4 py-2.5 flex items-center justify-between text-xs">
-                  <button
-                    type="button"
-                    onClick={() => setShowPaymentModal(false)}
-                    className="rounded-lg border border-line bg-surface-2 px-3.5 py-1.5 font-semibold text-muted hover:text-fg hover:border-line-strong transition-colors"
-                  >
-                    ← Back to Options
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleLaunchCheckout(currentAmount)}
-                    className="text-[11px] text-accent hover:underline inline-flex items-center gap-1"
-                  >
-                    Open in separate tab ↗
-                  </button>
-                </div>
-              </>
+              <iframe
+                src={`${RAZORPAY_CONFIG.checkoutUrl}/checkout.html?amount=${currentAmount}`}
+                className="w-full h-full border-0"
+                allow="payment *"
+                title="Razorpay Secure Checkout"
+              />
             )}
           </div>
         </div>
