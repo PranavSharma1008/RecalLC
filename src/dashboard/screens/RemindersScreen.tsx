@@ -118,24 +118,6 @@ export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
               ? `${dueList.length} problem${dueList.length === 1 ? '' : 's'} scheduled for revision today`
               : 'All caught up — no reminders due today'
           }
-          action={
-            dueList.length > 0 ? (
-              <div className="flex gap-2">
-                <Button variant="primary" size="sm" onClick={() => navigate(`/recall/${dueList[0]!.slug}`)}>
-                  🎯 Revise next
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => {
-                    void callService('open-problem', { url: dueList[0]!.url });
-                  }}
-                >
-                  🌐 Open on LeetCode
-                </Button>
-              </div>
-            ) : null
-          }
         />
         <div className="border-t border-line px-4 py-3">
           <div className="flex flex-wrap items-center gap-3 text-xs">
