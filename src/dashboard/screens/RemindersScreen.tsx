@@ -199,6 +199,7 @@ export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
                   dueAt={candidate.dueAt}
                   overdue={candidate.overdue}
                   daysUntilDue={entry?.daysUntilDue ?? 0}
+                  onRevise={() => navigate(`/recall/${candidate.slug}`)}
                   onReschedule={() => setRescheduleFor(rescheduleFor === candidate.slug ? null : candidate.slug)}
                   rescheduleContent={
                     rescheduleFor === candidate.slug ? (

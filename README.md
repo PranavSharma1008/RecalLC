@@ -102,11 +102,13 @@ npm run preview    # preview the production build
 | ------------------------ | -------------------------------------------------------------------------------------------- |
 | `npm run dev`            | Vite dev server with CRXJS HMR (content scripts reload too).                                 |
 | `npm run build`          | `tsc --noEmit` then `vite build` → `dist/`.                                                  |
-| `npm test`               | Vitest, single run (149 unit tests across 10 suites).                                        |
+| `npm run server`         | Starts the local backend server (port 3000) for Razorpay checkout & landing page.            |
+| `npm test`               | Vitest, single run (251 unit & integration tests across 25 test suites).                     |
 | `npm run test:watch`     | Vitest in watch mode.                                                                        |
 | `npm run typecheck`      | Strict TypeScript check (`tsc --noEmit`).                                                    |
 | `npm run verify`         | Real-Chrome E2E verification of manifest, SW restart, IndexedDB, and UI pages via CDP.       |
 | `npm run verify:content` | Real-Chrome E2E verification of the in-page reminder island and verdict submission tracking. |
+| `npm run package`        | Builds production extension and creates distributable `recalllc-v1.0.0.zip`.                 |
 | `npm run screenshot`     | Captures popup and dashboard screenshots via headless Chrome.                                |
 | `npm run format`         | Formats codebase using Prettier.                                                             |
 | `npm run format:check`   | Verifies code formatting against Prettier rules.                                             |
@@ -415,8 +417,27 @@ npm run verify
 npm run verify:content
 ```
 
-149 unit tests across 10 files plus full Chrome E2E automation suites, covering:
+251 unit & integration tests across 25 test files plus full Chrome E2E automation suites, covering:
 
+- **Security & Penetration Hardening** — timing-safe comparisons (`timingSafeEqual`),
+  passcode cryptographic hashing (SHA-256 + salt + pepper) with pure TS FIPS fallback,
+  anti-brute-force lockout and storage-backed rate limiting, safe URL validation
+  against malicious schemes (`javascript:`, `data:`, `vbscript:`, protocol-relative `//`),
+  and HTML sanitization.
+- **IPC & Cross-Context Security** — internal extension origin validation for
+  privileged service worker actions (`export`, `restore`, `clear-all`, `delete-problem`,
+  `update-settings`) restricting execution strictly to `chrome.runtime.id`, preventing
+  content scripts and third-party extensions from escalating privileges.
+- **Backend & Razorpay Standard Checkout** — HMAC-SHA256 signature verification,
+  secure order creation with parameter validation, rate limiting per IP,
+  strict CORS whitelisting, and OWASP security headers.
+- **CSV & Import Defense** — formula injection neutralization (CWE-1236) by prefixing
+  formula characters (`=`, `+`, `-`, `@`, `\t`) with apostrophes, and prototype
+  pollution immunity against `__proto__` and `constructor.prototype` in JSON imports.
+- **Inline Rocket Push Button** — mounting between LeetCode "Analysis" and "Solution"
+  action buttons across SPA navigations, solution code extraction, and deduplicated notes.
+- **Eventual Development & State Resilience** — corrupted backup restoration,
+  NaN timestamp recovery, rapid sequential attempt deduplication, and session expiration boundaries.
 - **Revision engine** — interval calculations, due-today/overdue detection,
   snoozing, dismissal (and that neither reschedules), paused problems,
   current-problem exclusion, overdue and struggle prioritisation, streaks.
@@ -447,7 +468,7 @@ npm run verify:content
 
 The repository tests run against a real IndexedDB implementation
 (`fake-indexeddb`), so the actual database code path — including schema
-versioning — is exercised.
+versioning — is exercised. Verified on Chrome 156.
 
 ---
 
