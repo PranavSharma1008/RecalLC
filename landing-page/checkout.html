@@ -171,6 +171,9 @@
         const urlParams = new URLSearchParams(window.location.search);
         const amountNum = parseFloat(urlParams.get('amount')) || 89;
         const amountPaise = Math.max(100, Math.round(amountNum * 100));
+        const emailParam = (urlParams.get('email') || '').trim();
+        const contactParam = (urlParams.get('contact') || '').trim();
+        const nameParam = (urlParams.get('name') || '').trim();
 
         let currentOrderId = null;
         let rzpInstance = null;
@@ -236,6 +239,12 @@
             descEl.textContent = 'Opening Razorpay checkout...';
             spinnerEl.style.display = 'none';
 
+            // Dynamically construct prefill: omit empty fields so Razorpay keeps them optional/clean
+            const prefill = {};
+            if (emailParam) prefill.email = emailParam;
+            if (contactParam) prefill.contact = contactParam;
+            if (nameParam) prefill.name = nameParam;
+
             // 3. Launch Checkout in full mode
             const options = {
               key: keyId,
@@ -268,10 +277,7 @@
                 color: '#7c5cff',
                 backdrop_color: 'rgba(11, 14, 20, 0.9)',
               },
-              prefill: {
-                name: 'Pranav Sharma',
-                email: 'support@recalllc.dev',
-              },
+              prefill: prefill,
             };
 
             rzpInstance = new window.Razorpay(options);

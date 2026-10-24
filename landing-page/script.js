@@ -245,11 +245,7 @@ async function triggerRazorpayCheckout(amountPaise = 29900, btn = null) {
         theme: {
           color: '#7c5cff',
         },
-        prefill: {
-          name: 'Pranav Sharma',
-          email: 'support@recalllc.dev',
-          contact: '9999999999',
-        },
+        prefill: {},
       };
 
       // @ts-ignore

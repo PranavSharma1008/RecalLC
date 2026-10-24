@@ -321,7 +321,7 @@ export function SupportScreen() {
             {/* Email Field */}
             <div>
               <label htmlFor={emailInputId} className="block text-xs font-medium text-muted">
-                Email <span className="text-danger">*</span>
+                Email <span className="text-subtle">(optional, for receipt)</span>
               </label>
               <input
                 id={emailInputId}
@@ -330,7 +330,6 @@ export function SupportScreen() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="rlc-input mt-1 text-xs"
-                required
               />
             </div>
 
@@ -428,7 +427,7 @@ export function SupportScreen() {
               </div>
             ) : (
               <iframe
-                src={`${RAZORPAY_CONFIG.checkoutUrl}/checkout.html?amount=${currentAmount}`}
+                src={`${RAZORPAY_CONFIG.checkoutUrl}/checkout.html?amount=${currentAmount}${email.trim() ? `&email=${encodeURIComponent(email.trim())}` : ''}`}
                 className="w-full h-full border-0"
                 allow="payment *"
                 title="Razorpay Secure Checkout"
