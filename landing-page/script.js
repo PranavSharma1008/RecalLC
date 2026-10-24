@@ -225,7 +225,7 @@ async function triggerRazorpayCheckout(amountPaise = 29900, btn = null) {
       }
 
       const options = {
-        key: keyId || 'rzp_test_TrfV1O5whxyt69',
+        key: keyId,
         amount: order.amount,
         currency: order.currency,
         name: 'RecallLC',
@@ -301,9 +301,9 @@ async function verifyPaymentSignature(paymentResponse) {
 
     if (verifyRes.ok && verifyData.success) {
       showPaymentNotification(
-        `🎉 Test Payment Verified! Payment ID: ${paymentResponse.razorpay_payment_id}. Your Razorpay gateway integration is fully working! Return to Razorpay Dashboard to finish step 3.`,
+        `🎉 Payment Verified! Payment ID: ${paymentResponse.razorpay_payment_id}. Thank you for supporting RecallLC!`,
         'success',
-        10000,
+        8000,
       );
     } else {
       showPaymentNotification(

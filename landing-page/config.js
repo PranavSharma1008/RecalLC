@@ -68,21 +68,10 @@ const RECALLC_CONFIG = {
     },
   },
 
-  // Razorpay Gateway & UPI Configuration
-  // Simply replace these placeholders with your actual Razorpay details from https://dashboard.razorpay.com:
+  // Razorpay Gateway Configuration
+  // Loaded dynamically from /api/config or environment variables
   razorpay: {
-    // 1. Key ID from Razorpay Dashboard (Settings > API Keys)
-    // Replace with your live key (rzp_live_...) or test key (rzp_test_...)
-    keyId: 'rzp_test_YOUR_KEY_ID_HERE',
-
-    // 2. Razorpay Hosted Payment Page / Button URL (from Dashboard > Payment Pages)
-    // Example: 'https://rzp.io/l/your-link'
-    paymentPageUrl: 'https://rzp.io/l/recalllc',
-
-    // 3. Fallback UPI ID for direct QR scanning (GPay, PhonePe, Paytm)
-    upiId: 'pranavsharma@upi',
-
-    // 4. Brand and Payment Modal Settings
+    keyId: '',
     merchantName: 'RecallLC',
     merchantDescription: 'Support RecallLC Development',
     currency: 'INR',

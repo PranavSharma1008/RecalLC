@@ -3,24 +3,14 @@ import { useEffect, useId, useState } from 'react';
 import { Button } from '../../components/ui/Button';
 
 /**
- * Razorpay & UPI Payment Configuration
+ * Razorpay Payment Configuration
  *
- * Configured for Razorpay Standard Checkout & UPI test mode:
+ * Configured for Razorpay Standard Checkout in Live Production mode:
  * - checkoutUrl: Target website running the Razorpay Standard Checkout.
- * - testCredentials: Provided by Razorpay to verify integration without real money.
- * - upiId: Your UPI ID for optional direct UPI transfers.
+ * - developerName: Name displayed on payment invoices.
  */
 export const RAZORPAY_CONFIG = {
   checkoutUrl: 'http://localhost:3000',
-  paymentLink: 'http://localhost:3000/?checkout=true',
-  testCredentials: {
-    card: '4100 2800 0000 1007',
-    expiry: '12/26',
-    cvv: '123',
-    otp: '123456',
-    upi: 'test@razorpay',
-  },
-  upiId: 'pranavsharma@upi',
   developerName: 'Pranav Sharma',
 };
 
@@ -31,22 +21,7 @@ export function SupportScreen() {
   const [email, setEmail] = useState<string>('');
   const [message, setMessage] = useState<string>('');
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
-  const [copiedCard, setCopiedCard] = useState<boolean>(false);
-  const [copiedTestUpi, setCopiedTestUpi] = useState<boolean>(false);
   const [paymentSuccess, setPaymentSuccess] = useState<boolean>(false);
-  const [isLiveMode, setIsLiveMode] = useState<boolean>(true);
-
-  // Detect live mode from backend
-  useEffect(() => {
-    fetch(`${RAZORPAY_CONFIG.checkoutUrl}/api/config`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.razorpay_key_id) {
-          setIsLiveMode(data.razorpay_key_id.startsWith('rzp_live_'));
-        }
-      })
-      .catch(() => {});
-  }, []);
 
   // Dismiss modal on Escape key press
   useEffect(() => {
@@ -79,19 +54,6 @@ export function SupportScreen() {
 
   const customVal = Number.parseFloat(customAmount) || 0;
   const currentAmount = (coffeeSelected ? 89 : 0) + (claudeSelected ? 2399 : 0) + (customVal > 0 ? customVal : 0);
-
-  function handleCopy(text: string, type: 'card' | 'testUpi'): void {
-    if (typeof navigator !== 'undefined' && navigator.clipboard) {
-      void navigator.clipboard.writeText(text);
-      if (type === 'card') {
-        setCopiedCard(true);
-        setTimeout(() => setCopiedCard(false), 2000);
-      } else if (type === 'testUpi') {
-        setCopiedTestUpi(true);
-        setTimeout(() => setCopiedTestUpi(false), 2000);
-      }
-    }
-  }
 
   function handleLaunchCheckout(amount: number): void {
     const url = `${RAZORPAY_CONFIG.checkoutUrl}/checkout.html?amount=${amount}`;
@@ -471,54 +433,15 @@ export function SupportScreen() {
 
                 {/* Scrollable Content Area */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {isLiveMode ? (
-                    <div className="rounded-lg bg-emerald-950/30 p-2.5 text-left border border-emerald-500/30 text-[11px] space-y-0.5">
-                      <div className="flex items-center gap-1.5 font-semibold text-emerald-400">
-                        <span>🔒</span> Razorpay Live Gateway Active
-                      </div>
-                      <p className="text-muted text-[10px]">
-                        Payments are secured with 256-bit encryption. Supports Cards, UPI (GPay/PhonePe/Paytm), and NetBanking.
-                      </p>
+                  <div className="rounded-xl bg-surface-2 p-3 text-left border border-line text-[11px] space-y-1">
+                    <div className="flex items-center gap-1.5 font-semibold text-emerald-400">
+                      <span>🔒</span> Razorpay Live Secure Gateway
                     </div>
-                  ) : (
-                    /* Razorpay Test Mode Card Details */
-                    <div className="rounded-lg bg-surface-2 p-3 text-left border border-line text-[11px] space-y-1.5">
-                      <div className="flex items-center justify-between font-semibold text-amber-400">
-                        <span>🧪 Razorpay Test Mode Active</span>
-                        <span className="text-[10px] text-muted font-normal">No real money charged</span>
-                      </div>
-                      <div className="flex items-center justify-between font-mono bg-surface-1 px-2.5 py-1.5 rounded border border-line/60">
-                        <span>
-                          Card: <strong>{RAZORPAY_CONFIG.testCredentials.card}</strong>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(RAZORPAY_CONFIG.testCredentials.card, 'card')}
-                          className="text-[11px] font-sans font-semibold text-accent hover:underline ml-2"
-                        >
-                          {copiedCard ? '✓ Copied' : 'Copy'}
-                        </button>
-                      </div>
-                      <div className="flex items-center justify-between font-mono bg-surface-1 px-2.5 py-1 rounded border border-line/60 text-[10px] text-muted">
-                        <span>
-                          CVV: <strong className="text-fg">123</strong> | Exp: <strong className="text-fg">12/26</strong>{' '}
-                          | OTP: <strong className="text-fg">123456</strong>
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between font-mono bg-surface-1 px-2.5 py-1.5 rounded border border-line/60">
-                        <span>
-                          UPI: <strong>{RAZORPAY_CONFIG.testCredentials.upi}</strong>
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(RAZORPAY_CONFIG.testCredentials.upi, 'testUpi')}
-                          className="text-[11px] font-sans font-semibold text-accent hover:underline ml-2"
-                        >
-                          {copiedTestUpi ? '✓ Copied' : 'Copy'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    <p className="text-muted text-[10px]">
+                      Payments are secured with 256-bit SSL encryption. Accepts UPI (GPay, PhonePe, Paytm), Credit/Debit
+                      Cards, and NetBanking.
+                    </p>
+                  </div>
 
                   {/* Embedded Razorpay Checkout iframe (Runs directly inside extension) */}
                   <div className="relative w-full rounded-xl overflow-hidden border border-line bg-surface-2 shadow-inner">

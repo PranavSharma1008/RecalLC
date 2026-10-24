@@ -95,21 +95,6 @@
         border: 1px solid rgba(124, 92, 255, 0.3);
         margin-bottom: 12px;
       }
-      .test-box {
-        margin-top: 16px;
-        padding: 12px;
-        background: rgba(245, 158, 11, 0.08);
-        border: 1px dashed rgba(245, 158, 11, 0.3);
-        border-radius: 10px;
-        font-size: 11px;
-        text-align: left;
-        color: #fde68a;
-      }
-      .test-box code {
-        font-family: monospace;
-        font-weight: bold;
-        color: #fff;
-      }
       .status-text {
         font-size: 13px;
         color: var(--muted);
@@ -124,12 +109,6 @@
       <span class="badge">⚡ Razorpay Secure Checkout</span>
       <h2 id="title" style="font-size: 1.25rem; font-weight: 700; margin-bottom: 6px">Preparing Order...</h2>
       <p id="description" class="status-text">Connecting securely to payment gateway...</p>
-
-      <div class="test-box" id="test-info">
-        <div style="font-weight: 600; margin-bottom: 4px; color: #f59e0b">🧪 Razorpay Test Mode:</div>
-        <div>• Card: <code>4100 2800 0000 1007</code> (CVV: <code>123</code>, Exp: <code>12/26</code>)</div>
-        <div>• UPI: <code>test@razorpay</code> · OTP: <code>123456</code></div>
-      </div>
 
       <button id="pay-btn" class="btn" style="display: none">⚡ Open Razorpay Payment Modal</button>
       <button id="cancel-btn" class="btn btn-outline" style="display: none; margin-top: 8px">✕ Cancel</button>
@@ -172,8 +151,8 @@
             titleEl.textContent = 'Creating Order...';
             descEl.textContent = `Preparing payment of ₹${amountNum.toFixed(2)}`;
 
-            // 1. Get Key ID
-            let keyId = 'rzp_test_TrfV1O5whxyt69';
+            // 1. Get Key ID from backend
+            let keyId = '';
             try {
               const cfgRes = await fetch('/api/config');
               if (cfgRes.ok) {
@@ -181,11 +160,6 @@
                 if (cfg.razorpay_key_id) keyId = cfg.razorpay_key_id;
               }
             } catch (e) {}
-
-            if (keyId.startsWith('rzp_live_')) {
-              const testBox = document.getElementById('test-info');
-              if (testBox) testBox.style.display = 'none';
-            }
 
             // 2. Create Order
             const orderRes = await fetch('/api/create-order', {
@@ -282,8 +256,7 @@
 
             if (verifyRes.ok && verifyData.success) {
               titleEl.innerHTML = '🎉 Payment Successful!';
-              descEl.innerHTML = `Payment ID: <code>${paymentResponse.razorpay_payment_id}</code><br/>Your support has been verified. Return to Razorpay Dashboard to finish Step 3!`;
-              document.getElementById('test-info').style.display = 'none';
+              descEl.innerHTML = `Payment ID: <code>${paymentResponse.razorpay_payment_id}</code><br/>Thank you for supporting RecallLC!`;
               window.parent.postMessage(
                 {
                   type: 'PAYMENT_SUCCESS',
