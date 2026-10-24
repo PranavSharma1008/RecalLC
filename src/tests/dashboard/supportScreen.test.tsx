@@ -70,4 +70,44 @@ describe('SupportScreen checkboxes', () => {
       root.unmount();
     });
   });
+
+  it('opens payment modal, renders Back buttons, and closes when Back button is clicked', async () => {
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(<SupportScreen />);
+    });
+
+    // Modal is initially not open
+    expect(container.querySelector('.fixed.inset-0')).toBeNull();
+
+    // Find and click the Pay button to open modal
+    const payBtn = Array.from(container.querySelectorAll('button')).find((b) => b.textContent?.includes('Pay ₹'));
+    expect(payBtn).toBeDefined();
+
+    await act(async () => {
+      payBtn?.click();
+    });
+
+    // Modal is now open
+    expect(container.querySelector('.fixed.inset-0')).not.toBeNull();
+    expect(container.textContent).toContain('Complete Payment');
+
+    // Find the header "← Back" button
+    const backButtons = Array.from(container.querySelectorAll('button')).filter((b) =>
+      b.textContent?.includes('← Back'),
+    );
+    expect(backButtons.length).toBeGreaterThanOrEqual(1);
+
+    // Click the top Back button to close modal
+    await act(async () => {
+      backButtons[0]?.click();
+    });
+
+    // Modal should now be closed
+    expect(container.querySelector('.fixed.inset-0')).toBeNull();
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
 });
