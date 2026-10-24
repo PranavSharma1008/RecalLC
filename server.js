@@ -106,11 +106,36 @@ setInterval(
 ).unref();
 
 function getClientIp(req) {
-  const forwarded = req.headers['x-forwarded-for'];
-  if (typeof forwarded === 'string') {
-    return forwarded.split(',')[0].trim();
+  if (process.env.TRUST_PROXY === 'true') {
+    const forwarded = req.headers['x-forwarded-for'];
+    if (typeof forwarded === 'string') {
+      const first = forwarded.split(',')[0].trim();
+      if (/^(?:\d{1,3}\.){3}\d{1,3}$|^[a-fA-F0-9:]+$/.test(first)) {
+        return first;
+      }
+    }
   }
   return req.socket?.remoteAddress || '127.0.0.1';
+}
+
+// Replay protection: store verified payments for 24 hours
+const verifiedPaymentsCache = new Map();
+
+function isPaymentAlreadyVerified(paymentId) {
+  const now = Date.now();
+  const entry = verifiedPaymentsCache.get(paymentId);
+  if (!entry) return false;
+  if (now > entry.expiresAt) {
+    verifiedPaymentsCache.delete(paymentId);
+    return false;
+  }
+  return true;
+}
+
+function markPaymentVerified(paymentId) {
+  const now = Date.now();
+  // 24 hour retention
+  verifiedPaymentsCache.set(paymentId, { verifiedAt: now, expiresAt: now + 24 * 60 * 60 * 1000 });
 }
 
 function getAllowedOrigin(req) {
@@ -197,21 +222,32 @@ async function handleCreateOrder(req, res) {
     }
 
     const body = await parseJsonBody(req);
-    const amount = Number.parseInt(body.amount, 10);
-    const rawCurrency = body.currency || 'INR';
-    const currency = typeof rawCurrency === 'string' ? rawCurrency.trim().toUpperCase() : 'INR';
+    const rawAmount = body.amount;
+    const numAmount = Number(rawAmount);
 
-    // Validate minimum and maximum amount (100 paise = ₹1.00; 50,000,000 paise = ₹500,000.00)
-    if (!amount || Number.isNaN(amount) || amount < 100 || amount > 50000000) {
+    // Validate integer amount (100 paise = ₹1.00; 50,000,000 paise = ₹500,000.00)
+    // Strictly disallow floating point amounts, NaN, Infinity, negative numbers, or non-integer inputs
+    if (
+      rawAmount === undefined ||
+      rawAmount === null ||
+      typeof rawAmount === 'boolean' ||
+      !Number.isInteger(numAmount) ||
+      numAmount < 100 ||
+      numAmount > 50000000
+    ) {
       return sendJson(
         res,
         400,
         {
-          error: 'Invalid amount. Minimum amount is 100 paise (₹1.00) and maximum is 50,000,000 paise.',
+          error:
+            'Invalid amount. Minimum amount is 100 paise (₹1.00) and maximum is 50,000,000 paise (₹500,000.00). Must be a whole integer.',
         },
         req,
       );
     }
+    const amount = numAmount;
+    const rawCurrency = body.currency || 'INR';
+    const currency = typeof rawCurrency === 'string' ? rawCurrency.trim().toUpperCase() : 'INR';
 
     // Currency whitelist validation
     const ALLOWED_CURRENCIES = ['INR', 'USD', 'EUR', 'GBP'];
@@ -245,12 +281,18 @@ async function handleCreateOrder(req, res) {
       );
     }
 
-    // Sanitize notes object
+    // Sanitize notes object against prototype pollution and oversized fields
     const sanitizedNotes = { product: 'RecallLC Pro / Supporter License' };
     if (typeof body.notes === 'object' && body.notes !== null && !Array.isArray(body.notes)) {
       for (const [k, v] of Object.entries(body.notes).slice(0, 10)) {
-        if (typeof k === 'string' && typeof v === 'string') {
-          sanitizedNotes[k.slice(0, 40)] = v.slice(0, 200);
+        if (
+          typeof k === 'string' &&
+          typeof v === 'string' &&
+          k !== '__proto__' &&
+          k !== 'constructor' &&
+          k !== 'prototype'
+        ) {
+          sanitizedNotes[k.slice(0, 40).replace(/[^a-zA-Z0-9_\- ]/g, '')] = v.slice(0, 200);
         }
       }
     }
@@ -352,18 +394,36 @@ async function handleVerifyPayment(req, res) {
       );
     }
 
-    // Validate expected structure
+    // Validate expected structure with strict regex to prevent delimiter manipulation, injection or non-hex payloads
     const orderId = razorpay_order_id.trim();
     const paymentId = razorpay_payment_id.trim();
     const signature = razorpay_signature.trim();
 
-    if (!orderId.startsWith('order_') || !paymentId.startsWith('pay_')) {
+    const ORDER_ID_REGEX = /^order_[a-zA-Z0-9_]{5,60}$/;
+    const PAYMENT_ID_REGEX = /^pay_[a-zA-Z0-9_]{5,60}$/;
+    const SIGNATURE_REGEX = /^[a-f0-9]{64}$/i;
+
+    if (!ORDER_ID_REGEX.test(orderId) || !PAYMENT_ID_REGEX.test(paymentId) || !SIGNATURE_REGEX.test(signature)) {
       return sendJson(
         res,
         400,
         {
           success: false,
           message: 'Invalid payment signature. Verification failed.',
+        },
+        req,
+      );
+    }
+
+    // Defend against replay attacks: reject previously processed payments
+    if (isPaymentAlreadyVerified(paymentId)) {
+      return sendJson(
+        res,
+        409,
+        {
+          success: false,
+          error: 'Payment has already been verified and processed.',
+          replayed: true,
         },
         req,
       );
@@ -405,6 +465,7 @@ async function handleVerifyPayment(req, res) {
     }
 
     // Signature verified successfully
+    markPaymentVerified(paymentId);
     return sendJson(
       res,
       200,
@@ -464,6 +525,14 @@ function serveStaticFile(req, res) {
       return res.end('403 Forbidden');
     }
 
+    // Security: Block any dotfile or hidden file access (.env, .git, .DS_Store, etc.)
+    const relativeToLanding = path.relative(landingDir, safePath);
+    const hasDotComponent = relativeToLanding.split(path.sep).some((part) => part.startsWith('.'));
+    if (hasDotComponent) {
+      res.writeHead(403, { 'Content-Type': 'text/plain' });
+      return res.end('403 Forbidden: Access to hidden files is denied.');
+    }
+
     fs.stat(safePath, (err, stats) => {
       if (err || !stats.isFile()) {
         const notFoundPath = path.join(landingDir, '404.html');
@@ -521,27 +590,42 @@ const server = http.createServer((req, res) => {
       return res.end();
     }
 
-    // API Route: Public Config (Key ID only)
-    if (req.url.startsWith('/api/config') && req.method === 'GET') {
-      return sendJson(
-        res,
-        200,
-        {
-          razorpay_key_id: RAZORPAY_KEY_ID || '',
-          currency: 'INR',
-        },
-        req,
-      );
-    }
+    // API Routes Handling
+    if (req.url.startsWith('/api/')) {
+      if (req.url.startsWith('/api/config')) {
+        if (req.method === 'GET') {
+          return sendJson(
+            res,
+            200,
+            {
+              razorpay_key_id: RAZORPAY_KEY_ID || '',
+              currency: 'INR',
+            },
+            req,
+          );
+        }
+        res.writeHead(405, { 'Content-Type': 'application/json', ...getSecurityHeaders(req) });
+        return res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+      }
 
-    // API Route: Create Order
-    if (req.url.startsWith('/api/create-order') && req.method === 'POST') {
-      return handleCreateOrder(req, res);
-    }
+      if (req.url.startsWith('/api/create-order')) {
+        if (req.method === 'POST') {
+          return handleCreateOrder(req, res);
+        }
+        res.writeHead(405, { 'Content-Type': 'application/json', ...getSecurityHeaders(req) });
+        return res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+      }
 
-    // API Route: Verify Signature
-    if (req.url.startsWith('/api/verify-payment') && req.method === 'POST') {
-      return handleVerifyPayment(req, res);
+      if (req.url.startsWith('/api/verify-payment')) {
+        if (req.method === 'POST') {
+          return handleVerifyPayment(req, res);
+        }
+        res.writeHead(405, { 'Content-Type': 'application/json', ...getSecurityHeaders(req) });
+        return res.end(JSON.stringify({ error: 'Method Not Allowed' }));
+      }
+
+      res.writeHead(404, { 'Content-Type': 'application/json', ...getSecurityHeaders(req) });
+      return res.end(JSON.stringify({ error: 'API endpoint not found' }));
     }
 
     // Static Assets

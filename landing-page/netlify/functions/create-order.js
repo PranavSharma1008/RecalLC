@@ -33,16 +33,61 @@ export async function handler(event) {
 
   try {
     const body = JSON.parse(event.body || '{}');
-    const amount = Number.parseInt(body.amount, 10);
-    const currency = (body.currency || 'INR').toUpperCase();
-    const receipt = body.receipt || `rcpt_${Date.now()}`;
+    const rawAmount = body.amount;
+    const numAmount = Number(rawAmount);
 
-    if (!amount || Number.isNaN(amount) || amount < 100) {
+    if (
+      rawAmount === undefined ||
+      rawAmount === null ||
+      typeof rawAmount === 'boolean' ||
+      !Number.isInteger(numAmount) ||
+      numAmount < 100 ||
+      numAmount > 50000000
+    ) {
       return {
         statusCode: 400,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'Invalid amount. Minimum amount is 100 paise (₹1.00).' }),
+        body: JSON.stringify({
+          error:
+            'Invalid amount. Minimum amount is 100 paise (₹1.00) and maximum is 50,000,000 paise (₹500,000.00). Must be a whole integer.',
+        }),
       };
+    }
+
+    const amount = numAmount;
+    const rawCurrency = body.currency || 'INR';
+    const currency = typeof rawCurrency === 'string' ? rawCurrency.trim().toUpperCase() : 'INR';
+
+    const ALLOWED_CURRENCIES = ['INR', 'USD', 'EUR', 'GBP'];
+    if (!ALLOWED_CURRENCIES.includes(currency)) {
+      return {
+        statusCode: 400,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: `Unsupported currency. Allowed: ${ALLOWED_CURRENCIES.join(', ')}.` }),
+      };
+    }
+
+    let receipt = `rcpt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    if (typeof body.receipt === 'string' && body.receipt.trim()) {
+      receipt = body.receipt
+        .trim()
+        .replace(/[^a-zA-Z0-9_-]/g, '')
+        .slice(0, 40);
+    }
+
+    const sanitizedNotes = { product: 'RecallLC Pro / Supporter License' };
+    if (typeof body.notes === 'object' && body.notes !== null && !Array.isArray(body.notes)) {
+      for (const [k, v] of Object.entries(body.notes).slice(0, 10)) {
+        if (
+          typeof k === 'string' &&
+          typeof v === 'string' &&
+          k !== '__proto__' &&
+          k !== 'constructor' &&
+          k !== 'prototype'
+        ) {
+          sanitizedNotes[k.slice(0, 40).replace(/[^a-zA-Z0-9_\- ]/g, '')] = v.slice(0, 200);
+        }
+      }
     }
 
     const razorpay = new Razorpay({
@@ -54,7 +99,7 @@ export async function handler(event) {
       amount,
       currency,
       receipt,
-      notes: body.notes || { product: 'RecallLC Pro / Supporter License' },
+      notes: sanitizedNotes,
     });
 
     return {

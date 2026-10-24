@@ -316,7 +316,7 @@ const handlers: { [K in keyof ServiceMap]: Handler<K> } = {
 
 /**
  * Methods that must ONLY be executed by internal extension pages
- * (e.g. Dashboard or Popup) and NEVER by content scripts running in leetcode.com.
+ * (e.g. Dashboard or Popup) and NEVER by content scripts running in external web pages.
  */
 const PRIVILEGED_METHODS = new Set<keyof ServiceMap>([
   'export',
@@ -324,8 +324,36 @@ const PRIVILEGED_METHODS = new Set<keyof ServiceMap>([
   'clear-all',
   'delete-problem',
   'update-settings',
+  'get-settings',
   'import-commit',
   'import-preview',
+  'import-history',
+  'save-problem',
+  'list-problems',
+  'list-due',
+  'stats',
+  'catalog-legacy-refresh',
+]);
+
+/**
+ * Methods explicitly allowed for in-page content scripts running on LeetCode.
+ */
+const ALLOWED_CONTENT_METHODS = new Set<keyof ServiceMap>([
+  'get-reminder',
+  'record-attempt',
+  'open-problem',
+  'open-dashboard',
+  'catalog-needed',
+  'catalog-merge',
+  'account-sync',
+  'mark-viewed',
+  'snooze',
+  'dismiss',
+  'get-problem',
+  'reschedule',
+  'update-notes',
+  'rate',
+  'set-paused',
 ]);
 
 function isPrivilegedSender(sender: chrome.runtime.MessageSender): boolean {
@@ -352,6 +380,14 @@ chrome.runtime.onMessage.addListener(
     const envelope = message as { channel?: string; method?: string; payload?: unknown };
     if (envelope.channel !== MESSAGE_CHANNEL || typeof envelope.method !== 'string') return false;
 
+    // Reject any external extension sender immediately
+    if (sender.id && sender.id !== chrome.runtime.id) {
+      sendResponse(
+        fail(new Error('Unauthorized: external extension access is forbidden.')) satisfies ServiceErrorEnvelope,
+      );
+      return false;
+    }
+
     const method = envelope.method as keyof ServiceMap;
 
     // Defend against IPC privilege escalation from external origins or content scripts
@@ -359,6 +395,16 @@ chrome.runtime.onMessage.addListener(
       sendResponse(
         fail(
           new Error(`Unauthorized: method "${method}" is restricted to extension pages.`),
+        ) satisfies ServiceErrorEnvelope,
+      );
+      return false;
+    }
+
+    // Reject unprivileged callers attempting any method outside allowed content methods
+    if (!isPrivilegedSender(sender) && !ALLOWED_CONTENT_METHODS.has(method)) {
+      sendResponse(
+        fail(
+          new Error(`Unauthorized: method "${method}" is not allowed for content script context.`),
         ) satisfies ServiceErrorEnvelope,
       );
       return false;
