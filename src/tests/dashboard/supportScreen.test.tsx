@@ -90,7 +90,7 @@ describe('SupportScreen checkboxes', () => {
 
     // Modal is now open
     expect(container.querySelector('.fixed.inset-0')).not.toBeNull();
-    expect(container.textContent).toContain('Complete Payment');
+    expect(container.textContent).toContain('Razorpay Gateway');
 
     // Find the header "← Back" button
     const backButtons = Array.from(container.querySelectorAll('button')).filter((b) =>

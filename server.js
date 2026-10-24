@@ -226,6 +226,7 @@ function serveStaticFile(req, res) {
   const landingDir = path.join(__dirname, 'landing-page');
   let cleanUrl = req.url.split('?')[0].split('#')[0];
   if (cleanUrl === '/' || cleanUrl === '') cleanUrl = '/index.html';
+  if (cleanUrl === '/checkout') cleanUrl = '/checkout.html';
 
   const filePath = path.join(landingDir, cleanUrl);
 

@@ -59,4 +59,8 @@ export default defineManifest({
 
   permissions: ['storage'],
   host_permissions: ['https://leetcode.com/*'],
+  content_security_policy: {
+    extension_pages:
+      "script-src 'self'; object-src 'self'; frame-src 'self' http://localhost:* https://*.razorpay.com https://api.razorpay.com;",
+  },
 });
