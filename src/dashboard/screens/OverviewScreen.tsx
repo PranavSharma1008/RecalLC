@@ -75,13 +75,6 @@ export function OverviewScreen({ navigate, onChanged: _onChanged }: OverviewScre
                 ? `${dueList.length} problem${dueList.length === 1 ? '' : 's'} waiting`
                 : 'Nothing is due right now'
             }
-            action={
-              dueList.length > 0 ? (
-                <Button variant="primary" size="sm" onClick={() => navigate(`/recall/${dueList[0]!.slug}`)}>
-                  🎯 Review next
-                </Button>
-              ) : null
-            }
           />
           <div className="p-4">
             {due.loading ? (
