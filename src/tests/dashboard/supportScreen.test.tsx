@@ -168,15 +168,16 @@ describe('SupportScreen checkboxes', () => {
     });
   });
 
-  it('initially hides payment details until Razorpay option is selected', async () => {
+  it('hides both payment option cards when Razorpay details page is opened, and restores them on Back', async () => {
     const root = createRoot(container);
     await act(async () => {
       root.render(<SupportScreen />);
     });
 
-    // Payment details are hidden by default
+    // Both option cards are initially present
+    expect(container.textContent).toContain('Pay with Razorpay');
+    expect(container.textContent).toContain('Sponsor on GitHub');
     expect(container.querySelector('#payment-details-section')).toBeNull();
-    expect(container.querySelector('input[name="coffee"]')).toBeNull();
 
     // Click "Pay with Razorpay"
     const razorpayBtn = Array.from(container.querySelectorAll('button')).find((b) =>
@@ -186,9 +187,25 @@ describe('SupportScreen checkboxes', () => {
       razorpayBtn?.click();
     });
 
-    // Payment details are now visible
+    // Next page: both option cards are REMOVED from the view
     expect(container.querySelector('#payment-details-section')).not.toBeNull();
-    expect(container.querySelector('input[name="coffee"]')).not.toBeNull();
+    expect(container.textContent).not.toContain('Sponsor on GitHub');
+    expect(container.textContent).toContain('Back to all payment options');
+
+    // Click "Back to all payment options"
+    const backToOptionsBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Back to all payment options'),
+    );
+    expect(backToOptionsBtn).toBeDefined();
+
+    await act(async () => {
+      backToOptionsBtn?.click();
+    });
+
+    // Both payment option cards are restored
+    expect(container.querySelector('#payment-details-section')).toBeNull();
+    expect(container.textContent).toContain('Pay with Razorpay');
+    expect(container.textContent).toContain('Sponsor on GitHub');
 
     await act(async () => {
       root.unmount();

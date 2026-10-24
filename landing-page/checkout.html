@@ -175,6 +175,12 @@
         const contactParam = (urlParams.get('contact') || '').trim();
         const nameParam = (urlParams.get('name') || '').trim();
 
+        // Clear local storage on this checkout origin to ensure no stale default contacts persist
+        try {
+          localStorage.clear();
+          sessionStorage.clear();
+        } catch (e) {}
+
         let currentOrderId = null;
         let rzpInstance = null;
 
@@ -332,24 +338,23 @@
                   </p>
                   <div style="display: flex; align-items: center; justify-content: center; font-size: 12px; color: #34d399; font-weight: 500;">
                     <span class="mini-spinner"></span>
-                    <span>Redirecting back automatically...</span>
+                    <span>Returning to extension in 5 seconds...</span>
                   </div>
                 </div>
               `;
 
-              // Notify parent window (Chrome extension dashboard)
-              window.parent.postMessage(
-                {
-                  type: 'PAYMENT_SUCCESS',
-                  payment_id: paymentResponse.razorpay_payment_id,
-                  order_id: paymentResponse.razorpay_order_id,
-                  amount: amountNum,
-                },
-                '*',
-              );
-
-              // Automatically redirect back to the previous page
+              // Show Razorpay success confirmation message for 5 seconds as requested, then notify extension
               setTimeout(() => {
+                window.parent.postMessage(
+                  {
+                    type: 'PAYMENT_SUCCESS',
+                    payment_id: paymentResponse.razorpay_payment_id,
+                    order_id: paymentResponse.razorpay_order_id,
+                    amount: amountNum,
+                  },
+                  '*',
+                );
+
                 window.parent.postMessage({ type: 'PAYMENT_REDIRECT' }, '*');
                 if (window.opener) {
                   window.close();
@@ -358,7 +363,7 @@
                 } else {
                   window.location.href = '/';
                 }
-              }, 1800);
+              }, 5000);
             } else {
               titleEl.textContent = '⚠️ Verification Failed';
               descEl.textContent = verifyData.message || 'Signature mismatch';
