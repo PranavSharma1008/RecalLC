@@ -17,9 +17,6 @@ export function SupportScreen() {
   const [coffeeSelected, setCoffeeSelected] = useState<boolean>(true);
   const [claudeSelected, setClaudeSelected] = useState<boolean>(false);
   const [customAmount, setCustomAmount] = useState<string>('');
-  const [phone, setPhone] = useState<string>('');
-  const [email, setEmail] = useState<string>('');
-  const [message, setMessage] = useState<string>('');
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
   const [thankYouInfo, setThankYouInfo] = useState<{
     paymentId?: string;
@@ -27,9 +24,6 @@ export function SupportScreen() {
   } | null>(null);
 
   const customInputId = useId();
-  const phoneInputId = useId();
-  const emailInputId = useId();
-  const messageInputId = useId();
 
   const customVal = Number.parseFloat(customAmount) || 0;
   const currentAmount = (coffeeSelected ? 89 : 0) + (claudeSelected ? 2399 : 0) + (customVal > 0 ? customVal : 0);
@@ -270,10 +264,6 @@ export function SupportScreen() {
               <span>←</span>
               <span>Back to all payment options</span>
             </button>
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-accent animate-pulse" />
-              <span className="text-xs font-semibold text-accent uppercase tracking-wider">Razorpay Gateway</span>
-            </div>
           </div>
 
           {/* Main Two-Column Layout */}
@@ -443,51 +433,6 @@ export function SupportScreen() {
                     />
                   </div>
                 </label>
-
-                {/* Phone Field */}
-                <div>
-                  <label htmlFor={phoneInputId} className="block text-xs font-medium text-muted">
-                    Phone number <span className="text-subtle">(optional)</span>
-                  </label>
-                  <input
-                    id={phoneInputId}
-                    type="tel"
-                    placeholder="Enter phone number"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="rlc-input mt-1 text-xs"
-                  />
-                </div>
-
-                {/* Email Field */}
-                <div>
-                  <label htmlFor={emailInputId} className="block text-xs font-medium text-muted">
-                    Email <span className="text-subtle">(optional, for receipt)</span>
-                  </label>
-                  <input
-                    id={emailInputId}
-                    type="email"
-                    placeholder="your.email@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="rlc-input mt-1 text-xs"
-                  />
-                </div>
-
-                {/* Message Field */}
-                <div>
-                  <label htmlFor={messageInputId} className="block text-xs font-medium text-muted">
-                    A message for Pranav <span className="text-subtle">(optional)</span>
-                  </label>
-                  <input
-                    id={messageInputId}
-                    type="text"
-                    placeholder="Thanks for making RecallLC free!"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    className="rlc-input mt-1 text-xs"
-                  />
-                </div>
               </div>
 
               {/* Payment Badges & Action Button */}
@@ -540,7 +485,7 @@ export function SupportScreen() {
           {/* 100% Full-bleed iframe Area */}
           <div className="relative w-full h-full flex-1 overflow-hidden bg-[#0b0e14]">
             <iframe
-              src={`${RAZORPAY_CONFIG.checkoutUrl}/checkout.html?amount=${currentAmount}${email.trim() ? `&email=${encodeURIComponent(email.trim())}` : ''}${phone.trim() ? `&contact=${encodeURIComponent(phone.trim())}` : ''}`}
+              src={`${RAZORPAY_CONFIG.checkoutUrl}/checkout.html?amount=${currentAmount}`}
               className="w-full h-full border-0"
               allow="payment *"
               title="Razorpay Secure Checkout"
