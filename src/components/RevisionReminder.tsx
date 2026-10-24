@@ -63,7 +63,7 @@ export function RevisionReminder({
         <span className="rlc-reminder-title">Time to revise!</span>
         {candidate.overdue ? (
           <span className="rlc-badge rlc-badge-medium">
-            {candidate.overdueDays === 1 ? '1 day overdue' : `${candidate.overdueDays} days overdue`}
+            {candidate.overdueDays === 1 ? 'Overdue - 1 day' : `Overdue - ${candidate.overdueDays} days`}
           </span>
         ) : (
           <span className="rlc-badge rlc-badge-neutral">Due today</span>

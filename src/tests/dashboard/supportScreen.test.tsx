@@ -55,6 +55,16 @@ describe('SupportScreen', () => {
     expect(container.textContent).not.toContain('Terms & Conditions:');
     expect(container.textContent).not.toContain('Open in Gmail');
 
+    // Does not render any wishlist/requirements/gear boxes
+    expect(container.textContent).not.toContain('Requirements');
+    expect(container.textContent).not.toContain('AULA F75');
+
+    // Renders attractive value proposition and community impact content
+    expect(container.textContent).toContain('Built by a Developer, for Developers');
+    expect(container.textContent).toContain('Always 100% Free & Private');
+    expect(container.textContent).toContain('Fuel Late-Night Coding');
+    expect(container.textContent).not.toContain('Landed an interview or job offer');
+
     await act(async () => {
       root.unmount();
     });

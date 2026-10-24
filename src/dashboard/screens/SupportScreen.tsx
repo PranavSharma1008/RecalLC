@@ -138,8 +138,9 @@ export function SupportScreen() {
           <span className="text-3xl sm:text-4xl">☕</span>
         </div>
         <div className="mx-auto mt-2.5 h-1 w-14 rounded-full bg-accent" />
-        <p className="mt-3 text-sm text-muted max-w-xl mx-auto">
-          They stay free either way. Pick whichever payment method is easier for you.
+        <p className="mt-3 text-sm text-muted max-w-xl mx-auto leading-relaxed">
+          RecalLC is 100% free, private, and open-source. If it helps you master DSA patterns and ace your technical
+          interviews, consider fueling its continuous development!
         </p>
       </div>
 
@@ -227,6 +228,50 @@ export function SupportScreen() {
               <span>Sponsor on GitHub</span>
               <span className="text-[10px] font-semibold">↗</span>
             </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Why Support & Community Impact Section */}
+      <div className="rlc-card rounded-2xl p-6 sm:p-8 border-line space-y-6 transition-all hover:border-accent/30">
+        <div className="text-center space-y-1.5 max-w-xl mx-auto">
+          <span className="rounded-full bg-accent-soft px-3 py-1 text-[11px] font-semibold text-accent border border-accent/30 uppercase tracking-wider">
+            Why Support?
+          </span>
+          <h2 className="text-xl sm:text-2xl font-bold text-fg pt-1">Built by a Developer, for Developers</h2>
+          <p className="text-xs sm:text-sm text-muted">
+            RecalLC was created to solve the hardest part of LeetCode: actually remembering patterns when interview day
+            arrives.
+          </p>
+        </div>
+
+        {/* 3 Value Pillars */}
+        <div className="grid gap-4 sm:grid-cols-3 pt-2">
+          <div className="rounded-xl border border-line bg-surface-2 p-5 space-y-2 transition-colors hover:border-accent/40">
+            <div className="text-2xl">🛡️</div>
+            <h3 className="text-sm font-bold text-fg">Always 100% Free & Private</h3>
+            <p className="text-xs text-muted leading-relaxed">
+              No subscriptions, no paywalls, and zero telemetry. Your notes and revision schedules stay safely stored on
+              your local device.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-line bg-surface-2 p-5 space-y-2 transition-colors hover:border-accent/40">
+            <div className="text-2xl">⚡</div>
+            <h3 className="text-sm font-bold text-fg">Active & Independent</h3>
+            <p className="text-xs text-muted leading-relaxed">
+              Continuous feature enhancements, algorithm tuning (SM-2 spaced repetition), and instant patches when
+              LeetCode updates its interface.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-line bg-surface-2 p-5 space-y-2 transition-colors hover:border-accent/40">
+            <div className="text-2xl">☕</div>
+            <h3 className="text-sm font-bold text-fg">Fuel Late-Night Coding</h3>
+            <p className="text-xs text-muted leading-relaxed">
+              Your support powers the late-night coffee and dedicated hours needed to build, polish, and maintain free
+              software for the community.
+            </p>
           </div>
         </div>
       </div>

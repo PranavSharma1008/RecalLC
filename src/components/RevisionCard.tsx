@@ -11,6 +11,7 @@ export interface RevisionCardProps {
   dueAt: number | null;
   overdue: boolean;
   daysUntilDue: number | null;
+  overdueDays?: number | null;
   onRevise?: () => void;
   onReschedule?: () => void;
   onDelete?: () => void;
@@ -25,12 +26,16 @@ function dueLabel(
   overdue: boolean,
   daysUntilDue: number | null,
   dueAt: number | null,
+  overdueDays?: number | null,
 ): { text: string; tone: 'accent' | 'warning' | 'neutral' } {
-  if (daysUntilDue === null || dueAt === null) return { text: 'Not scheduled', tone: 'neutral' };
+  if (dueAt === null) return { text: 'Not scheduled', tone: 'neutral' };
   if (overdue) {
-    const days = Math.abs(daysUntilDue);
-    return { text: days === 1 ? '1 day overdue' : `${days} days overdue`, tone: 'warning' };
+    const rawDays =
+      overdueDays != null && overdueDays > 0 ? overdueDays : daysUntilDue !== null ? Math.abs(daysUntilDue) : 1;
+    const days = Math.max(1, rawDays);
+    return { text: days === 1 ? 'Overdue - 1 day' : `Overdue - ${days} days`, tone: 'warning' };
   }
+  if (daysUntilDue === null) return { text: 'Not scheduled', tone: 'neutral' };
   if (daysUntilDue === 0) return { text: 'Due today', tone: 'accent' };
   if (daysUntilDue === 1) return { text: 'Due tomorrow', tone: 'accent' };
 
@@ -48,6 +53,7 @@ export function RevisionCard({
   dueAt,
   overdue,
   daysUntilDue,
+  overdueDays,
   onRevise,
   onReschedule,
   onDelete,
@@ -55,7 +61,7 @@ export function RevisionCard({
   rescheduleContent,
   extra,
 }: RevisionCardProps) {
-  const due = dueLabel(overdue, daysUntilDue, dueAt);
+  const due = dueLabel(overdue, daysUntilDue, dueAt, overdueDays);
   const popular = getPopularProblem(problem.slug);
   const effectiveDifficulty =
     problem.difficulty !== 'Unknown' ? problem.difficulty : (popular?.difficulty ?? 'Unknown');

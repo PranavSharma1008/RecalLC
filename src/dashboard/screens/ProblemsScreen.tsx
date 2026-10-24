@@ -383,6 +383,7 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                   dueAt={entry.dueAt}
                   overdue={entry.overdue}
                   daysUntilDue={entry.daysUntilDue}
+                  overdueDays={entry.overdue && entry.daysUntilDue !== null ? Math.abs(entry.daysUntilDue) : undefined}
                   onReschedule={() =>
                     setRescheduleFor(rescheduleFor === entry.problem.slug ? null : entry.problem.slug)
                   }
