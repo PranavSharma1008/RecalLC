@@ -22,6 +22,15 @@ describe('SupportScreen checkboxes', () => {
       root.render(<SupportScreen />);
     });
 
+    // First select "Pay with Razorpay" to reveal payment options
+    const razorpayBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Pay with Razorpay'),
+    );
+    expect(razorpayBtn).toBeDefined();
+    await act(async () => {
+      razorpayBtn?.click();
+    });
+
     const coffeeCheckbox = container.querySelector<HTMLInputElement>('input[name="coffee"]');
     const claudeCheckbox = container.querySelector<HTMLInputElement>('input[name="claude"]');
     expect(coffeeCheckbox).not.toBeNull();
@@ -75,6 +84,15 @@ describe('SupportScreen checkboxes', () => {
     const root = createRoot(container);
     await act(async () => {
       root.render(<SupportScreen />);
+    });
+
+    // First select "Pay with Razorpay" to reveal payment options
+    const razorpayBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Pay with Razorpay'),
+    );
+    expect(razorpayBtn).toBeDefined();
+    await act(async () => {
+      razorpayBtn?.click();
     });
 
     // Modal is initially not open
@@ -144,6 +162,33 @@ describe('SupportScreen checkboxes', () => {
 
     // The thankful message should be dismissed
     expect(container.textContent).not.toContain('A heartfelt thank you from Pranav Sharma!');
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it('initially hides payment details until Razorpay option is selected', async () => {
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(<SupportScreen />);
+    });
+
+    // Payment details are hidden by default
+    expect(container.querySelector('#payment-details-section')).toBeNull();
+    expect(container.querySelector('input[name="coffee"]')).toBeNull();
+
+    // Click "Pay with Razorpay"
+    const razorpayBtn = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Pay with Razorpay'),
+    );
+    await act(async () => {
+      razorpayBtn?.click();
+    });
+
+    // Payment details are now visible
+    expect(container.querySelector('#payment-details-section')).not.toBeNull();
+    expect(container.querySelector('input[name="coffee"]')).not.toBeNull();
 
     await act(async () => {
       root.unmount();
