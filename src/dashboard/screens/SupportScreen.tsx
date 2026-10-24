@@ -202,10 +202,10 @@ export function SupportScreen() {
             </div>
 
             {/* Outside India Card */}
-            <div className="rlc-card flex flex-col justify-between p-6 sm:p-7 rounded-2xl transition-all border-line hover:border-line-strong hover:shadow-md">
+            <div className="rlc-card flex flex-col justify-between p-6 sm:p-7 rounded-2xl transition-all border-line hover:border-accent/40 hover:shadow-md">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-surface-2 text-fg border border-line shadow-inner">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent-soft text-accent border border-accent/30 shadow-inner">
                     <svg className="h-6 w-6 fill-current" viewBox="0 0 24 24" aria-hidden="true">
                       <path
                         fillRule="evenodd"
@@ -214,12 +214,12 @@ export function SupportScreen() {
                       />
                     </svg>
                   </div>
-                  <span className="rounded-full bg-surface-2 px-3 py-1 text-[11px] font-semibold text-muted border border-line uppercase tracking-wider">
+                  <span className="rounded-full bg-accent-soft px-3 py-1 text-[11px] font-semibold text-accent border border-accent/30 uppercase tracking-wider">
                     GitHub
                   </span>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-muted uppercase tracking-wider">Outside India</p>
+                  <p className="text-xs font-semibold text-accent uppercase tracking-wider">Outside India</p>
                   <h2 className="text-xl font-bold text-fg">GitHub Sponsors</h2>
                 </div>
                 <p className="text-xs text-muted">Sponsor through GitHub, from any country.</p>
@@ -240,10 +240,10 @@ export function SupportScreen() {
                   href="https://github.com/sponsors/PranavSharma1008"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block w-full rounded-xl border border-line bg-surface-2 py-3 text-center text-xs font-bold text-fg transition-all hover:border-line-strong hover:bg-surface-3 active:scale-[0.99] shadow-sm flex items-center justify-center gap-1.5"
+                  className="w-full rounded-xl py-3 text-center text-xs font-bold transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5 active:scale-[0.99] bg-accent text-accent-contrast hover:bg-accent-hover hover:shadow-lg"
                 >
                   <span>Sponsor on GitHub</span>
-                  <span>↗</span>
+                  <span className="text-[10px] font-semibold">↗</span>
                 </a>
               </div>
             </div>
