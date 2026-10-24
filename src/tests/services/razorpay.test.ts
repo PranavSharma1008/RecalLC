@@ -46,7 +46,7 @@ function createMockReqRes(body: unknown, method = 'POST') {
 }
 
 describe('Razorpay Standard Checkout Backend Endpoints', () => {
-  const SECRET = process.env.RAZORPAY_KEY_SECRET || 'CakUl3Z19ZWmcTzMe7kVyOK4';
+  const SECRET = process.env.RAZORPAY_KEY_SECRET || 'mock_dummy_secret_for_testing_only';
 
   describe('POST /api/create-order', () => {
     it('rejects order with amount less than 100 paise with status 400', async () => {
