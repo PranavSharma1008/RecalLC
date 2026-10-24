@@ -96,12 +96,18 @@ function initContactForm() {
     const mailtoUrl = `mailto:${targetEmail}?subject=${encodeURIComponent(`[RecallLC] ${subject}`)}&body=${encodeURIComponent(bodyContent)}`;
 
     if (formFeedback) {
-      formFeedback.innerHTML = `
-        <div style="background: rgba(52, 211, 153, 0.12); border: 1px solid rgba(52, 211, 153, 0.3); border-radius: 8px; padding: 14px; margin-top: 16px; font-size: 0.9rem; color: #6ee7b7;">
-          ✓ Opening your email client to send directly to <strong>${targetEmail}</strong>.<br/>
-          If your client did not open automatically, <a href="${mailtoUrl}" style="text-decoration: underline; color: #fff; font-weight: 600;">click here to compose your email</a>.
-        </div>
-      `;
+      formFeedback.innerHTML = '';
+      const feedbackBox = document.createElement('div');
+      feedbackBox.style.cssText =
+        'background: rgba(52, 211, 153, 0.12); border: 1px solid rgba(52, 211, 153, 0.3); border-radius: 8px; padding: 14px; margin-top: 16px; font-size: 0.9rem; color: #6ee7b7;';
+
+      feedbackBox.textContent = `✓ Opening your email client to send directly to ${targetEmail}. If your client did not open automatically, `;
+      const fallbackLink = document.createElement('a');
+      fallbackLink.href = mailtoUrl;
+      fallbackLink.style.cssText = 'text-decoration: underline; color: #fff; font-weight: 600;';
+      fallbackLink.textContent = 'click here to compose your email.';
+      feedbackBox.appendChild(fallbackLink);
+      formFeedback.appendChild(feedbackBox);
     }
 
     // Trigger email client

@@ -43,12 +43,31 @@ export function SupportScreen() {
   // Listen for payment events from embedded checkout iframe
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
+      // Security: Validate message origin to defend against cross-origin spoofing attacks (CWE-345)
+      const allowedOrigins = ['http://localhost:3000', 'http://127.0.0.1:3000', window.location.origin];
+      const isTrustedOrigin =
+        !event.origin ||
+        allowedOrigins.includes(event.origin) ||
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(event.origin) ||
+        event.origin.startsWith('chrome-extension://');
+
+      if (!isTrustedOrigin) return;
+
       if (event.data?.type === 'PAYMENT_SUCCESS') {
+        // Sanitize paymentId to prevent injection
+        const rawPaymentId = event.data.payment_id;
+        const paymentId =
+          typeof rawPaymentId === 'string' ? rawPaymentId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 50) : undefined;
+
+        const rawAmount = event.data.amount;
+        const amount =
+          typeof rawAmount === 'number' && Number.isFinite(rawAmount) && rawAmount > 0 ? rawAmount : currentAmount;
+
         // Close modal immediately and return to previous page with thank-you message
         setShowPaymentModal(false);
         setThankYouInfo({
-          paymentId: event.data.payment_id,
-          amount: event.data.amount || currentAmount,
+          paymentId,
+          amount,
         });
       } else if (event.data?.type === 'PAYMENT_CANCELLED' || event.data?.type === 'PAYMENT_REDIRECT') {
         setShowPaymentModal(false);

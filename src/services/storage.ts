@@ -98,12 +98,12 @@ export function mergeSettings(stored: unknown): UserSettings {
         ? stored.securityAuthEnabled
         : DEFAULT_SETTINGS.securityAuthEnabled,
     securityPasscodeHash:
-      typeof stored.securityPasscodeHash === 'string'
-        ? stored.securityPasscodeHash
+      typeof stored.securityPasscodeHash === 'string' && /^[0-9a-fA-F]{64}$/.test(stored.securityPasscodeHash)
+        ? stored.securityPasscodeHash.toLowerCase()
         : DEFAULT_SETTINGS.securityPasscodeHash,
     securityPasscodeSalt:
-      typeof stored.securityPasscodeSalt === 'string'
-        ? stored.securityPasscodeSalt
+      typeof stored.securityPasscodeSalt === 'string' && /^[0-9a-fA-F]{16,128}$/.test(stored.securityPasscodeSalt)
+        ? stored.securityPasscodeSalt.toLowerCase()
         : DEFAULT_SETTINGS.securityPasscodeSalt,
     securityAutoLockMinutes:
       typeof stored.securityAutoLockMinutes === 'number' && Number.isFinite(stored.securityAutoLockMinutes)

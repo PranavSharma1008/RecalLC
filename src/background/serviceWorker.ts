@@ -330,11 +330,15 @@ const PRIVILEGED_METHODS = new Set<keyof ServiceMap>([
 
 function isPrivilegedSender(sender: chrome.runtime.MessageSender): boolean {
   if (!sender.url && !sender.origin) return false;
+  // If an external extension ID is present and does not match our extension ID, reject
+  if (sender.id && sender.id !== chrome.runtime.id) return false;
+
   const extensionOrigin = chrome.runtime.getURL('');
   if (sender.url && sender.url.startsWith(extensionOrigin)) {
     return true;
   }
-  if (sender.origin && sender.origin.startsWith('chrome-extension://')) {
+  // Strictly match this extension's origin, never an arbitrary chrome-extension://
+  if (sender.origin && sender.origin === `chrome-extension://${chrome.runtime.id}`) {
     return true;
   }
   return false;

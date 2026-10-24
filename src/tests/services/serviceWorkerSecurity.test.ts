@@ -38,6 +38,25 @@ describe('Service Worker Security & IPC Sender Verification', () => {
     expect(response.error).toContain('Unauthorized: method "clear-all" is restricted to extension pages');
   });
 
+  it('rejects privileged method "clear-all" from an external rogue chrome-extension sender', async () => {
+    const rogueExtensionSender = {
+      id: 'evil-external-extension-id',
+      url: 'chrome-extension://evil-external-extension-id/popup.html',
+      origin: 'chrome-extension://evil-external-extension-id',
+    };
+
+    const response = await dispatch(
+      {
+        channel: MESSAGE_CHANNEL,
+        method: 'clear-all',
+      },
+      rogueExtensionSender,
+    );
+
+    expect(response.ok).toBe(false);
+    expect(response.error).toContain('Unauthorized');
+  });
+
   it('rejects privileged method "export" from an untrusted content-script sender', async () => {
     const unprivilegedSender = {
       id: 'recalllc-test',

@@ -125,10 +125,15 @@ export function parseCsvTable(input: string, delimiter = ','): CsvTable {
   return { headers, rows: dataRows, records };
 }
 
-/** Escape a value for writing into a CSV cell. */
+/** Escape a value for writing into a CSV cell with Formula Injection mitigation (CWE-1236). */
 export function escapeCsvValue(value: string): string {
-  if (/[",\n\r]/.test(value)) return `"${value.replace(/"/g, '""')}"`;
-  return value;
+  let safe = value;
+  // Neutralize CSV formula injection by prepending apostrophe if field starts with formula prefix
+  if (/^[=+\-@\t\r]/.test(safe)) {
+    safe = `'${safe}`;
+  }
+  if (/[",\n\r]/.test(safe) || safe.startsWith("'")) return `"${safe.replace(/"/g, '""')}"`;
+  return safe;
 }
 
 /** Serialise rows (including the header) to CSV text. */

@@ -126,11 +126,46 @@ describe('Razorpay Standard Checkout Backend Endpoints', () => {
     });
   });
 
-  describe('Security & Environment Isolation', () => {
+  describe('Security & Penetration Hardening', () => {
     it('never exposes RAZORPAY_KEY_SECRET to client config', () => {
       expect(process.env.RAZORPAY_KEY_SECRET).toBeDefined();
-      // Ensure key secret is not the same as key id
       expect(process.env.RAZORPAY_KEY_SECRET).not.toBe(process.env.RAZORPAY_KEY_ID);
+    });
+
+    it('rejects unsupported currency codes with status 400', async () => {
+      const { req, res, getResult } = createMockReqRes({
+        amount: 500,
+        currency: 'BTC',
+      });
+      void handleCreateOrder(req, res);
+      const result = await getResult();
+
+      expect(result.status).toBe(400);
+      expect(result.data.error).toContain('Unsupported currency');
+    });
+
+    it('rejects amount exceeding 50,000,000 paise with status 400', async () => {
+      const { req, res, getResult } = createMockReqRes({
+        amount: 99999999999,
+      });
+      void handleCreateOrder(req, res);
+      const result = await getResult();
+
+      expect(result.status).toBe(400);
+      expect(result.data.error).toContain('maximum is 50,000,000 paise');
+    });
+
+    it('rejects non-string or malformed payment IDs in verify payment', async () => {
+      const { req, res, getResult } = createMockReqRes({
+        razorpay_order_id: 12345, // Not a string
+        razorpay_payment_id: { evil: true }, // Object injection attempt
+        razorpay_signature: 'a'.repeat(64),
+      });
+      void handleVerifyPayment(req, res);
+      const result = await getResult();
+
+      expect(result.status).toBe(400);
+      expect(result.data.success).toBe(false);
     });
   });
 });

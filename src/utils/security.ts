@@ -313,14 +313,22 @@ export function sanitizeInput(input: string): string {
 /** Validate whether a URL is strictly safe (http, https, or mailto). */
 export function isSafeUrl(url: string): boolean {
   if (!url || typeof url !== 'string') return false;
-  const trimmed = url.trim().toLowerCase();
+  // Strip control characters (0x00-0x1F, 0x7F-0x9F) and whitespace
+  const clean = url.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
+  const lower = clean.toLowerCase();
   if (
-    trimmed.startsWith('javascript:') ||
-    trimmed.startsWith('data:') ||
-    trimmed.startsWith('vbscript:') ||
-    trimmed.includes('<script')
+    lower.startsWith('javascript:') ||
+    lower.startsWith('data:') ||
+    lower.startsWith('vbscript:') ||
+    lower.includes('<script') ||
+    lower.includes('javascript:')
   ) {
     return false;
   }
-  return trimmed.startsWith('https://') || trimmed.startsWith('http://') || trimmed.startsWith('mailto:');
+  try {
+    const parsed = new URL(clean);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' || parsed.protocol === 'mailto:';
+  } catch {
+    return clean.startsWith('/') && !clean.startsWith('//') && !clean.startsWith('/\\');
+  }
 }

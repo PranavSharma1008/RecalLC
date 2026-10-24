@@ -111,6 +111,14 @@ describe('Security Hardening & Penetration Defense', () => {
       expect(isSafeUrl('javascript:alert(1)')).toBe(false);
       expect(isSafeUrl('JAVASCRIPT:alert(1)')).toBe(false);
       expect(isSafeUrl('  javascript:void(0)  ')).toBe(false);
+      expect(isSafeUrl('\x00javascript:alert(1)')).toBe(false);
+      expect(isSafeUrl('\njavascript:alert(1)')).toBe(false);
+      expect(isSafeUrl('java\tscript:alert(1)')).toBe(false);
+    });
+
+    it('rejects protocol-relative and backslash bypass attempts', () => {
+      expect(isSafeUrl('//evil.com')).toBe(false);
+      expect(isSafeUrl('/\\evil.com')).toBe(false);
     });
 
     it('rejects data: URI schemes', () => {
@@ -140,6 +148,30 @@ describe('Security Hardening & Penetration Defense', () => {
       expect(sanitized).not.toContain("'");
       expect(sanitized).toContain('&lt;img');
       expect(sanitized).toContain('&amp;');
+    });
+  });
+
+  describe('Storage Passcode Hash Integrity Defense', () => {
+    it('enforces 64-char hex SHA-256 pattern when merging settings', async () => {
+      const { mergeSettings } = await import('../../services/storage');
+
+      // Valid 64-char hex hash
+      const validHash = 'a'.repeat(64);
+      const validSalt = 'b'.repeat(32);
+      const resValid = mergeSettings({
+        securityPasscodeHash: validHash,
+        securityPasscodeSalt: validSalt,
+      });
+      expect(resValid.securityPasscodeHash).toBe(validHash);
+      expect(resValid.securityPasscodeSalt).toBe(validSalt);
+
+      // Malicious or corrupted non-hex or short strings must be rejected
+      const resInvalid = mergeSettings({
+        securityPasscodeHash: 'invalid_short_hash',
+        securityPasscodeSalt: 'short',
+      });
+      expect(resInvalid.securityPasscodeHash).toBeNull();
+      expect(resInvalid.securityPasscodeSalt).toBeNull();
     });
   });
 });

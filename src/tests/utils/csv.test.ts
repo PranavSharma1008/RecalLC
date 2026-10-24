@@ -97,6 +97,21 @@ describe('toCsv', () => {
     expect(csv).toBe('a,b\n"x,y","say ""hi"""\n');
   });
 
+  it('neutralizes CSV formula injection attempts (CWE-1236)', () => {
+    const maliciousFormulas = ["=cmd|'/C calc'!A0", '+1+2', '-500', '@SUM(A1:A10)'];
+
+    for (const formula of maliciousFormulas) {
+      const csv = toCsv(['title'], [[formula]]);
+      // Must prepend apostrophe to neutralize spreadsheet formula execution
+      expect(csv).toContain(`"'${formula}"`);
+    }
+
+    // With quotes inside
+    const formulaWithQuotes = '\tDDE("cmd";"/C calc";"__dummy__")';
+    const csvQuotes = toCsv(['title'], [[formulaWithQuotes]]);
+    expect(csvQuotes).toContain(`"'${formulaWithQuotes.replace(/"/g, '""')}"`);
+  });
+
   it('round-trips through the parser', () => {
     const csv = toCsv(['slug', 'title'], [['two-sum', 'Two Sum, revisited']]);
     const table = parseCsvTable(csv);
