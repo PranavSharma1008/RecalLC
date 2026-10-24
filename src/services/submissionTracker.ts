@@ -59,12 +59,12 @@ const VERDICTS: VerdictSpec[] = [
  * mistaken for a result.
  */
 const EXACT_VERDICT_PATTERN = new RegExp(
-  `^(?:verdict\\s*[:\\-]?\\s*)?(${VERDICTS.map((verdict) => verdict.pattern.source).join('|')})\\s*[.!]?$`,
+  `^(?:verdict\\s*[:\\-]?\\s*)?(${VERDICTS.map((verdict) => verdict.pattern.source).join('|')})[\\s.!✔✓✕✖]*$`,
   'i',
 );
 
 const LANGUAGE_PATTERN =
-  /^(python3?|c\+\+|c#|java|javascript|typescript|go|rust|ruby|swift|kotlin|scala|php|dart|elixir|clojure|erlang|haskell|perl|lua|pascal|fortran|bash|shell|mysql|postgresql|oracle|mongodb|mssql|r|vb\.net|zig)$/i;
+  /^(python3?|py|c\+\+|cpp|cxx|cc|c#|csharp|cs|c|java|javascript|js|typescript|ts|go|golang|rust|rs|ruby|rb|swift|kotlin|kt|scala|php|dart|elixir|clojure|erlang|haskell|hs|perl|lua|pascal|fortran|bash|sh|shell|mysql|postgresql|oracle|mongodb|mssql|sql|r|vb\.net|vb|zig|pandas)$/i;
 
 const SUBMIT_BUTTON_PATTERN = /^\s*submit\b/i;
 const RUN_BUTTON_PATTERN = /run\s*code/i;
@@ -111,6 +111,7 @@ export class SubmissionTracker {
   };
 
   private clickListener: ((event: MouseEvent) => void) | null = null;
+  private keyListener: ((event: KeyboardEvent) => void) | null = null;
   private observer: MutationObserver | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private checkTimer: ReturnType<typeof setTimeout> | null = null;
@@ -141,6 +142,17 @@ export class SubmissionTracker {
     this.clickListener = (event: MouseEvent) => this.handleClick(event);
     document.addEventListener('click', this.clickListener, true);
 
+    this.keyListener = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        this.awaitingVerdict = true;
+        this.awaitingSince = this.options.now();
+        this.baseline = this.readVerdictText();
+        if (this.checkTimer) clearTimeout(this.checkTimer);
+        this.checkTimer = setTimeout(() => this.checkForVerdict(), 600);
+      }
+    };
+    document.addEventListener('keydown', this.keyListener, true);
+
     this.observer = new MutationObserver(() => {
       if (this.awaitingVerdict) this.checkForVerdict();
     });
@@ -158,6 +170,10 @@ export class SubmissionTracker {
     if (this.clickListener) {
       document.removeEventListener('click', this.clickListener, true);
       this.clickListener = null;
+    }
+    if (this.keyListener) {
+      document.removeEventListener('keydown', this.keyListener, true);
+      this.keyListener = null;
     }
     if (this.observer) {
       this.observer.disconnect();
@@ -210,6 +226,11 @@ export class SubmissionTracker {
         if (!text || text.length > 300) continue;
         const match = matchExactVerdict(text);
         if (match) return match.label;
+
+        // If the element contains "testcases passed" and "accepted"
+        if (/testcases passed/i.test(text) && /\baccepted\b/i.test(text)) {
+          return 'Accepted';
+        }
 
         // If the element has multiple lines (e.g. verdict followed by runtime/memory stats)
         const firstLine = text.split('\n')[0]?.trim();

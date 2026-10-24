@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://recalllc.netlify.app/sitemap.xml

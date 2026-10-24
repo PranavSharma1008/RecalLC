@@ -11,6 +11,7 @@ import {
   listAttempts,
   listDueProblems,
   listProblems,
+  listProblemSchedule,
   listRevisions,
   markViewed,
   rateRecall,
@@ -21,10 +22,12 @@ import {
   snooze,
   dismiss,
   rescheduleProblem,
+  syncUnscheduledWithSettings,
   updateNotes,
   mergeCatalog,
 } from '../../services/repository';
-import { addLocalDays, startOfLocalDay } from '../../utils/date';
+import { addLocalDays, getNextSunday, startOfLocalDay } from '../../utils/date';
+import { writeSettings } from '../../services/storage';
 import { resetChromeStorage } from '../setup';
 
 const NOW = new Date(2026, 9, 21, 14, 30, 0, 0).getTime();
@@ -59,9 +62,18 @@ describe('recording attempts', () => {
     expect(result.problem.firstAttemptAt).toBe(threeDaysAgo);
     expect(result.problem.lastAttemptAt).toBe(threeDaysAgo);
 
-    // Default initial interval is one day, so it is already overdue.
-    expect(result.revision.dueAt).toBe(addLocalDays(threeDaysAgo, 1));
+    // Default initial schedule is weekly Sunday revision
+    expect(result.revision.dueAt).toBe(getNextSunday(threeDaysAgo));
     expect(result.revision.lastReviewedAt).toBeNull();
+  });
+
+  it('schedules problems for weekly Sunday revision by default (Mon-Sat -> Sunday)', async () => {
+    // Oct 19, 2026 is Monday
+    const monday = new Date(2026, 9, 19, 10, 0, 0).getTime();
+    const result = await recordAttempt({ slug: 'two-sum', attemptedAt: monday, source: 'auto' }, monday);
+    // Next Sunday is Oct 25, 2026
+    const sunday = new Date(2026, 9, 25, 0, 0, 0).getTime();
+    expect(result.revision.dueAt).toBe(sunday);
   });
 
   it('enriches a problem with difficulty and topics from the catalog when available', async () => {
@@ -80,6 +92,13 @@ describe('recording attempts', () => {
     const problem = await getProblem('two-sum');
     expect(problem?.difficulty).toBe('Easy');
     expect(problem?.topics).toEqual(['Array', 'Hash Table']);
+  });
+
+  it('automatically sets Two Sum and popular problems to their true difficulty without catalog', async () => {
+    await recordAttempt({ slug: 'two-sum', attemptedAt: NOW, accepted: true, source: 'auto' }, NOW);
+    const problem = await getProblem('two-sum');
+    expect(problem?.difficulty).toBe('Easy');
+    expect(problem?.topics).toContain('Array');
   });
 
   it('merges attempts for the same problem', async () => {
@@ -176,7 +195,7 @@ describe('reviewing', () => {
     expect(problem?.notes).toBe('Use a hash map.');
 
     const revision = await getRevision('two-sum');
-    expect(revision?.dueAt).toBe(addLocalDays(addLocalDays(NOW, -3), 1));
+    expect(revision?.dueAt).toBe(getNextSunday(addLocalDays(NOW, -3)));
   });
 
   it('does not change the schedule when a problem is snoozed', async () => {
@@ -216,6 +235,7 @@ describe('reviewing', () => {
   });
 
   it('records a page view without creating an attempt', async () => {
+    await saveProblem({ slug: 'two-sum', title: 'Two Sum' }, NOW);
     await markViewed('two-sum', NOW);
     const problem = await getProblem('two-sum');
     expect(problem?.lastViewedAt).toBe(NOW);
@@ -226,6 +246,7 @@ describe('reviewing', () => {
 
 describe('due list and statistics', () => {
   it('orders due problems with overdue first', async () => {
+    await writeSettings({ initialScheduleMode: 'fixed_days', initialIntervalDays: 1 });
     await recordAttempt({ slug: 'due-today', attemptedAt: addLocalDays(NOW, -1), source: 'auto' }, NOW);
     await recordAttempt({ slug: 'overdue', attemptedAt: addLocalDays(NOW, -6), source: 'auto' }, NOW);
     await recordAttempt({ slug: 'future', attemptedAt: addLocalDays(NOW, 10), source: 'auto' }, NOW);
@@ -278,6 +299,145 @@ describe('persistence', () => {
     expect(restored.problems).toBe(1);
     expect((await getProblem('two-sum'))?.notes).toBe('hash map');
     expect(await listAttempts()).toHaveLength(1);
+  });
+
+  it('restores messy backup and automatically cleans duplicate code, fixes Unknown difficulty and empty topics', async () => {
+    const messyBackup = {
+      format: 'recalllc-backup' as const,
+      version: 1 as const,
+      exportedAt: NOW,
+      settings: {
+        schemaVersion: 1,
+        theme: 'system' as const,
+        intervals: { forgot: 1, hard: 2, good: 5, easy: 14 },
+        initialScheduleMode: 'fixed_days' as const,
+        initialIntervalDays: 6,
+        remindersEnabled: true,
+        reminderDelayMs: 0,
+        maxRemindersPerSession: 0,
+        autoTrackSubmissions: true,
+        accountSyncEnabled: false,
+        accountSyncLimit: 201,
+        showTopicInReminder: true,
+        onboardingCompleted: false,
+      },
+      problems: [
+        {
+          slug: 'two-sum',
+          title: 'Two Sum',
+          url: 'https://leetcode.com/problems/two-sum/',
+          difficulty: 'Unknown' as const,
+          topics: [],
+          notes: `Solution Code (Java):\n\`\`\`Java\nclass \nPush to RecallLC 🚀\n🚀\nSolution {\n    public int[] twoSum() {}\n}\n\`\`\`\n\nSolution Code (Java):\n\`\`\`Java\nclass Solution {\n    public int[] twoSum() {}\n}\n\`\`\`\n\n## Recall checklist\n- Q1\n\n## Recall checklist\n- Q1`,
+          firstAttemptAt: NOW,
+          lastAttemptAt: NOW,
+          lastViewedAt: NOW,
+          attemptCount: 2,
+          accepted: true,
+          lastLanguage: 'Java',
+          struggleScore: 0.5,
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
+      attempts: [],
+      revisions: [
+        {
+          slug: 'two-sum',
+          stage: 0,
+          lastRating: null,
+          lastReviewedAt: null,
+          dueAt: addLocalDays(NOW, 6),
+          snoozedUntil: null,
+          dismissedAt: null,
+          paused: false,
+          createdAt: NOW,
+          updatedAt: NOW,
+        },
+      ],
+      events: [],
+    };
+
+    await clearAll();
+    await restoreBackup(messyBackup);
+
+    const restoredProblem = await getProblem('two-sum');
+    expect(restoredProblem).toBeDefined();
+    expect(restoredProblem?.difficulty).toBe('Easy');
+    expect(restoredProblem?.topics).toContain('Array');
+    expect(restoredProblem?.notes.match(/Solution Code/g)?.length).toBe(1);
+    expect(restoredProblem?.notes.match(/## Recall checklist/g)?.length).toBe(1);
+    expect(restoredProblem?.notes).not.toContain('Push to RecallLC');
+    expect(restoredProblem?.notes).toContain('class Solution');
+  });
+
+  it('preserves a custom rescheduled due date when new attempts are recorded or schedule is listed', async () => {
+    await clearAll();
+    await writeSettings({ initialScheduleMode: 'fixed_days', initialIntervalDays: 6 });
+
+    // Solve Two Sum initially -> scheduled 6 days later
+    await recordAttempt({ slug: 'two-sum', attemptedAt: NOW, source: 'auto' }, NOW);
+    const schedule1 = await listProblemSchedule(NOW);
+    expect(schedule1[0]?.daysUntilDue).toBe(6);
+
+    // Manually reschedule Two Sum to 2 days
+    const customDue = addLocalDays(NOW, 2);
+    await rescheduleProblem('two-sum', customDue, NOW);
+
+    const schedule2 = await listProblemSchedule(NOW);
+    expect(schedule2[0]?.daysUntilDue).toBe(2);
+
+    // Re-attempting or pushing an update to Two Sum preserves the custom 2-day schedule
+    await recordAttempt({ slug: 'two-sum', attemptedAt: NOW + 1000, source: 'manual' }, NOW + 1000);
+    const schedule3 = await listProblemSchedule(NOW);
+    expect(schedule3[0]?.daysUntilDue).toBe(2);
+
+    // A brand new problem gets the default 6 days
+    await recordAttempt({ slug: 'add-two-numbers', attemptedAt: NOW, source: 'auto' }, NOW);
+    const schedule4 = await listProblemSchedule(NOW);
+    const addTwo = schedule4.find((s) => s.problem.slug === 'add-two-numbers');
+    expect(addTwo?.daysUntilDue).toBe(6);
+  });
+
+  it('reschedules a problem to today (0 days) and makes it immediately due in reminders', async () => {
+    // Problem solved 24 hours ago
+    const yesterday = addLocalDays(NOW, -1);
+    await recordAttempt({ slug: 'two-sum', attemptedAt: yesterday, source: 'manual' }, yesterday);
+
+    // Reschedule to today (0 days from NOW)
+    const todayDue = addLocalDays(NOW, 0);
+    await rescheduleProblem('two-sum', todayDue, NOW);
+
+    const schedule = await listProblemSchedule(NOW);
+    const twoSum = schedule.find((s) => s.problem.slug === 'two-sum');
+    expect(twoSum?.daysUntilDue).toBe(0);
+
+    // Must be in due list for reminders!
+    const dueList = await listDueProblems(NOW);
+    expect(dueList.map((d) => d.slug)).toContain('two-sum');
+  });
+
+  it('syncUnscheduledWithSettings updates default unreviewed problems while giving priority to manually rescheduled problem', async () => {
+    // Two Sum is manually rescheduled to 1 day
+    await recordAttempt({ slug: 'two-sum', attemptedAt: NOW, source: 'manual' }, NOW);
+    const oneDayDue = addLocalDays(NOW, 1);
+    await rescheduleProblem('two-sum', oneDayDue, NOW);
+
+    // Another problem was automatically tracked with no manual reschedule
+    await recordAttempt({ slug: 'valid-anagram', attemptedAt: NOW, source: 'auto' }, NOW);
+
+    // Global settings change: every problem come in reminder in 6 days
+    await writeSettings({ initialScheduleMode: 'fixed_days', initialIntervalDays: 6 });
+    await syncUnscheduledWithSettings(NOW);
+
+    const schedule = await listProblemSchedule(NOW);
+    const twoSum = schedule.find((s) => s.problem.slug === 'two-sum');
+    const anagram = schedule.find((s) => s.problem.slug === 'valid-anagram');
+
+    // Two Sum preserves its manually prioritized 1-day schedule!
+    expect(twoSum?.daysUntilDue).toBe(1);
+    // Unscheduled problem follows the new 6-day setting
+    expect(anagram?.daysUntilDue).toBe(6);
   });
 
   it('refuses to restore something that is not a backup', async () => {

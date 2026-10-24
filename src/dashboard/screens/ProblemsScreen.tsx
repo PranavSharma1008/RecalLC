@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { RevisionCard } from '../../components/RevisionCard';
 import { Button } from '../../components/ui/Button';
@@ -6,6 +6,7 @@ import { Card, CardHeader } from '../../components/ui/Card';
 import { EmptyState, ErrorState, Spinner } from '../../components/ui/States';
 import { useAsync } from '../../hooks/useAsync';
 import { callService } from '../../services/messaging';
+import { getPopularProblem } from '../../data/popularProblems';
 import { DIFFICULTIES, type Difficulty, type ProblemSortKey, type ProblemWithSchedule } from '../../types';
 import { addLocalDays } from '../../utils/date';
 
@@ -14,54 +15,62 @@ export interface ProblemsScreenProps {
   onChanged: () => void;
 }
 
-type DueFilter = 'all' | 'due' | 'overdue' | 'upcoming';
-
 const DIFFICULTY_ORDER: Record<Difficulty, number> = { Easy: 1, Medium: 2, Hard: 3, Unknown: 4 };
+
+function getEffectiveDifficulty(problem: { slug: string; difficulty: Difficulty }): Difficulty {
+  if (problem.difficulty && problem.difficulty !== 'Unknown') return problem.difficulty;
+  const popular = getPopularProblem(problem.slug);
+  return popular?.difficulty ?? 'Unknown';
+}
 
 export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
   const schedule = useAsync(() => callService('list-problems'), []);
   const [search, setSearch] = useState('');
   const [topic, setTopic] = useState<string>('');
   const [difficulty, setDifficulty] = useState<Difficulty | ''>('');
-  const [due, setDue] = useState<DueFilter>('all');
   const [attemptedWithin, setAttemptedWithin] = useState<string>('all');
   const [customAttemptDays, setCustomAttemptDays] = useState<number>(3);
-  const [sort, setSort] = useState<ProblemSortKey>('due');
-  const [direction, setDirection] = useState<'asc' | 'desc'>('asc');
-  const [notesFor, setNotesFor] = useState<string | null>(null);
-  const [notesDraft, setNotesDraft] = useState('');
-  const [notesBusy, setNotesBusy] = useState(false);
+  const [sort, setSort] = useState<ProblemSortKey>('lastAttempt');
+  const [direction, setDirection] = useState<'asc' | 'desc'>('desc');
   const [rescheduleFor, setRescheduleFor] = useState<string | null>(null);
   const [customRescheduleDays, setCustomRescheduleDays] = useState<number>(3);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!successToast) return;
+    const timer = setTimeout(() => {
+      setSuccessToast(null);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [successToast]);
 
   const entries = schedule.data ?? [];
-
-  const topics = useMemo(() => {
-    const set = new Set<string>();
-    for (const entry of entries) for (const tag of entry.problem.topics) set.add(tag);
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }, [entries]);
 
   const filtered = useMemo(() => {
     const needle = search.trim().toLowerCase();
     const result = entries.filter((entry) => {
       const { problem } = entry;
+      const probDifficulty = getEffectiveDifficulty(problem);
       if (needle) {
-        const haystack = `${problem.title} ${problem.slug} ${problem.topics.join(' ')}`.toLowerCase();
+        const probTopics = problem.topics.length > 0 ? problem.topics : (getPopularProblem(problem.slug)?.topics ?? []);
+        const haystack = `${problem.title} ${problem.slug} ${probTopics.join(' ')} ${probDifficulty}`.toLowerCase();
         if (!haystack.includes(needle)) return false;
       }
-      if (topic && !problem.topics.includes(topic)) return false;
-      if (difficulty && problem.difficulty !== difficulty) return false;
-      if (due === 'due' && entry.daysUntilDue !== null && entry.daysUntilDue > 0) return false;
-      if (due === 'overdue' && !entry.overdue) return false;
-      if (due === 'upcoming' && (entry.overdue || (entry.daysUntilDue !== null && entry.daysUntilDue <= 0)))
-        return false;
+      const problemTopics =
+        problem.topics.length > 0 ? problem.topics : (getPopularProblem(problem.slug)?.topics ?? []);
+      if (topic && !problemTopics.includes(topic)) return false;
+      if (difficulty && probDifficulty !== difficulty) return false;
       if (attemptedWithin !== 'all') {
         const days = attemptedWithin === 'custom' ? customAttemptDays : Number(attemptedWithin);
-        if (!problem.lastAttemptAt) return false;
+        const attemptTime = problem.lastAttemptAt
+          ? problem.lastAttemptAt < 1e11
+            ? problem.lastAttemptAt * 1000
+            : problem.lastAttemptAt
+          : null;
+        if (!attemptTime) return false;
         const cutoff = Date.now() - Math.max(0.1, days) * 86400000;
-        if (problem.lastAttemptAt < cutoff) return false;
+        if (attemptTime < cutoff) return false;
       }
       return true;
     });
@@ -69,7 +78,7 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
     const factor = direction === 'asc' ? 1 : -1;
     result.sort((a, b) => factor * compareEntries(a, b, sort));
     return result;
-  }, [entries, search, topic, difficulty, due, attemptedWithin, customAttemptDays, sort, direction]);
+  }, [entries, search, topic, difficulty, attemptedWithin, customAttemptDays, sort, direction]);
 
   if (schedule.loading && !schedule.data) return <Spinner label="Loading your problems…" />;
   if (schedule.error) return <ErrorState message={schedule.error} onRetry={schedule.reload} />;
@@ -79,22 +88,50 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
     onChanged();
   }
 
-  async function saveNotes(slug: string): Promise<void> {
-    setNotesBusy(true);
-    try {
-      await callService('update-notes', { slug, notes: notesDraft });
-      setNotesFor(null);
-      await refresh();
-    } finally {
-      setNotesBusy(false);
-    }
-  }
-
   async function handleReschedule(slug: string, daysFromNow: number): Promise<void> {
-    const targetDueAt = addLocalDays(Date.now(), Math.max(1, daysFromNow));
-    await callService('reschedule', { slug, dueAt: targetDueAt });
+    const days = Math.max(0, Number(daysFromNow) ?? 0);
+    const targetDueAt = addLocalDays(Date.now(), days);
+
+    // Optimistically update schedule so badge and date update immediately
+    if (schedule.data) {
+      schedule.setData(
+        schedule.data.map((entry) => {
+          if (entry.problem.slug !== slug) return entry;
+          return {
+            ...entry,
+            dueAt: targetDueAt,
+            overdue: false,
+            daysUntilDue: days,
+            revision: entry.revision
+              ? { ...entry.revision, dueAt: targetDueAt, manualSchedule: true }
+              : {
+                  slug,
+                  stage: 0,
+                  lastRating: null,
+                  lastReviewedAt: null,
+                  dueAt: targetDueAt,
+                  snoozedUntil: null,
+                  dismissedAt: null,
+                  paused: false,
+                  createdAt: Date.now(),
+                  updatedAt: Date.now(),
+                  manualSchedule: true,
+                },
+          };
+        }),
+      );
+    }
     setRescheduleFor(null);
-    await refresh();
+
+    try {
+      await callService('reschedule', { slug, dueAt: targetDueAt });
+      setSuccessToast(
+        `Next revision scheduled in ${days} day${days === 1 ? '' : 's'}${days === 0 ? ' (Due today)' : ''}.`,
+      );
+      await refresh();
+    } catch (err) {
+      console.warn('Failed to reschedule:', err);
+    }
   }
 
   async function loadSampleProblems(): Promise<void> {
@@ -102,6 +139,7 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
       const res = await fetch(chrome.runtime.getURL('sample-import.json'));
       const text = await res.text();
       await callService('import-commit', { fileName: 'sample-import.json', content: text });
+      setSuccessToast('Sample problems loaded successfully!');
       await refresh();
     } catch (err) {
       console.warn('Could not load sample problems:', err);
@@ -110,13 +148,29 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
 
   return (
     <div className="space-y-4">
+      {successToast ? (
+        <div className="flex items-center justify-between rounded-lg border border-success/40 bg-success-soft px-4 py-2.5 text-xs text-success shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🎉</span>
+            <span className="font-medium">{successToast}</span>
+          </div>
+          <button
+            type="button"
+            className="text-success hover:underline text-xs font-semibold px-2 py-0.5 cursor-pointer"
+            onClick={() => setSuccessToast(null)}
+          >
+            ✕ Dismiss
+          </button>
+        </div>
+      ) : null}
+
       <Card>
         <CardHeader
           title="Tracked problems"
           subtitle={`${filtered.length} of ${entries.length} problem${entries.length === 1 ? '' : 's'}`}
         />
         <div className="space-y-3 p-4">
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <input
               className="rlc-input"
               type="search"
@@ -127,40 +181,19 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
             />
             <select
               className="rlc-input"
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
-              aria-label="Filter by topic"
-            >
-              <option value="">All topics</option>
-              {topics.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-            <select
-              className="rlc-input"
               value={difficulty}
               onChange={(event) => setDifficulty(event.target.value as Difficulty | '')}
               aria-label="Filter by difficulty"
             >
               <option value="">All difficulties</option>
-              {DIFFICULTIES.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-            <select
-              className="rlc-input"
-              value={due}
-              onChange={(event) => setDue(event.target.value as DueFilter)}
-              aria-label="Filter by due state"
-            >
-              <option value="all">Any due date</option>
-              <option value="due">Due now</option>
-              <option value="overdue">Overdue</option>
-              <option value="upcoming">Upcoming</option>
+              {DIFFICULTIES.filter((item) => item !== 'Unknown').map((item) => {
+                const count = entries.filter((e) => getEffectiveDifficulty(e.problem) === item).length;
+                return (
+                  <option key={item} value={item}>
+                    {item} ({count})
+                  </option>
+                );
+              })}
             </select>
             <select
               className="rlc-input"
@@ -202,13 +235,21 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                 id="sort-by"
                 className="rlc-input w-auto py-1 text-[11px]"
                 value={sort}
-                onChange={(event) => setSort(event.target.value as ProblemSortKey)}
+                onChange={(event) => {
+                  const nextSort = event.target.value as ProblemSortKey;
+                  setSort(nextSort);
+                  if (nextSort === 'lastAttempt') {
+                    setDirection('desc');
+                  } else if (nextSort === 'due' || nextSort === 'title' || nextSort === 'difficulty') {
+                    setDirection('asc');
+                  }
+                }}
               >
+                <option value="lastAttempt">Recently solved (Newest)</option>
                 <option value="due">Due date</option>
-                <option value="lastAttempt">Last attempt</option>
-                <option value="topic">Topic</option>
                 <option value="difficulty">Difficulty</option>
                 <option value="title">Title</option>
+                <option value="topic">Topic</option>
               </select>
               <Button
                 variant="ghost"
@@ -216,10 +257,10 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                 onClick={() => setDirection((value) => (value === 'asc' ? 'desc' : 'asc'))}
                 aria-label={`Sort ${direction === 'asc' ? 'descending' : 'ascending'}`}
               >
-                {direction === 'asc' ? '🔼 Asc' : '🔽 Desc'}
+                {direction === 'desc' ? '🔽 Desc' : '🔼 Asc'}
               </Button>
             </div>
-            {(search || topic || difficulty || due !== 'all' || attemptedWithin !== 'all') && (
+            {(search || topic || difficulty || attemptedWithin !== 'all') && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -227,7 +268,6 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                   setSearch('');
                   setTopic('');
                   setDifficulty('');
-                  setDue('all');
                   setAttemptedWithin('all');
                 }}
               >
@@ -237,6 +277,56 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
           </div>
         </div>
       </Card>
+
+      {search || topic || difficulty || attemptedWithin !== 'all' ? (
+        <div className="flex flex-wrap items-center gap-1.5 py-1 text-xs text-subtle">
+          <span className="font-semibold text-fg">Active:</span>
+          {search ? (
+            <span className="inline-flex items-center gap-1 rounded bg-surface-2 border border-line px-2 py-0.5 text-[11px] text-fg">
+              🔍 "{search}"
+              <button type="button" onClick={() => setSearch('')} className="hover:text-rose-400">
+                ✕
+              </button>
+            </span>
+          ) : null}
+          {difficulty ? (
+            <span className="inline-flex items-center gap-1 rounded bg-surface-2 border border-line px-2 py-0.5 text-[11px] text-fg">
+              🎯 {difficulty}
+              <button type="button" onClick={() => setDifficulty('')} className="hover:text-rose-400">
+                ✕
+              </button>
+            </span>
+          ) : null}
+          {topic ? (
+            <span className="inline-flex items-center gap-1 rounded bg-surface-2 border border-line px-2 py-0.5 text-[11px] text-fg">
+              🏷️ {topic}
+              <button type="button" onClick={() => setTopic('')} className="hover:text-rose-400">
+                ✕
+              </button>
+            </span>
+          ) : null}
+          {attemptedWithin !== 'all' ? (
+            <span className="inline-flex items-center gap-1 rounded bg-surface-2 border border-line px-2 py-0.5 text-[11px] text-fg">
+              ⏱️ {attemptedWithin === 'custom' ? `Within ${customAttemptDays}d` : `Last ${attemptedWithin}d`}
+              <button type="button" onClick={() => setAttemptedWithin('all')} className="hover:text-rose-400">
+                ✕
+              </button>
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => {
+              setSearch('');
+              setTopic('');
+              setDifficulty('');
+              setAttemptedWithin('all');
+            }}
+            className="text-xs text-accent hover:underline font-semibold ml-1 cursor-pointer"
+          >
+            Clear all
+          </button>
+        </div>
+      ) : null}
 
       {filtered.length === 0 ? (
         <EmptyState
@@ -264,7 +354,6 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                   setSearch('');
                   setTopic('');
                   setDifficulty('');
-                  setDue('all');
                   setAttemptedWithin('all');
                 }}
               >
@@ -274,84 +363,35 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
           }
         />
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {filtered.map((entry) => (
-            <li key={entry.problem.slug}>
-              <RevisionCard
-                problem={entry.problem}
-                revision={entry.revision}
-                dueAt={entry.dueAt}
-                overdue={entry.overdue}
-                daysUntilDue={entry.daysUntilDue}
-                onRevise={() => navigate(`/recall/${entry.problem.slug}`)}
-                onSnooze={async () => {
-                  await callService('snooze', { slug: entry.problem.slug });
-                  await refresh();
-                }}
-                onPause={async () => {
-                  await callService('set-paused', {
-                    slug: entry.problem.slug,
-                    paused: !entry.revision?.paused,
-                  });
-                  await refresh();
-                }}
-                onDelete={() => setConfirmDelete(entry.problem.slug)}
-                extra={
-                  <div className="space-y-2.5">
-                    {notesFor === entry.problem.slug ? (
-                      <div className="space-y-2 rounded-md bg-surface-2 p-3">
-                        <label htmlFor={`notes-${entry.problem.slug}`} className="text-[11px] font-medium text-subtle">
-                          Problem notes & approach
-                        </label>
-                        <textarea
-                          id={`notes-${entry.problem.slug}`}
-                          className="rlc-input min-h-24 resize-y font-mono text-[12px]"
-                          placeholder="Approach, pitfalls, complexity…"
-                          value={notesDraft}
-                          onChange={(event) => setNotesDraft(event.target.value)}
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            disabled={notesBusy}
-                            onClick={() => void saveNotes(entry.problem.slug)}
-                          >
-                            {notesBusy ? 'Saving…' : '💾 Save notes'}
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => setNotesFor(null)}>
-                            ✕ Cancel
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setNotesFor(entry.problem.slug);
-                            setNotesDraft(entry.problem.notes);
-                          }}
-                        >
-                          {entry.problem.notes ? '✏️ Edit notes' : '📝 + Add notes'}
-                        </Button>
+        <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((entry) => {
+            const effectiveDiff = getEffectiveDifficulty(entry.problem);
+            const effectiveTopics =
+              entry.problem.topics.length > 0
+                ? entry.problem.topics
+                : (getPopularProblem(entry.problem.slug)?.topics ?? []);
 
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setRescheduleFor(rescheduleFor === entry.problem.slug ? null : entry.problem.slug);
-                          }}
-                        >
-                          📅 Change schedule ▾
-                        </Button>
-                      </div>
-                    )}
-
-                    {rescheduleFor === entry.problem.slug ? (
-                      <div className="space-y-2 rounded-md border border-line bg-surface-2 p-3 text-[11px]">
-                        <p className="font-medium text-fg">Revise this question in:</p>
+            return (
+              <li key={entry.problem.slug}>
+                <RevisionCard
+                  problem={{
+                    ...entry.problem,
+                    difficulty: effectiveDiff,
+                    topics: effectiveTopics,
+                  }}
+                  revision={entry.revision}
+                  dueAt={entry.dueAt}
+                  overdue={entry.overdue}
+                  daysUntilDue={entry.daysUntilDue}
+                  onRevise={() => navigate(`/recall/${entry.problem.slug}`)}
+                  onReschedule={() =>
+                    setRescheduleFor(rescheduleFor === entry.problem.slug ? null : entry.problem.slug)
+                  }
+                  onDelete={() => setConfirmDelete(entry.problem.slug)}
+                  rescheduleContent={
+                    rescheduleFor === entry.problem.slug ? (
+                      <div className="space-y-2 text-[11px]">
+                        <p className="font-medium text-fg">Revise this question:</p>
                         <div className="flex flex-wrap gap-1.5">
                           <Button variant="secondary" size="sm" onClick={() => handleReschedule(entry.problem.slug, 1)}>
                             1 day
@@ -359,28 +399,24 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                           <Button variant="secondary" size="sm" onClick={() => handleReschedule(entry.problem.slug, 3)}>
                             3 days
                           </Button>
+                          <Button variant="secondary" size="sm" onClick={() => handleReschedule(entry.problem.slug, 5)}>
+                            5 days
+                          </Button>
                           <Button variant="secondary" size="sm" onClick={() => handleReschedule(entry.problem.slug, 7)}>
                             7 days
-                          </Button>
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleReschedule(entry.problem.slug, 14)}
-                          >
-                            14 days
                           </Button>
                         </div>
                         <div className="flex items-center gap-2 pt-1">
                           <span className="text-subtle">Or custom:</span>
                           <input
                             type="number"
-                            min={1}
+                            min={0}
                             max={365}
                             className="rlc-input w-16 py-1 text-center text-xs"
                             value={customRescheduleDays}
                             onChange={(e) => setCustomRescheduleDays(Number(e.target.value))}
                           />
-                          <span className="text-subtle">days</span>
+                          <span className="text-subtle">days (0 = Today)</span>
                           <Button
                             variant="primary"
                             size="sm"
@@ -393,12 +429,12 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                           </Button>
                         </div>
                       </div>
-                    ) : null}
-                  </div>
-                }
-              />
-            </li>
-          ))}
+                    ) : undefined
+                  }
+                />
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -419,6 +455,7 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                 onClick={async () => {
                   await callService('delete-problem', { slug: confirmDelete });
                   setConfirmDelete(null);
+                  setSuccessToast('Problem removed from tracking.');
                   await refresh();
                 }}
               >
@@ -434,20 +471,24 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
 
 function compareEntries(a: ProblemWithSchedule, b: ProblemWithSchedule, sort: ProblemSortKey): number {
   switch (sort) {
+    case 'lastAttempt': {
+      const aTime = a.problem.lastAttemptAt ?? a.problem.createdAt ?? 0;
+      const bTime = b.problem.lastAttemptAt ?? b.problem.createdAt ?? 0;
+      return aTime - bTime;
+    }
     case 'due': {
       const left = a.dueAt ?? Number.POSITIVE_INFINITY;
       const right = b.dueAt ?? Number.POSITIVE_INFINITY;
-      return left - right;
-    }
-    case 'lastAttempt': {
-      const left = a.problem.lastAttemptAt ?? 0;
-      const right = b.problem.lastAttemptAt ?? 0;
-      return right - left;
+      if (left !== right) return left - right;
+      // Tie breaker when due date matches: newest attempt on top
+      const aTime = a.problem.lastAttemptAt ?? a.problem.createdAt ?? 0;
+      const bTime = b.problem.lastAttemptAt ?? b.problem.createdAt ?? 0;
+      return bTime - aTime;
     }
     case 'topic':
       return (a.problem.topics[0] ?? '').localeCompare(b.problem.topics[0] ?? '');
     case 'difficulty':
-      return DIFFICULTY_ORDER[a.problem.difficulty] - DIFFICULTY_ORDER[b.problem.difficulty];
+      return DIFFICULTY_ORDER[getEffectiveDifficulty(a.problem)] - DIFFICULTY_ORDER[getEffectiveDifficulty(b.problem)];
     case 'title':
     default:
       return a.problem.title.localeCompare(b.problem.title);

@@ -41,9 +41,18 @@ class MockStorageArea {
 
 const localStorageArea = new MockStorageArea();
 
+const messageListeners: Array<
+  (message: unknown, sender: unknown, sendResponse: (response: unknown) => void) => boolean | void
+> = [];
+
+export function getMessageListeners() {
+  return [...messageListeners];
+}
+
 interface MockChrome {
   storage: { local: MockStorageArea };
   runtime: {
+    id: string;
     sendMessage: (message: unknown) => Promise<unknown>;
     getURL: (path: string) => string;
     onMessage: { addListener: (listener: unknown) => void };
@@ -55,9 +64,16 @@ interface MockChrome {
 const mockChrome: MockChrome = {
   storage: { local: localStorageArea },
   runtime: {
+    id: 'recalllc-test',
     sendMessage: async () => ({ ok: true, data: null }),
     getURL: (path: string) => `chrome-extension://recalllc-test/${path.replace(/^\//, '')}`,
-    onMessage: { addListener: () => undefined },
+    onMessage: {
+      addListener: (listener: unknown) => {
+        if (typeof listener === 'function') {
+          messageListeners.push(listener as never);
+        }
+      },
+    },
     onInstalled: { addListener: () => undefined },
   },
   tabs: {

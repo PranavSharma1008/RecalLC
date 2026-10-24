@@ -101,6 +101,8 @@ export interface RevisionRecord {
   dismissedAt: number | null;
   /** Paused problems never trigger a reminder. */
   paused: boolean;
+  /** True when the problem was manually rescheduled by the user (takes priority over global defaults). */
+  manualSchedule?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -134,7 +136,13 @@ export interface UserSettings {
   theme: ThemePreference;
   /** Days until the next review, keyed by recall rating. */
   intervals: Record<RecallRating, number>;
-  /** Days after a first attempt before a never-reviewed problem becomes due. */
+  /**
+   * Schedule mode for newly solved problems:
+   * - 'weekly_sunday': Solve Mon-Sat, Sunday is the revision day (default).
+   * - 'fixed_days': Review becomes due `initialIntervalDays` after the attempt.
+   */
+  initialScheduleMode: 'weekly_sunday' | 'fixed_days';
+  /** Days after a first attempt before a never-reviewed problem becomes due (when mode is fixed_days). */
   initialIntervalDays: number;
   remindersEnabled: boolean;
   /** Delay between page load and the reminder appearing. */
@@ -147,6 +155,29 @@ export interface UserSettings {
   accountSyncLimit: number;
   showTopicInReminder: boolean;
   onboardingCompleted: boolean;
+  /** Security & Master Passcode Lock */
+  securityAuthEnabled?: boolean;
+  securityPasscodeHash?: string | null;
+  securityPasscodeSalt?: string | null;
+  securityAutoLockMinutes?: number;
+  securityLastUnlockedAt?: number | null;
+}
+
+/* ------------------------------------------------------------------ enquiry */
+
+export type EnquiryCategory = 'bug' | 'feature' | 'collab' | 'security' | 'general';
+export type EnquiryPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export interface EnquiryRecord {
+  id: string;
+  createdAt: number;
+  category: EnquiryCategory;
+  senderName: string;
+  senderEmail: string;
+  subject: string;
+  message: string;
+  priority: EnquiryPriority;
+  status: 'sent_mailto' | 'sent_gmail' | 'copied' | 'draft';
 }
 
 /* ------------------------------------------------------------------ import */
@@ -215,6 +246,8 @@ export interface ReminderCandidate {
   overdueDays: number;
   accepted: boolean | null;
   language: string | null;
+  manualSchedule?: boolean;
+  updatedAt?: number;
 }
 
 export interface ReminderPayload {

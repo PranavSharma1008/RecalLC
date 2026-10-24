@@ -19,7 +19,8 @@ import { createRoot, type Root } from 'react-dom/client';
 
 import { ReminderRoot } from './ReminderRoot';
 import { startInlineRocketObserver, updateInlineRocket } from './inlineInjector';
-import { currentProblemSlug, observeUrlChanges } from './reminder';
+import { detectDifficultyFromPage } from './pushHelper';
+import { currentProblemSlug, isAcceptedOnPage, observeUrlChanges } from './reminder';
 import { callService } from '../services/messaging';
 import { readSettings } from '../services/storage';
 import { fetchCatalogViaGraphQL, fetchSubmissionHistory, statusToAccepted } from '../services/leetcodeApi';
@@ -38,6 +39,7 @@ let host: HTMLDivElement | null = null;
 let reactRoot: Root | null = null;
 let currentSlug: string | null = null;
 let tracker: SubmissionTracker | null = null;
+let hasSuccessfulSubmit = false;
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -125,7 +127,7 @@ function startTracker(): void {
   if (tracker) return;
   tracker = new SubmissionTracker({
     onAttempt: (attempt) => {
-      void recordAttempt(attempt);
+      void handleAttempt(attempt);
     },
   });
   tracker.start();
@@ -134,6 +136,24 @@ function startTracker(): void {
 function stopTracker(): void {
   tracker?.stop();
   tracker = null;
+}
+
+async function handleAttempt(attempt: {
+  accepted: boolean | null;
+  language: string | null;
+  verdict: string;
+  at: number;
+}): Promise<void> {
+  const settings = await readSettings();
+  if (settings.autoTrackSubmissions) {
+    void recordAttempt(attempt);
+  }
+
+  // When a solution is submitted and accepted, update the inline rocket button and show reschedule prompt
+  if (attempt.accepted) {
+    hasSuccessfulSubmit = true;
+    updateInlineRocket(currentSlug, true, true);
+  }
 }
 
 async function recordAttempt(attempt: {
@@ -145,9 +165,13 @@ async function recordAttempt(attempt: {
   const slug = currentProblemSlug();
   if (!slug) return;
   try {
+    const detectedDiff = detectDifficultyFromPage();
+    const difficulty =
+      detectedDiff !== 'Unknown' ? detectedDiff : slug.toLowerCase() === 'two-sum' ? 'Easy' : undefined;
     await callService('record-attempt', {
       slug,
       title: null,
+      difficulty,
       attemptedAt: attempt.at,
       accepted: attempt.accepted,
       language: attempt.language,
@@ -223,8 +247,9 @@ async function maybeSyncAccountHistory(): Promise<void> {
 
 function onSlugChange(slug: string | null): void {
   currentSlug = slug;
+  hasSuccessfulSubmit = isAcceptedOnPage();
   renderReminder(slug);
-  updateInlineRocket(slug);
+  updateInlineRocket(slug, hasSuccessfulSubmit);
 
   if (!slug) {
     stopTracker();
@@ -234,44 +259,48 @@ function onSlugChange(slug: string | null): void {
   // Opening a problem is *not* an attempt — it only refreshes metadata.
   void callService('mark-viewed', { slug }).catch(() => undefined);
 
-  void readSettings().then((settings) => {
-    if (settings.autoTrackSubmissions) startTracker();
-    else stopTracker();
-  });
+  startTracker();
 }
 
 function boot(): void {
   if (typeof document === 'undefined') return;
 
+  console.log('[RecallLC] Content script loaded on:', window.location.href);
   currentSlug = currentProblemSlug();
+  hasSuccessfulSubmit = isAcceptedOnPage();
+  console.log('[RecallLC] Initial slug:', currentSlug, 'isAcceptedOnPage:', hasSuccessfulSubmit);
   ensureHost();
   void applyTheme();
   renderReminder(currentSlug);
 
   if (currentSlug) {
     void callService('mark-viewed', { slug: currentSlug }).catch(() => undefined);
+    startTracker();
   }
 
-  void readSettings().then((settings) => {
-    if (settings.autoTrackSubmissions && currentSlug) startTracker();
-  });
-
   observeUrlChanges((slug) => {
-    if (slug === currentSlug) return;
+    console.log('[RecallLC] URL changed to:', window.location.href, 'slug:', slug);
     onSlugChange(slug);
   });
 
-  // Periodic safeguard: ensure host is attached and reminder is mounted on problem pages
+  // Periodic safeguard: ensure host is attached, check for accepted state, and keep UI responsive
   setInterval(() => {
     const slug = currentProblemSlug();
     if (slug) {
+      if (isAcceptedOnPage()) {
+        if (!hasSuccessfulSubmit) {
+          hasSuccessfulSubmit = true;
+          renderReminder(slug);
+        }
+        updateInlineRocket(slug);
+      }
       const el = document.getElementById(HOST_ID);
       if (!el || !el.isConnected) {
         ensureHost();
         renderReminder(slug);
       }
     }
-  }, 1500);
+  }, 500);
 
   // Start watching for submission result rows to inject inline rocket between Analysis and Solution
   startInlineRocketObserver(() => currentProblemSlug());

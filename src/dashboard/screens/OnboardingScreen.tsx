@@ -36,13 +36,8 @@ export function OnboardingScreen({ navigate, onDone }: OnboardingScreenProps) {
 
   return (
     <div className="mx-auto max-w-xl space-y-4">
-      <div className="flex items-center gap-2">
-        <span
-          aria-hidden="true"
-          className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-base font-bold text-accent-contrast"
-        >
-          R
-        </span>
+      <div className="flex items-center gap-2.5">
+        <img src="/icons/icon48.png" alt="RecallLC Logo" className="h-8 w-8 rounded-lg object-contain drop-shadow-sm" />
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Welcome to RecallLC</h1>
           <p className="text-[11px] text-subtle">Solve it. Remember it. Master it.</p>

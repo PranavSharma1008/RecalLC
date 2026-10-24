@@ -6,3 +6,7 @@ dist-ssr/
 .vite/
 coverage/
 *.log
+*.zip
+.env
+.env.*
+!.env.example

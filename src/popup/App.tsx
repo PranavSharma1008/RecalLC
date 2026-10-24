@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { LockScreen } from '../components/LockScreen';
 import { Button } from '../components/ui/Button';
 import { EmptyState, Spinner } from '../components/ui/States';
 import { useAsync } from '../hooks/useAsync';
@@ -7,6 +8,7 @@ import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../hooks/useTheme';
 import { callService } from '../services/messaging';
 import type { ReminderCandidate } from '../types';
+import { isSessionExpired, isSessionUnlocked, setSessionUnlocked } from '../utils/security';
 
 export function App() {
   const { settings, update } = useSettings();
@@ -15,27 +17,49 @@ export function App() {
   const [dueLoading, setDueLoading] = useState(true);
   const [dueError, setDueError] = useState<string | null>(null);
 
-  const stats = useAsync(() => callService('stats'), []);
+  const [isLocked, setIsLocked] = useState<boolean>(() => {
+    return !isSessionUnlocked();
+  });
+
+  useEffect(() => {
+    if (!settings?.securityAuthEnabled) return;
+    const timeout = settings.securityAutoLockMinutes ?? 15;
+    if (isSessionExpired(timeout)) {
+      setSessionUnlocked(false);
+      setIsLocked(true);
+    }
+  }, [settings?.securityAuthEnabled, settings?.securityAutoLockMinutes]);
+
+  const stats = useAsync(() => {
+    if (settings?.securityAuthEnabled && isLocked) {
+      return Promise.resolve(null);
+    }
+    return callService('stats');
+  }, [settings?.securityAuthEnabled, isLocked]);
 
   const loadDue = useCallback(async () => {
     try {
       setDueLoading(true);
       const result = await callService('list-due');
-      setDue(result);
+      setDue(Array.isArray(result) ? result : []);
       setDueError(null);
     } catch (error) {
       setDueError(error instanceof Error ? error.message : 'Could not load your revision queue.');
+      setDue([]);
     } finally {
       setDueLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    void loadDue();
-  }, [loadDue]);
+    if (!settings?.securityAuthEnabled || !isLocked) {
+      void loadDue();
+    }
+  }, [loadDue, settings?.securityAuthEnabled, isLocked]);
 
-  const dueToday = useMemo(() => due.filter((candidate) => !candidate.overdue).length, [due]);
-  const overdue = useMemo(() => due.filter((candidate) => candidate.overdue).length, [due]);
+  const dueList = Array.isArray(due) ? due : [];
+  const dueToday = useMemo(() => dueList.filter((candidate) => !candidate.overdue).length, [dueList]);
+  const overdue = useMemo(() => dueList.filter((candidate) => candidate.overdue).length, [dueList]);
 
   const openDashboard = (hash = '') => {
     void callService('open-dashboard', { hash });
@@ -58,17 +82,27 @@ export function App() {
 
   const total = stats.data?.totalProblems ?? 0;
 
+  if (settings && settings.securityAuthEnabled && isLocked) {
+    return (
+      <div className="flex h-full min-h-[520px] w-[380px] flex-col bg-bg text-fg">
+        <LockScreen
+          passcodeHash={settings.securityPasscodeHash}
+          passcodeSalt={settings.securityPasscodeSalt}
+          onUnlock={() => {
+            setIsLocked(false);
+            void loadDue();
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-full min-h-[520px] w-[380px] flex-col bg-bg text-fg">
       <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span
-              aria-hidden="true"
-              className="flex h-6 w-6 items-center justify-center rounded-md bg-accent text-[13px] font-bold text-accent-contrast"
-            >
-              R
-            </span>
+            <img src="/icons/icon32.png" alt="RecallLC Logo" className="h-6 w-6 rounded-md object-contain" />
             <h1 className="text-sm font-semibold tracking-tight">RecallLC</h1>
           </div>
           <p className="mt-1 text-[11px] text-subtle">Solve it. Remember it. Master it.</p>
@@ -78,9 +112,10 @@ export function App() {
           onClick={toggleTheme}
           aria-label={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} theme`}
           title={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} theme`}
-          className="rounded-md border border-line p-1.5 text-xs text-muted transition-colors hover:border-line-strong hover:text-fg"
+          className="inline-flex items-center gap-1 rounded-lg border border-line bg-surface-2 px-2.5 py-1 text-xs font-semibold text-fg shadow-sm transition-all hover:border-accent hover:text-accent cursor-pointer"
         >
-          {resolved === 'dark' ? '☀' : '☾'}
+          <span className="text-sm">{resolved === 'dark' ? '☀' : '☾'}</span>
+          <span className="text-[11px] font-medium">{resolved === 'dark' ? 'Light' : 'Dark'}</span>
         </button>
       </header>
 
@@ -101,9 +136,9 @@ export function App() {
             <Button
               variant="primary"
               size="sm"
-              disabled={due.length === 0}
+              disabled={dueList.length === 0}
               onClick={() => {
-                const next = due[0];
+                const next = dueList[0];
                 if (next) void startReview(next);
               }}
             >
@@ -119,7 +154,7 @@ export function App() {
       <section className="min-h-0 flex-1 overflow-y-auto px-4 pb-4">
         <div className="mb-2 flex items-center justify-between">
           <h2 className="text-[11px] font-semibold uppercase tracking-wide text-subtle">Revision queue</h2>
-          {due.length > 0 ? <span className="text-[11px] text-subtle">{due.length} total</span> : null}
+          {dueList.length > 0 ? <span className="text-[11px] text-subtle">{dueList.length} total</span> : null}
         </div>
 
         {dueLoading ? (
@@ -128,7 +163,7 @@ export function App() {
           <div className="rounded-lg border border-danger/40 bg-danger-soft px-3 py-2 text-[11px] text-danger">
             {dueError}
           </div>
-        ) : due.length === 0 ? (
+        ) : dueList.length === 0 ? (
           <EmptyState
             title="Nothing due right now"
             description={
@@ -144,7 +179,7 @@ export function App() {
           />
         ) : (
           <ul className="space-y-2">
-            {due.slice(0, 6).map((candidate) => (
+            {dueList.slice(0, 6).map((candidate) => (
               <li key={candidate.slug}>
                 <PopupDueItem candidate={candidate} onOpen={() => void openProblem(candidate)} />
               </li>
@@ -156,40 +191,33 @@ export function App() {
       <footer className="border-t border-line px-4 py-3 space-y-2">
         <div className="flex items-center justify-between text-[11px] text-subtle">
           <span>Covers the editor, tracker, reminders and queue.</span>
-          <div className="flex gap-1.5">
-            <button
-              type="button"
-              onClick={() => openDashboard('#/import')}
-              className="text-subtle hover:text-fg transition-colors"
-            >
-              📥 Import
-            </button>
-            <span>·</span>
-            <button
-              type="button"
-              onClick={() => openDashboard('#/settings')}
-              className="text-subtle hover:text-fg transition-colors"
-            >
-              ⚙️ Settings
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => openDashboard('#/settings')}
+            className="text-subtle hover:text-fg transition-colors"
+          >
+            ⚙️ Settings
+          </button>
         </div>
 
         <div className="flex items-center justify-between pt-0.5">
           <div className="flex items-center gap-2">
+            <a
+              href="https://mail.google.com/mail/?view=cm&fs=1&to=pranav2410991479@gmail.com&su=RecallLC%20Enquiry"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-400 hover:border-indigo-400 hover:bg-indigo-500/20 hover:text-indigo-300 transition-colors cursor-pointer"
+              title="Open Gmail to send enquiry directly to pranav2410991479@gmail.com"
+            >
+              <span>✉️</span> Enquiry
+            </a>
             <button
               type="button"
               onClick={() => openDashboard('#/support')}
-              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3 py-1 text-xs font-medium text-fg hover:border-line-strong hover:bg-surface-3 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3 py-1 text-xs font-medium text-fg hover:border-line-strong hover:bg-surface-3 transition-colors cursor-pointer"
             >
               <span className="text-pink-400">💖</span> Support
             </button>
-            <a
-              href="mailto:shpranav1008@gmail.com?subject=RecallLC%20Bug%20Report&body=Hi%20Pranav,%0A%0AI%20found%20a%20bug%20in%20RecallLC%20v1.0.0:%0A"
-              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3 py-1 text-xs font-medium text-fg hover:border-line-strong hover:bg-surface-3 transition-colors"
-            >
-              <span>🪲</span> Report bug
-            </a>
           </div>
           <span className="text-[11px] font-mono text-subtle">v1.0.0</span>
         </div>

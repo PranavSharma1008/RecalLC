@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { RevisionReminder } from '../components/RevisionReminder';
-import { RocketPushButton } from './RocketPushButton';
 import { callService } from '../services/messaging';
 import { readSettings } from '../services/storage';
 import type { ReminderPayload } from '../types';
@@ -14,8 +13,7 @@ export interface ReminderRootProps {
 /**
  * The React island that renders the in-page reminder.
  *
- * Only one card is ever mounted, and only for a problem that is *not* the
- * one currently on screen.
+ * Only mounted for in-page revision reminders when an older problem is due.
  */
 export function ReminderRoot({ currentSlug }: ReminderRootProps) {
   const [payload, setPayload] = useState<ReminderPayload | null>(null);
@@ -101,26 +99,20 @@ export function ReminderRoot({ currentSlug }: ReminderRootProps) {
     void callService('open-dashboard', {});
   }, []);
 
-  const showReminder = visible && payload?.candidate;
-  if (!currentSlug && !showReminder) return null;
+  if (!visible || !payload?.candidate) return null;
 
   return (
     <div className="rlc-island-stack">
-      {/* Rocket Push Button: lets user push the problem/code to RecallLC */}
-      {currentSlug ? <RocketPushButton currentSlug={currentSlug} /> : null}
-
       {/* In-page Revision Reminder: appears when an older problem is due */}
-      {showReminder && payload?.candidate ? (
-        <RevisionReminder
-          candidate={payload.candidate}
-          remainingDue={payload.remainingDue}
-          showTopic
-          onRevise={handleRevise}
-          onSnooze={handleSnooze}
-          onDismiss={handleDismiss}
-          onOpenDashboard={handleOpenDashboard}
-        />
-      ) : null}
+      <RevisionReminder
+        candidate={payload.candidate}
+        remainingDue={payload.remainingDue}
+        showTopic
+        onRevise={handleRevise}
+        onSnooze={handleSnooze}
+        onDismiss={handleDismiss}
+        onOpenDashboard={handleOpenDashboard}
+      />
     </div>
   );
 }

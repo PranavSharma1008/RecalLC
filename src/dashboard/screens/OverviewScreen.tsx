@@ -6,6 +6,7 @@ import { Card, CardHeader, StatTile } from '../../components/ui/Card';
 import { EmptyState, ErrorState, Spinner } from '../../components/ui/States';
 import { useAsync } from '../../hooks/useAsync';
 import { callService } from '../../services/messaging';
+import { getPopularProblem } from '../../data/popularProblems';
 import type { ProblemWithSchedule } from '../../types';
 
 export interface OverviewScreenProps {
@@ -13,7 +14,7 @@ export interface OverviewScreenProps {
   onChanged: () => void;
 }
 
-export function OverviewScreen({ navigate, onChanged }: OverviewScreenProps) {
+export function OverviewScreen({ navigate, onChanged: _onChanged }: OverviewScreenProps) {
   const stats = useAsync(() => callService('stats'), []);
   const due = useAsync(() => callService('list-due'), []);
   const schedule = useAsync(() => callService('list-problems'), []);
@@ -100,6 +101,13 @@ export function OverviewScreen({ navigate, onChanged }: OverviewScreenProps) {
                 <ul className="space-y-2">
                   {dueList.slice(0, 4).map((candidate) => {
                     const entry = dueBySlug.get(candidate.slug);
+                    const popular = getPopularProblem(candidate.slug);
+                    const effectiveDiff =
+                      candidate.difficulty && candidate.difficulty !== 'Unknown'
+                        ? candidate.difficulty
+                        : (popular?.difficulty ?? 'Unknown');
+                    const effectiveTopics = candidate.topics.length > 0 ? candidate.topics : (popular?.topics ?? []);
+
                     return (
                       <li key={candidate.slug}>
                         <RevisionCard
@@ -107,8 +115,8 @@ export function OverviewScreen({ navigate, onChanged }: OverviewScreenProps) {
                             slug: candidate.slug,
                             title: candidate.title,
                             url: candidate.url,
-                            difficulty: candidate.difficulty,
-                            topics: candidate.topics,
+                            difficulty: effectiveDiff,
+                            topics: effectiveTopics,
                             notes: entry?.problem.notes ?? '',
                             firstAttemptAt: entry?.problem.firstAttemptAt ?? null,
                             lastAttemptAt: candidate.lastAttemptAt,
@@ -126,11 +134,6 @@ export function OverviewScreen({ navigate, onChanged }: OverviewScreenProps) {
                           daysUntilDue={entry?.daysUntilDue ?? null}
                           compact
                           onRevise={() => navigate(`/recall/${candidate.slug}`)}
-                          onSnooze={async () => {
-                            await callService('snooze', { slug: candidate.slug });
-                            onChanged();
-                            due.reload();
-                          }}
                         />
                       </li>
                     );
@@ -138,8 +141,8 @@ export function OverviewScreen({ navigate, onChanged }: OverviewScreenProps) {
                 </ul>
                 {dueList.length > 4 ? (
                   <div className="pt-1 text-center">
-                    <Button variant="ghost" size="sm" onClick={() => navigate('/problems')}>
-                      See all {dueList.length} due problems →
+                    <Button variant="ghost" size="sm" onClick={() => navigate('/reminders')}>
+                      See all {dueList.length} due reminders →
                     </Button>
                   </div>
                 ) : null}
@@ -150,55 +153,19 @@ export function OverviewScreen({ navigate, onChanged }: OverviewScreenProps) {
 
         <div className="space-y-5">
           <Card>
-            <CardHeader title="By topic" subtitle="Where your revision effort goes" />
-            <div className="p-4">
-              {(data?.byTopic.length ?? 0) === 0 ? (
-                <p className="text-xs text-muted">No topics yet — import your history to see the breakdown.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {data?.byTopic.slice(0, 10).map((topic) => {
-                    const max = data.byTopic[0]?.count || 1;
-                    const percent = Math.round((topic.count / max) * 100);
-                    return (
-                      <li key={topic.topic}>
-                        <div className="flex items-baseline justify-between gap-2 text-[11px]">
-                          <span className="truncate text-fg">{topic.topic}</span>
-                          <span className="shrink-0 tabular-nums text-subtle">
-                            {topic.count}
-                            {topic.due > 0 ? <span className="ml-1 text-accent">({topic.due} due)</span> : null}
-                          </span>
-                        </div>
-                        <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-2">
-                          <div className="h-full rounded-full bg-accent" style={{ width: `${percent}%` }} />
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          </Card>
-
-          <Card>
             <CardHeader title="Quick actions" />
             <div className="grid grid-cols-2 gap-2 p-4">
               <Button variant="secondary" size="sm" onClick={() => navigate('/problems')}>
                 📚 Browse problems
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => navigate('/reminders')}>
+                ⏰ View reminders
               </Button>
               <Button variant="secondary" size="sm" onClick={() => navigate('/import')}>
                 📥 Import history
               </Button>
               <Button variant="secondary" size="sm" onClick={() => navigate('/settings')}>
                 ⚙️ Settings
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => {
-                  void callService('open-problem', { url: 'https://leetcode.com/problemset/' }).catch(() => undefined);
-                }}
-              >
-                🌐 Open LeetCode
               </Button>
             </div>
           </Card>

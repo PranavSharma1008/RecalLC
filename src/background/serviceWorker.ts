@@ -48,6 +48,7 @@ import {
   saveProblem,
   setPaused,
   snooze,
+  syncUnscheduledWithSettings,
   updateNotes,
 } from '../services/repository';
 import { importFile, previewImport } from '../services/historyImporter';
@@ -275,19 +276,37 @@ const handlers: { [K in keyof ServiceMap]: Handler<K> } = {
 
   'get-settings': async () => readSettings(),
 
-  'update-settings': async (payload) => writeSettings(payload),
+  'update-settings': async (payload) => {
+    const updated = await writeSettings(payload);
+    if (payload.initialScheduleMode !== undefined || payload.initialIntervalDays !== undefined) {
+      await syncUnscheduledWithSettings(now());
+    }
+    return updated;
+  },
 
   'open-problem': async (payload) => {
-    if (!/^https:\/\/(www\.)?leetcode\.com(\/.*)?$/i.test(payload.url)) {
+    let parsed: URL;
+    try {
+      parsed = new URL(payload.url);
+    } catch {
+      throw new Error('Refusing to open an invalid URL.');
+    }
+
+    if (
+      parsed.protocol !== 'https:' ||
+      (parsed.hostname !== 'leetcode.com' && parsed.hostname !== 'www.leetcode.com')
+    ) {
       throw new Error('Refusing to open an unexpected URL.');
     }
+
     await chrome.tabs.create({ url: payload.url, active: true });
     return true;
   },
 
   'open-dashboard': async (payload) => {
-    const hash = payload?.hash ?? '';
-    const url = chrome.runtime.getURL(`src/dashboard/index.html${hash}`);
+    const rawHash = payload?.hash ?? '';
+    const cleanHash = rawHash.startsWith('#') ? rawHash : rawHash ? `#${rawHash}` : '';
+    const url = chrome.runtime.getURL(`src/dashboard/index.html${cleanHash}`);
     await chrome.tabs.create({ url, active: true });
     return true;
   },
@@ -295,13 +314,50 @@ const handlers: { [K in keyof ServiceMap]: Handler<K> } = {
 
 /* ---------------------------------------------------------------- dispatch */
 
+/**
+ * Methods that must ONLY be executed by internal extension pages
+ * (e.g. Dashboard or Popup) and NEVER by content scripts running in leetcode.com.
+ */
+const PRIVILEGED_METHODS = new Set<keyof ServiceMap>([
+  'export',
+  'restore',
+  'clear-all',
+  'delete-problem',
+  'update-settings',
+  'import-commit',
+  'import-preview',
+]);
+
+function isPrivilegedSender(sender: chrome.runtime.MessageSender): boolean {
+  if (!sender.url && !sender.origin) return false;
+  const extensionOrigin = chrome.runtime.getURL('');
+  if (sender.url && sender.url.startsWith(extensionOrigin)) {
+    return true;
+  }
+  if (sender.origin && sender.origin.startsWith('chrome-extension://')) {
+    return true;
+  }
+  return false;
+}
+
 chrome.runtime.onMessage.addListener(
-  (message: unknown, _sender: chrome.runtime.MessageSender, sendResponse: (response: unknown) => void) => {
+  (message: unknown, sender: chrome.runtime.MessageSender, sendResponse: (response: unknown) => void) => {
     if (typeof message !== 'object' || message === null) return false;
     const envelope = message as { channel?: string; method?: string; payload?: unknown };
     if (envelope.channel !== MESSAGE_CHANNEL || typeof envelope.method !== 'string') return false;
 
     const method = envelope.method as keyof ServiceMap;
+
+    // Defend against IPC privilege escalation from external origins or content scripts
+    if (PRIVILEGED_METHODS.has(method) && !isPrivilegedSender(sender)) {
+      sendResponse(
+        fail(
+          new Error(`Unauthorized: method "${method}" is restricted to extension pages.`),
+        ) satisfies ServiceErrorEnvelope,
+      );
+      return false;
+    }
+
     const handler = handlers[method];
     if (!handler) {
       sendResponse(fail(new Error(`Unknown method "${envelope.method}"`)) satisfies ServiceErrorEnvelope);

@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Installation Guide — RecallLC Chrome Extension</title>
+    <meta
+      name="description"
+      content="Step-by-step guide to installing RecallLC via GitHub unpacked developer mode in Google Chrome, Brave, Edge, and Arc."
+    />
+    <link rel="canonical" href="https://recalllc.netlify.app/installation.html" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow-top" aria-hidden="true"></div>
+
+    <!-- Header -->
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a href="index.html" class="brand" aria-label="RecallLC Homepage">
+          <img src="favicon.svg" alt="RecallLC Logo" class="brand-icon" />
+          <span>RecallLC</span>
+        </a>
+
+        <nav aria-label="Main Navigation">
+          <ul class="nav-links">
+            <li><a href="index.html#features">Features</a></li>
+            <li><a href="index.html#how-it-works">How It Works</a></li>
+            <li><a href="installation.html" class="active">Installation</a></li>
+            <li><a href="index.html#pricing">Pricing</a></li>
+            <li><a href="contact.html">Contact</a></li>
+          </ul>
+        </nav>
+
+        <div class="nav-actions">
+          <a
+            href="https://github.com/PranavSharma1008/RecalLc"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-secondary btn-sm"
+            >GitHub ↗</a
+          >
+          <a href="index.html#install" class="btn btn-primary btn-sm">Get RecallLC</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Installation Content -->
+    <main class="policy-page">
+      <div class="container">
+        <div class="policy-head">
+          <span class="badge badge-purple" style="margin-bottom: 12px">Developer Mode Setup</span>
+          <h1>How to Install RecallLC</h1>
+          <p class="policy-meta">
+            Compatible with Google Chrome, Brave, Microsoft Edge, and Arc Browser (Chromium 116+).
+          </p>
+        </div>
+
+        <div class="policy-body">
+          <p>
+            RecallLC is an open-source Chrome extension distributed directly through GitHub. Follow this comprehensive
+            guide to download, build (optional), and load the extension into your browser.
+          </p>
+
+          <div class="policy-highlight-card">
+            <h3 style="margin-top: 0">⚡ Quick Checklist</h3>
+            <ul>
+              <li><strong>Browser:</strong> Any modern Chromium browser (Chrome 116+, Brave, Arc, Edge).</li>
+              <li>
+                <strong>Required folder:</strong> You must select the <code>dist</code> folder when loading the
+                extension.
+              </li>
+              <li><strong>Time required:</strong> ~60 seconds.</li>
+            </ul>
+          </div>
+
+          <h2>Step-by-Step Installation Instructions</h2>
+
+          <h3>Step 1: Obtain the Extension Code</h3>
+          <p>You have two simple options to get the extension files on your machine:</p>
+
+          <p><strong>Option A: Direct ZIP Download (No Git required)</strong></p>
+          <ol>
+            <li>
+              Open the official repository:
+              <a
+                href="https://github.com/PranavSharma1008/RecalLc"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="color: var(--accent); text-decoration: underline"
+                >https://github.com/PranavSharma1008/RecalLc</a
+              >.
+            </li>
+            <li>
+              Click the green <strong>Code</strong> button and select <strong>Download ZIP</strong> (or
+              <a
+                href="https://github.com/PranavSharma1008/RecalLc/archive/refs/heads/main.zip"
+                style="color: var(--accent); font-weight: 600"
+                >click here for direct download</a
+              >).
+            </li>
+            <li>
+              Extract the downloaded <code>.zip</code> file to a folder on your computer (e.g. your Documents or
+              Projects folder).
+            </li>
+          </ol>
+
+          <p><strong>Option B: Git Clone (Recommended for easy updates)</strong></p>
+          <div class="code-box">
+            <code>git clone https://github.com/PranavSharma1008/RecalLc.git</code>
+            <button
+              type="button"
+              class="btn-copy"
+              data-copy="git clone https://github.com/PranavSharma1008/RecalLc.git"
+            >
+              Copy
+            </button>
+          </div>
+
+          <h3>Step 2: Locate the <code>dist</code> Folder</h3>
+          <p>
+            The production extension assets are compiled inside the <code>dist</code> directory within the project
+            folder. Ensure this directory contains <code>manifest.json</code> and the extension assets.
+          </p>
+          <p>If you cloned the source repository and wish to build it yourself:</p>
+          <div class="code-box">
+            <code>cd RecalLc && npm install && npm run build</code>
+            <button type="button" class="btn-copy" data-copy="cd RecalLc && npm install && npm run build">Copy</button>
+          </div>
+
+          <h3>Step 3: Open Chrome Extensions Manager</h3>
+          <p>Open a new tab in Google Chrome and navigate to the Extensions management page:</p>
+          <div class="code-box">
+            <code>chrome://extensions</code>
+            <button type="button" class="btn-copy" data-copy="chrome://extensions">Copy</button>
+          </div>
+
+          <h3>Step 4: Enable Developer Mode</h3>
+          <p>
+            In the top-right corner of the <code>chrome://extensions</code> page, toggle the switch labeled
+            <strong>Developer mode</strong> to <strong>ON</strong>.
+          </p>
+
+          <h3>Step 5: Load Unpacked Extension</h3>
+          <ol>
+            <li>Click the <strong>Load unpacked</strong> button that appears in the top-left toolbar.</li>
+            <li>
+              In the file dialog, navigate into the extracted <code>RecalLc</code> folder and select the
+              <strong><code>dist</code></strong> folder.
+            </li>
+            <li>Click <strong>Select</strong> or <strong>Open</strong>.</li>
+          </ol>
+
+          <div class="notice-box">
+            <p>
+              <strong>Important:</strong> Do not select the root project folder. Make sure you select the
+              <code>dist</code> subfolder which directly contains <code>manifest.json</code>.
+            </p>
+          </div>
+
+          <h3>Step 6: Pin & Test</h3>
+          <ol>
+            <li>Click the puzzle piece icon (Extensions menu) in the top-right corner of your browser toolbar.</li>
+            <li>Find <strong>RecallLC</strong> and click the Pin icon to keep it accessible.</li>
+            <li>Click the RecallLC icon to verify the popup queue displays correctly.</li>
+            <li>
+              Navigate to any LeetCode problem (e.g.
+              <a
+                href="https://leetcode.com/problems/two-sum/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="color: var(--accent)"
+                >leetcode.com/problems/two-sum/</a
+              >) to test the in-page reminder and Inline Rocket button!
+            </li>
+          </ol>
+
+          <hr style="border: 0; border-top: 1px solid var(--line-border); margin: 40px 0" />
+
+          <h2>How to Update RecallLC</h2>
+          <p>
+            Because unpacked extensions do not receive automatic updates from the Chrome Web Store, update manually when
+            a new version is published:
+          </p>
+          <ol>
+            <li>If using Git, run <code>git pull && npm run build</code> in your terminal.</li>
+            <li>If using ZIP, download and extract the new release archive into the same location.</li>
+            <li>Open <code>chrome://extensions</code>.</li>
+            <li>Find the RecallLC card and click the circular <strong>Reload</strong> icon (⟳).</li>
+          </ol>
+          <p>
+            <em>Note:</em> Your revision schedule, attempts history, and personal notes stored in IndexedDB are
+            <strong>fully preserved</strong> when you reload the extension.
+          </p>
+
+          <hr style="border: 0; border-top: 1px solid var(--line-border); margin: 40px 0" />
+
+          <h2>Troubleshooting & FAQ</h2>
+
+          <h3>"Manifest file is missing or unreadable"</h3>
+          <p>
+            This error occurs if you selected the outer project root folder rather than the <code>dist</code> directory.
+            Re-click <strong>Load unpacked</strong> and select the <code>dist</code> folder directly.
+          </p>
+
+          <h3>The in-page reminder doesn't appear on LeetCode</h3>
+          <p>
+            1. Check that you are on an actual problem page (URLs matching
+            <code>https://leetcode.com/problems/*</code>).<br />
+            2. RecallLC intentionally excludes the problem you currently have open from its reminder.<br />
+            3. If no problems are due for revision yet, solve a question or click the
+            <strong>Inline Rocket button</strong> on LeetCode to schedule one!
+          </p>
+
+          <div style="margin-top: 40px; text-align: center">
+            <a href="index.html" class="btn btn-secondary">← Back to Homepage</a>
+            <a href="contact.html" class="btn btn-primary" style="margin-left: 12px">Need Help? Contact Developer</a>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+      <div class="container footer-bottom">
+        <div>© <span class="current-year">2026</span> RecallLC. Developed by <strong>Pranav Sharma</strong>.</div>
+        <div>
+          <a href="privacy.html" style="margin-right: 14px">Privacy Policy</a> <a href="terms.html">Terms of Service</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

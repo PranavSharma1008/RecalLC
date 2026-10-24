@@ -37,7 +37,9 @@ import {
 } from './revisionEngine';
 import { getDb, type ImportBatch, type RecallDatabase } from './db';
 import { readSettings } from './storage';
+import { getPopularProblem } from '../data/popularProblems';
 import { localDayDiff, startOfLocalDay } from '../utils/date';
+import { sanitizeProblemNotes } from '../utils/notes';
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -88,12 +90,13 @@ export function computeStruggleScore(input: {
 }
 
 function emptyProblem(slug: string, now: number): Problem {
+  const popular = getPopularProblem(slug);
   return {
     slug,
-    title: titleFromSlug(slug),
+    title: popular?.title ?? titleFromSlug(slug),
     url: problemUrl(slug),
-    difficulty: 'Unknown',
-    topics: [],
+    difficulty: popular?.difficulty ?? 'Unknown',
+    topics: popular?.topics ? [...popular.topics] : [],
     notes: '',
     firstAttemptAt: null,
     lastAttemptAt: null,
@@ -110,11 +113,96 @@ function emptyProblem(slug: string, now: number): Problem {
 /* -------------------------------------------------------------------- reads */
 
 export async function listProblems(): Promise<Problem[]> {
-  return db().problems.toArray();
+  const database = db();
+  const raw = await database.problems.toArray();
+
+  // Exclude and purge accidental ghost problems created just by viewing without ever pushing or writing notes
+  const ghostSlugs: string[] = [];
+  const problems = raw.filter((problem) => {
+    const hasAttempt = problem.attemptCount > 0 || problem.lastAttemptAt !== null;
+    const hasNotes = Boolean(problem.notes && problem.notes.trim().length > 0);
+    if (!hasAttempt && !hasNotes) {
+      ghostSlugs.push(problem.slug);
+      return false;
+    }
+    return true;
+  });
+
+  if (ghostSlugs.length > 0) {
+    void database
+      .transaction('rw', [database.problems, database.revisions], async () => {
+        for (const slug of ghostSlugs) {
+          await database.problems.delete(slug);
+          await database.revisions.delete(slug);
+        }
+      })
+      .catch(() => undefined);
+  }
+
+  for (const problem of problems) {
+    let changed = false;
+    if (problem.difficulty === 'Unknown' || !problem.difficulty) {
+      const popular = getPopularProblem(problem.slug);
+      if (popular && popular.difficulty !== 'Unknown') {
+        problem.difficulty = popular.difficulty;
+        if (problem.topics.length === 0 && popular.topics.length > 0) {
+          problem.topics = [...popular.topics];
+        }
+        changed = true;
+      }
+    }
+    if (
+      problem.notes &&
+      (problem.notes.includes('Push to RecallLC') ||
+        (problem.notes.match(/Solution Code/g)?.length ?? 0) > 1 ||
+        (problem.notes.match(/## Recall checklist/g)?.length ?? 0) > 1)
+    ) {
+      problem.notes = sanitizeProblemNotes(problem.notes);
+      changed = true;
+    }
+    if (changed) {
+      await db().problems.put(problem);
+    }
+  }
+
+  // Natural default order: newest attempt/problem first (new on top, old at bottom)
+  problems.sort((a, b) => {
+    const aTime = a.lastAttemptAt ?? a.createdAt ?? 0;
+    const bTime = b.lastAttemptAt ?? b.createdAt ?? 0;
+    return bTime - aTime;
+  });
+
+  return problems;
 }
 
 export async function getProblem(slug: string): Promise<Problem | undefined> {
-  return db().problems.get(slug);
+  const problem = await db().problems.get(slug);
+  if (problem) {
+    let changed = false;
+    if (problem.difficulty === 'Unknown' || !problem.difficulty) {
+      const popular = getPopularProblem(problem.slug);
+      if (popular && popular.difficulty !== 'Unknown') {
+        problem.difficulty = popular.difficulty;
+        if (problem.topics.length === 0 && popular.topics.length > 0) {
+          problem.topics = [...popular.topics];
+        }
+        changed = true;
+      }
+    }
+    if (
+      problem.notes &&
+      (problem.notes.includes('Push to RecallLC') ||
+        (problem.notes.match(/Solution Code/g)?.length ?? 0) > 1 ||
+        (problem.notes.match(/## Recall checklist/g)?.length ?? 0) > 1)
+    ) {
+      problem.notes = sanitizeProblemNotes(problem.notes);
+      changed = true;
+    }
+    if (changed) {
+      await db().problems.put(problem);
+    }
+  }
+  return problem;
 }
 
 export async function listRevisions(): Promise<RevisionRecord[]> {
@@ -145,6 +233,13 @@ export async function listCatalog(): Promise<CatalogEntry[]> {
 
 /* ------------------------------------------------------------------ writes */
 
+export async function computeInitialDue(anchor: number): Promise<number> {
+  const settings = await readSettings();
+  return settings.initialScheduleMode === 'weekly_sunday'
+    ? initialDueDate(anchor, 'weekly_sunday')
+    : initialDueDate(anchor, settings.initialIntervalDays);
+}
+
 export interface RecordAttemptResult {
   created: boolean;
   duplicate: boolean;
@@ -169,7 +264,8 @@ export async function recordAttempt(input: AttemptInput, now: number = Date.now(
     if (existing) {
       const problem = (await database.problems.get(slug)) ?? emptyProblem(slug, now);
       const revision =
-        (await database.revisions.get(slug)) ?? createRevision(slug, initialDueDate(problem.lastAttemptAt ?? now), now);
+        (await database.revisions.get(slug)) ??
+        createRevision(slug, await computeInitialDue(problem.lastAttemptAt ?? now), now);
       return { created: false, duplicate: true, problem, revision };
     }
   }
@@ -179,7 +275,8 @@ export async function recordAttempt(input: AttemptInput, now: number = Date.now(
   if (existingById) {
     const problem = (await database.problems.get(slug)) ?? emptyProblem(slug, now);
     const revision =
-      (await database.revisions.get(slug)) ?? createRevision(slug, initialDueDate(problem.lastAttemptAt ?? now), now);
+      (await database.revisions.get(slug)) ??
+      createRevision(slug, await computeInitialDue(problem.lastAttemptAt ?? now), now);
     return { created: false, duplicate: true, problem, revision };
   }
 
@@ -220,6 +317,14 @@ export async function recordAttempt(input: AttemptInput, now: number = Date.now(
     problem.difficulty = input.difficulty;
   } else if (problem.difficulty === 'Unknown' && catalogEntry?.difficulty && catalogEntry.difficulty !== 'Unknown') {
     problem.difficulty = catalogEntry.difficulty;
+  } else if (problem.difficulty === 'Unknown') {
+    const popular = getPopularProblem(slug);
+    if (popular) {
+      problem.difficulty = popular.difficulty;
+      if (problem.topics.length === 0 && popular.topics.length > 0) {
+        problem.topics = [...popular.topics];
+      }
+    }
   }
 
   if (input.topics && input.topics.length > 0) {
@@ -231,19 +336,13 @@ export async function recordAttempt(input: AttemptInput, now: number = Date.now(
   problem.updatedAt = now;
 
   const previousRevision = await database.revisions.get(slug);
-  const settings = await readSettings();
   let revision: RevisionRecord;
 
   if (!previousRevision) {
-    revision = createRevision(slug, initialDueDate(lastAttemptAt, settings.initialIntervalDays), now);
-  } else if (previousRevision.lastReviewedAt === null) {
-    // Never reviewed yet — a new attempt refreshes the schedule.
-    revision = {
-      ...previousRevision,
-      dueAt: initialDueDate(lastAttemptAt, settings.initialIntervalDays),
-      updatedAt: now,
-    };
+    const initialDue = await computeInitialDue(lastAttemptAt);
+    revision = createRevision(slug, initialDue, now);
   } else {
+    // Preserve existing revision schedule so user's manual schedule / progress is preserved
     revision = previousRevision;
   }
 
@@ -293,9 +392,9 @@ export async function saveProblem(input: ManualSaveInput, now: number = Date.now
       now,
     );
   } else if (!(await database.revisions.get(slug))) {
-    const settings = await readSettings();
     const anchor = problem.lastAttemptAt ?? now;
-    await database.revisions.put(createRevision(slug, initialDueDate(anchor, settings.initialIntervalDays), now));
+    const initialDue = await computeInitialDue(anchor);
+    await database.revisions.put(createRevision(slug, initialDue, now));
   }
 
   return (await database.problems.get(slug)) ?? problem;
@@ -305,7 +404,7 @@ export async function saveProblem(input: ManualSaveInput, now: number = Date.now
 export async function updateNotes(slug: string, notes: string, now: number = Date.now()): Promise<Problem | null> {
   const problem = await db().problems.get(slug);
   if (!problem) return null;
-  problem.notes = notes;
+  problem.notes = sanitizeProblemNotes(notes);
   problem.updatedAt = now;
   await db().problems.put(problem);
   return problem;
@@ -324,7 +423,7 @@ export async function rateRecall(
 
   const previousDueAt = existing?.dueAt ?? now;
   const base: RevisionRecord =
-    existing ?? createRevision(slug, initialDueDate(problem?.lastAttemptAt ?? now, settings.initialIntervalDays), now);
+    existing ?? createRevision(slug, await computeInitialDue(problem?.lastAttemptAt ?? now), now);
 
   const revision = applyRating(base, rating, now, settings.intervals);
 
@@ -412,6 +511,7 @@ export async function rescheduleProblem(
   const revision: RevisionRecord = {
     ...base,
     dueAt,
+    manualSchedule: true,
     snoozedUntil: null,
     dismissedAt: null,
     updatedAt: now,
@@ -428,7 +528,12 @@ export async function rescheduleProblem(
     source: 'manual',
   };
 
-  await database.transaction('rw', [database.revisions, database.events], async () => {
+  if (problem) {
+    problem.updatedAt = now;
+  }
+
+  await database.transaction('rw', [database.problems, database.revisions, database.events], async () => {
+    if (problem) await database.problems.put(problem);
     await database.revisions.put(revision);
     await database.events.put(event);
   });
@@ -450,13 +555,15 @@ export async function setPaused(
   return revision;
 }
 
-/** Record that the user merely opened a problem (never an attempt). */
+/** Record that the user merely opened a problem (never creates an untracked record). */
 export async function markViewed(slug: string, now: number = Date.now()): Promise<void> {
   const database = db();
   const existing = await database.problems.get(slug);
-  const problem = existing ?? emptyProblem(slug, now);
-  problem.lastViewedAt = now;
-  if (!existing) await database.problems.put(problem);
+  // Only update lastViewedAt if problem is already tracked; never create ghost problems
+  if (existing) {
+    existing.lastViewedAt = now;
+    await database.problems.put(existing);
+  }
 }
 
 /** Merge cached catalogue metadata into tracked problems. */
@@ -539,6 +646,8 @@ export async function listDueProblems(now: number = Date.now()): Promise<Reminde
       overdueDays: isOverdue(revision.dueAt, now) ? Math.abs(localDayDiff(revision.dueAt, now)) : 0,
       accepted: problem.accepted,
       language: problem.lastLanguage,
+      manualSchedule: revision.manualSchedule,
+      updatedAt: revision.updatedAt,
     });
   }
 
@@ -553,9 +662,55 @@ export async function listDueProblems(now: number = Date.now()): Promise<Reminde
   return ordered.map(({ struggleScore: _struggleScore, ...candidate }) => candidate);
 }
 
+/**
+ * Update unreviewed problems that have not been manually rescheduled to match updated settings.
+ * Problems that were manually rescheduled by the user preserve their manual schedule (priority).
+ */
+export async function syncUnscheduledWithSettings(now: number = Date.now()): Promise<number> {
+  const settings = await readSettings();
+  const database = db();
+  const [revisions, problems, events] = await Promise.all([
+    database.revisions.toArray(),
+    database.problems.toArray(),
+    database.events.filter((e) => e.source === 'manual').toArray(),
+  ]);
+  const manualSlugs = new Set(events.map((e) => e.slug));
+  const problemBySlug = new Map(problems.map((p) => [p.slug, p]));
+  let updatedCount = 0;
+
+  await database.transaction('rw', database.revisions, async () => {
+    for (const revision of revisions) {
+      // If user specifically changed or reviewed this problem, preserve it with priority!
+      if (
+        revision.manualSchedule ||
+        manualSlugs.has(revision.slug) ||
+        revision.stage > 0 ||
+        revision.lastReviewedAt !== null
+      ) {
+        continue;
+      }
+      const problem = problemBySlug.get(revision.slug);
+      const anchor = problem?.lastAttemptAt ?? revision.createdAt;
+      const newDue =
+        settings.initialScheduleMode === 'weekly_sunday'
+          ? initialDueDate(anchor, 'weekly_sunday')
+          : initialDueDate(anchor, settings.initialIntervalDays);
+      if (newDue !== revision.dueAt) {
+        revision.dueAt = newDue;
+        revision.updatedAt = now;
+        await database.revisions.put(revision);
+        updatedCount++;
+      }
+    }
+  });
+
+  return updatedCount;
+}
+
 /** Every tracked problem joined with its schedule. */
 export async function listProblemSchedule(now: number = Date.now()): Promise<ProblemWithSchedule[]> {
   const [problems, revisions] = await Promise.all([listProblems(), listRevisions()]);
+
   const revisionBySlug = new Map(revisions.map((r) => [r.slug, r]));
   return problems.map((problem) => {
     const revision = revisionBySlug.get(problem.slug) ?? null;
@@ -628,13 +783,32 @@ export { startOfLocalDay };
 /* -------------------------------------------------------------- backup/restore */
 
 export async function exportBackup(now: number = Date.now()): Promise<BackupFile> {
-  const [settings, problems, attempts, revisions, events] = await Promise.all([
+  const [settings, rawProblems, attempts, revisions, events] = await Promise.all([
     readSettings(),
     listProblems(),
     listAttempts(),
     listRevisions(),
     listEvents(),
   ]);
+
+  const problems = rawProblems.map((problem) => {
+    let difficulty = problem.difficulty;
+    let topics = problem.topics ?? [];
+    if (difficulty === 'Unknown' || !difficulty) {
+      const pop = getPopularProblem(problem.slug);
+      if (pop) {
+        difficulty = pop.difficulty;
+        if (topics.length === 0 && pop.topics.length > 0) topics = [...pop.topics];
+      }
+    }
+    return {
+      ...problem,
+      difficulty: difficulty ?? 'Easy',
+      topics,
+      notes: sanitizeProblemNotes(problem.notes ?? ''),
+    };
+  });
+
   return {
     format: 'recalllc-backup',
     version: 1,
@@ -647,11 +821,153 @@ export async function exportBackup(now: number = Date.now()): Promise<BackupFile
   };
 }
 
+function isPlainObject(item: unknown): item is Record<string, unknown> {
+  return typeof item === 'object' && item !== null && !Array.isArray(item);
+}
+
+function sanitizeRecord(raw: unknown): Record<string, unknown> | null {
+  if (!isPlainObject(raw)) return null;
+  const clean: Record<string, unknown> = {};
+  for (const [key, val] of Object.entries(raw)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+    clean[key] = val;
+  }
+  return clean;
+}
+
 export async function restoreBackup(backup: BackupFile): Promise<{ problems: number; attempts: number }> {
   if (!backup || backup.format !== 'recalllc-backup') {
     throw new Error('This file is not a RecallLC backup.');
   }
   const database = db();
+  const rawProblems = Array.isArray(backup.problems) ? backup.problems : [];
+  const cleanedProblems: Problem[] = [];
+
+  for (const raw of rawProblems) {
+    const item = sanitizeRecord(raw) as Partial<Problem> | null;
+    if (!item || typeof item.slug !== 'string' || !item.slug.trim()) continue;
+
+    let diff = item.difficulty;
+    let topics = Array.isArray(item.topics) ? item.topics.filter((t) => typeof t === 'string') : [];
+    if (diff === 'Unknown' || !diff) {
+      const pop = getPopularProblem(item.slug);
+      if (pop) {
+        diff = pop.difficulty;
+        if (topics.length === 0 && pop.topics.length > 0) topics = [...pop.topics];
+      }
+    }
+
+    cleanedProblems.push({
+      slug: item.slug.trim(),
+      title: typeof item.title === 'string' && item.title.trim() ? item.title.trim() : titleFromSlug(item.slug),
+      url: problemUrl(item.slug),
+      difficulty: diff ?? 'Easy',
+      topics,
+      notes: sanitizeProblemNotes(typeof item.notes === 'string' ? item.notes : ''),
+      firstAttemptAt:
+        typeof item.firstAttemptAt === 'number' && Number.isFinite(item.firstAttemptAt)
+          ? item.firstAttemptAt
+          : Date.now(),
+      lastAttemptAt:
+        typeof item.lastAttemptAt === 'number' && Number.isFinite(item.lastAttemptAt) ? item.lastAttemptAt : Date.now(),
+      lastViewedAt:
+        typeof item.lastViewedAt === 'number' && Number.isFinite(item.lastViewedAt) ? item.lastViewedAt : null,
+      attemptCount:
+        typeof item.attemptCount === 'number' && Number.isFinite(item.attemptCount)
+          ? Math.max(0, item.attemptCount)
+          : 1,
+      accepted: typeof item.accepted === 'boolean' ? item.accepted : null,
+      lastLanguage: typeof item.lastLanguage === 'string' ? item.lastLanguage : null,
+      struggleScore:
+        typeof item.struggleScore === 'number' && Number.isFinite(item.struggleScore)
+          ? Math.max(0, item.struggleScore)
+          : 0,
+      createdAt: typeof item.createdAt === 'number' && Number.isFinite(item.createdAt) ? item.createdAt : Date.now(),
+      updatedAt: typeof item.updatedAt === 'number' && Number.isFinite(item.updatedAt) ? item.updatedAt : Date.now(),
+    });
+  }
+
+  // Validate and sanitize attempts
+  const cleanedAttempts: SubmissionAttempt[] = [];
+  if (Array.isArray(backup.attempts)) {
+    for (const raw of backup.attempts) {
+      const item = sanitizeRecord(raw) as Partial<SubmissionAttempt> | null;
+      if (!item || typeof item.id !== 'string' || typeof item.slug !== 'string') continue;
+      if (typeof item.attemptedAt !== 'number' || !Number.isFinite(item.attemptedAt)) continue;
+      cleanedAttempts.push({
+        id: item.id,
+        slug: item.slug,
+        title: typeof item.title === 'string' ? item.title : null,
+        attemptedAt: item.attemptedAt,
+        accepted: typeof item.accepted === 'boolean' ? item.accepted : null,
+        language: typeof item.language === 'string' ? item.language : null,
+        submissionId: typeof item.submissionId === 'string' ? item.submissionId : null,
+        source: item.source === 'auto' || item.source === 'manual' ? item.source : 'import',
+        createdAt: typeof item.createdAt === 'number' && Number.isFinite(item.createdAt) ? item.createdAt : Date.now(),
+      });
+    }
+  }
+
+  // Validate and sanitize revisions
+  const cleanedRevisions: RevisionRecord[] = [];
+  if (Array.isArray(backup.revisions)) {
+    for (const raw of backup.revisions) {
+      const item = sanitizeRecord(raw) as Partial<RevisionRecord> | null;
+      if (!item || typeof item.slug !== 'string') continue;
+      if (typeof item.dueAt !== 'number' || !Number.isFinite(item.dueAt)) continue;
+      cleanedRevisions.push({
+        slug: item.slug,
+        stage: typeof item.stage === 'number' && Number.isFinite(item.stage) ? Math.max(0, Math.floor(item.stage)) : 0,
+        lastRating:
+          item.lastRating === 'forgot' ||
+          item.lastRating === 'hard' ||
+          item.lastRating === 'good' ||
+          item.lastRating === 'easy'
+            ? item.lastRating
+            : null,
+        lastReviewedAt:
+          typeof item.lastReviewedAt === 'number' && Number.isFinite(item.lastReviewedAt) ? item.lastReviewedAt : null,
+        dueAt: item.dueAt,
+        snoozedUntil:
+          typeof item.snoozedUntil === 'number' && Number.isFinite(item.snoozedUntil) ? item.snoozedUntil : null,
+        dismissedAt:
+          typeof item.dismissedAt === 'number' && Number.isFinite(item.dismissedAt) ? item.dismissedAt : null,
+        paused: Boolean(item.paused),
+        createdAt: typeof item.createdAt === 'number' && Number.isFinite(item.createdAt) ? item.createdAt : Date.now(),
+        updatedAt: typeof item.updatedAt === 'number' && Number.isFinite(item.updatedAt) ? item.updatedAt : Date.now(),
+      });
+    }
+  }
+
+  // Deduplicate consecutive identical events if any and sanitize
+  const seenEvents = new Set<string>();
+  const cleanedEvents: ReviewEvent[] = [];
+  if (Array.isArray(backup.events)) {
+    for (const raw of backup.events) {
+      const item = sanitizeRecord(raw) as Partial<ReviewEvent> | null;
+      if (!item || typeof item.id !== 'string' || typeof item.slug !== 'string') continue;
+      if (typeof item.reviewedAt !== 'number' || !Number.isFinite(item.reviewedAt)) continue;
+      const key = `${item.slug}_${item.reviewedAt}_${item.nextDueAt}`;
+      if (seenEvents.has(key)) continue;
+      seenEvents.add(key);
+
+      cleanedEvents.push({
+        id: item.id,
+        slug: item.slug,
+        rating:
+          item.rating === 'forgot' || item.rating === 'hard' || item.rating === 'good' || item.rating === 'easy'
+            ? item.rating
+            : null,
+        reviewedAt: item.reviewedAt,
+        previousDueAt:
+          typeof item.previousDueAt === 'number' && Number.isFinite(item.previousDueAt) ? item.previousDueAt : 0,
+        nextDueAt: typeof item.nextDueAt === 'number' && Number.isFinite(item.nextDueAt) ? item.nextDueAt : 0,
+        elapsedDays: typeof item.elapsedDays === 'number' && Number.isFinite(item.elapsedDays) ? item.elapsedDays : 0,
+        source: item.source ?? 'review',
+      });
+    }
+  }
+
   await database.transaction(
     'rw',
     [database.problems, database.attempts, database.revisions, database.events],
@@ -660,15 +976,15 @@ export async function restoreBackup(backup: BackupFile): Promise<{ problems: num
       await database.attempts.clear();
       await database.revisions.clear();
       await database.events.clear();
-      if (Array.isArray(backup.problems)) await database.problems.bulkPut(backup.problems);
-      if (Array.isArray(backup.attempts)) await database.attempts.bulkPut(backup.attempts);
-      if (Array.isArray(backup.revisions)) await database.revisions.bulkPut(backup.revisions);
-      if (Array.isArray(backup.events)) await database.events.bulkPut(backup.events);
+      if (cleanedProblems.length > 0) await database.problems.bulkPut(cleanedProblems);
+      if (cleanedAttempts.length > 0) await database.attempts.bulkPut(cleanedAttempts);
+      if (cleanedRevisions.length > 0) await database.revisions.bulkPut(cleanedRevisions);
+      if (cleanedEvents.length > 0) await database.events.bulkPut(cleanedEvents);
     },
   );
   return {
-    problems: Array.isArray(backup.problems) ? backup.problems.length : 0,
-    attempts: Array.isArray(backup.attempts) ? backup.attempts.length : 0,
+    problems: cleanedProblems.length,
+    attempts: cleanedAttempts.length,
   };
 }
 

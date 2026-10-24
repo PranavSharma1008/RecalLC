@@ -281,8 +281,8 @@ try {
           return response.data;
         };
         const sample = JSON.stringify([
-          { slug: 'two-sum', title: 'Two Sum', attemptedAt: Date.now() - 3 * 86400000, accepted: true, language: 'python3', submissionId: 'verify-1' },
-          { slug: 'coin-change', title: 'Coin Change', attemptedAt: Date.now() - 1 * 86400000, accepted: true, language: 'java', submissionId: 'verify-2' }
+          { slug: 'two-sum', title: 'Two Sum', attemptedAt: Date.now() - 10 * 86400000, accepted: true, language: 'python3', submissionId: 'verify-1' },
+          { slug: 'coin-change', title: 'Coin Change', attemptedAt: Date.now() - 8 * 86400000, accepted: true, language: 'java', submissionId: 'verify-2' }
         ]);
         const preview = await send('import-preview', { fileName: 'v.json', content: sample });
         const commit = await send('import-commit', { fileName: 'v.json', content: sample });
@@ -318,8 +318,8 @@ try {
           return response.data;
         };
         const sample = JSON.stringify([
-          { slug: 'two-sum', title: 'Two Sum', attemptedAt: Date.now() - 3 * 86400000, accepted: true, language: 'python3', submissionId: 'verify-1' },
-          { slug: 'coin-change', title: 'Coin Change', attemptedAt: Date.now() - 1 * 86400000, accepted: true, language: 'java', submissionId: 'verify-2' }
+          { slug: 'two-sum', title: 'Two Sum', attemptedAt: Date.now() - 10 * 86400000, accepted: true, language: 'python3', submissionId: 'verify-1' },
+          { slug: 'coin-change', title: 'Coin Change', attemptedAt: Date.now() - 8 * 86400000, accepted: true, language: 'java', submissionId: 'verify-2' }
         ]);
         const commit = await send('import-commit', { fileName: 'v.json', content: sample });
         const stats = await send('stats');

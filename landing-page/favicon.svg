@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="rlc-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c5cff" />
+      <stop offset="100%" stop-color="#5a3bf5" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#rlc-grad)" />
+  <!-- Minimalist, high-legibility modern 'R' mark with recall arrow cue -->
+  <path d="M20 16 h14 c7.2 0 12 4.4 12 11 c0 5.4 -3.6 9.4 -9 10.6 l9.5 13.4 h-7.5 l-8.5 -12.5 h-4.5 v12.5 h-6 z M26 22 v11.5 h7.5 c3.8 0 6.2 -2.2 6.2 -5.7 c0 -3.6 -2.4 -5.8 -6.2 -5.8 z" fill="#ffffff" />
+  <circle cx="45" cy="19" r="3.5" fill="#34d399" />
+</svg>

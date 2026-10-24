@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { RevisionCard } from '../../components/RevisionCard';
 import { Button } from '../../components/ui/Button';
@@ -6,6 +6,7 @@ import { Card, CardHeader } from '../../components/ui/Card';
 import { EmptyState, ErrorState, Spinner } from '../../components/ui/States';
 import { useAsync } from '../../hooks/useAsync';
 import { callService } from '../../services/messaging';
+import { getPopularProblem } from '../../data/popularProblems';
 import type { ProblemWithSchedule } from '../../types';
 import { addLocalDays } from '../../utils/date';
 
@@ -17,11 +18,20 @@ export interface RemindersScreenProps {
 export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
   const due = useAsync(() => callService('list-due'), []);
   const schedule = useAsync(() => callService('list-problems'), []);
-  const [notesFor, setNotesFor] = useState<string | null>(null);
-  const [notesDraft, setNotesDraft] = useState('');
-  const [notesBusy, setNotesBusy] = useState(false);
+
+  const [successToast, setSuccessToast] = useState<{ slug: string; message: string } | null>(null);
+
+  useEffect(() => {
+    if (!successToast) return;
+    const timer = setTimeout(() => {
+      setSuccessToast(null);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [successToast]);
+
+  // Quick reschedule state
   const [rescheduleFor, setRescheduleFor] = useState<string | null>(null);
-  const [customDays, setCustomDays] = useState(3);
+  const [quickRescheduleDays, setQuickRescheduleDays] = useState(3);
 
   const dueBySlug = useMemo(() => {
     const map = new Map<string, ProblemWithSchedule>();
@@ -44,22 +54,55 @@ export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
     onChanged();
   }
 
-  async function saveNotes(slug: string): Promise<void> {
-    setNotesBusy(true);
-    try {
-      await callService('update-notes', { slug, notes: notesDraft });
-      setNotesFor(null);
-      await refresh();
-    } finally {
-      setNotesBusy(false);
-    }
-  }
-
   async function handleReschedule(slug: string, daysFromNow: number): Promise<void> {
-    const targetDueAt = addLocalDays(Date.now(), Math.max(1, daysFromNow));
-    await callService('reschedule', { slug, dueAt: targetDueAt });
+    const days = Math.max(0, Number(daysFromNow) ?? 0);
+    const targetDueAt = addLocalDays(Date.now(), days);
+
+    // If rescheduled for future days, immediately remove from due list in Reminders tab
+    if (days > 0) {
+      due.setData((prev) => (prev ? prev.filter((item) => item.slug !== slug) : []));
+    }
+
+    if (schedule.data) {
+      schedule.setData(
+        schedule.data.map((entry) => {
+          if (entry.problem.slug !== slug) return entry;
+          return {
+            ...entry,
+            dueAt: targetDueAt,
+            overdue: false,
+            daysUntilDue: days,
+            revision: entry.revision
+              ? { ...entry.revision, dueAt: targetDueAt, manualSchedule: true }
+              : {
+                  slug,
+                  stage: 0,
+                  lastRating: null,
+                  lastReviewedAt: null,
+                  dueAt: targetDueAt,
+                  snoozedUntil: null,
+                  dismissedAt: null,
+                  paused: false,
+                  createdAt: Date.now(),
+                  updatedAt: Date.now(),
+                  manualSchedule: true,
+                },
+          };
+        }),
+      );
+    }
     setRescheduleFor(null);
-    await refresh();
+
+    try {
+      await callService('reschedule', { slug, dueAt: targetDueAt });
+      setSuccessToast({
+        slug,
+        message: `Next revision scheduled in ${days} day${days === 1 ? '' : 's'}${days === 0 ? ' (Due today)' : ''}.`,
+      });
+      await refresh();
+    } catch (err) {
+      console.warn('Failed to reschedule:', err);
+    }
   }
 
   const overdueCount = dueList.filter((candidate) => candidate.overdue).length;
@@ -105,16 +148,33 @@ export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
               Overdue: <strong className={overdueCount > 0 ? 'text-amber-500' : 'text-subtle'}>{overdueCount}</strong>
             </span>
             <span className="text-subtle">
-              Revision intervals are personalized per question. You can revise now or reschedule any problem below.
+              Revision intervals are personalized per question. Click &quot;Revise&quot; to practice recall or
+              &quot;Change schedule&quot; to set your next reminder.
             </span>
           </div>
         </div>
       </Card>
 
+      {successToast ? (
+        <div className="flex items-center justify-between rounded-lg border border-success/40 bg-success-soft px-4 py-3 text-xs text-success shadow-sm">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🎉</span>
+            <span className="font-medium">{successToast.message}</span>
+          </div>
+          <button
+            type="button"
+            className="text-success hover:underline text-xs font-semibold px-2 py-1"
+            onClick={() => setSuccessToast(null)}
+          >
+            ✕ Dismiss
+          </button>
+        </div>
+      ) : null}
+
       {dueList.length === 0 ? (
         <EmptyState
           title="No problems due for revision"
-          description="Whenever a problem reaches its scheduled revision day (e.g. 1, 3, or 5 days after solving), it will appear right here."
+          description="Whenever a problem reaches its scheduled revision day (e.g. 6 days after solving), it will appear right here."
           action={
             <Button variant="secondary" size="sm" onClick={() => navigate('/problems')}>
               Browse all tracked problems
@@ -122,10 +182,16 @@ export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
           }
         />
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {dueList.map((candidate) => {
             const entry = dueBySlug.get(candidate.slug);
             const notes = entry?.problem.notes ?? '';
+            const popular = getPopularProblem(candidate.slug);
+            const effectiveDiff =
+              candidate.difficulty && candidate.difficulty !== 'Unknown'
+                ? candidate.difficulty
+                : (popular?.difficulty ?? 'Unknown');
+            const effectiveTopics = candidate.topics.length > 0 ? candidate.topics : (popular?.topics ?? []);
 
             return (
               <li key={candidate.slug}>
@@ -134,8 +200,8 @@ export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
                     slug: candidate.slug,
                     title: candidate.title,
                     url: candidate.url,
-                    difficulty: candidate.difficulty,
-                    topics: candidate.topics,
+                    difficulty: effectiveDiff,
+                    topics: effectiveTopics,
                     notes,
                     firstAttemptAt: entry?.problem.firstAttemptAt ?? null,
                     lastAttemptAt: candidate.lastAttemptAt,
@@ -152,110 +218,49 @@ export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
                   overdue={candidate.overdue}
                   daysUntilDue={entry?.daysUntilDue ?? 0}
                   onRevise={() => navigate(`/recall/${candidate.slug}`)}
-                  onSnooze={async () => {
-                    await callService('snooze', { slug: candidate.slug });
-                    await refresh();
-                  }}
-                  extra={
-                    <div className="space-y-2.5">
-                      {/* Notes Section */}
-                      {notesFor === candidate.slug ? (
-                        <div className="space-y-2 rounded-md bg-surface-2 p-3">
-                          <label
-                            htmlFor={`reminder-notes-${candidate.slug}`}
-                            className="text-[11px] font-medium text-subtle"
-                          >
-                            Problem notes & approach
-                          </label>
-                          <textarea
-                            id={`reminder-notes-${candidate.slug}`}
-                            className="rlc-input min-h-20 resize-y font-mono text-[12px]"
-                            placeholder="Key insights, data structures, pitfalls…"
-                            value={notesDraft}
-                            onChange={(event) => setNotesDraft(event.target.value)}
+                  onReschedule={() => setRescheduleFor(rescheduleFor === candidate.slug ? null : candidate.slug)}
+                  rescheduleContent={
+                    rescheduleFor === candidate.slug ? (
+                      <div className="space-y-2 text-[11px]">
+                        <p className="font-medium text-fg">Revise this question:</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          <Button variant="secondary" size="sm" onClick={() => handleReschedule(candidate.slug, 1)}>
+                            1 day
+                          </Button>
+                          <Button variant="secondary" size="sm" onClick={() => handleReschedule(candidate.slug, 3)}>
+                            3 days
+                          </Button>
+                          <Button variant="secondary" size="sm" onClick={() => handleReschedule(candidate.slug, 5)}>
+                            5 days
+                          </Button>
+                          <Button variant="secondary" size="sm" onClick={() => handleReschedule(candidate.slug, 7)}>
+                            7 days
+                          </Button>
+                        </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <span className="text-subtle">Or custom:</span>
+                          <input
+                            type="number"
+                            min={0}
+                            max={365}
+                            className="rlc-input w-16 py-1 text-center text-xs"
+                            value={quickRescheduleDays}
+                            onChange={(e) => setQuickRescheduleDays(Number(e.target.value))}
                           />
-                          <div className="flex gap-2">
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              disabled={notesBusy}
-                              onClick={() => void saveNotes(candidate.slug)}
-                            >
-                              {notesBusy ? 'Saving…' : '💾 Save notes'}
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setNotesFor(null)}>
-                              ✕ Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="text-subtle">days (0 = Today)</span>
                           <Button
-                            variant="ghost"
+                            variant="primary"
                             size="sm"
-                            onClick={() => {
-                              setNotesFor(candidate.slug);
-                              setNotesDraft(notes);
-                            }}
+                            onClick={() => handleReschedule(candidate.slug, quickRescheduleDays)}
                           >
-                            {notes ? '✏️ Edit notes' : '📝 + Add notes'}
+                            ✓ Set
                           </Button>
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setRescheduleFor(rescheduleFor === candidate.slug ? null : candidate.slug);
-                            }}
-                          >
-                            📅 Change schedule ▾
+                          <Button variant="ghost" size="sm" onClick={() => setRescheduleFor(null)}>
+                            ✕ Close
                           </Button>
                         </div>
-                      )}
-
-                      {/* Reschedule Section */}
-                      {rescheduleFor === candidate.slug ? (
-                        <div className="space-y-2 rounded-md border border-line bg-surface-2 p-3 text-[11px]">
-                          <p className="font-medium text-fg">Revise this question in:</p>
-                          <div className="flex flex-wrap gap-1.5">
-                            <Button variant="secondary" size="sm" onClick={() => handleReschedule(candidate.slug, 1)}>
-                              1 day
-                            </Button>
-                            <Button variant="secondary" size="sm" onClick={() => handleReschedule(candidate.slug, 3)}>
-                              3 days
-                            </Button>
-                            <Button variant="secondary" size="sm" onClick={() => handleReschedule(candidate.slug, 7)}>
-                              7 days
-                            </Button>
-                            <Button variant="secondary" size="sm" onClick={() => handleReschedule(candidate.slug, 14)}>
-                              14 days
-                            </Button>
-                          </div>
-                          <div className="flex items-center gap-2 pt-1">
-                            <span className="text-subtle">Or custom:</span>
-                            <input
-                              type="number"
-                              min={1}
-                              max={365}
-                              className="rlc-input w-16 py-1 text-center text-xs"
-                              value={customDays}
-                              onChange={(e) => setCustomDays(Number(e.target.value))}
-                            />
-                            <span className="text-subtle">days</span>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => handleReschedule(candidate.slug, customDays)}
-                            >
-                              ✓ Set
-                            </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setRescheduleFor(null)}>
-                              ✕ Close
-                            </Button>
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
+                      </div>
+                    ) : undefined
                   }
                 />
               </li>

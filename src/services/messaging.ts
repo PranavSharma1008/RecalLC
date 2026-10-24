@@ -96,7 +96,9 @@ export interface ServiceErrorEnvelope {
 }
 
 function isServiceEnvelope(value: unknown): value is ServiceEnvelope | ServiceErrorEnvelope {
-  return typeof value === 'object' && value !== null && 'ok' in value && (value as { ok: unknown }).ok === true;
+  return (
+    typeof value === 'object' && value !== null && 'ok' in value && typeof (value as { ok: unknown }).ok === 'boolean'
+  );
 }
 
 /** Call a service method on the background worker. */

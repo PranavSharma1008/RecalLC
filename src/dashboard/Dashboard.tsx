@@ -7,6 +7,9 @@ import { useHashRoute } from '../hooks/useHashRoute';
 import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../hooks/useTheme';
 import { callService } from '../services/messaging';
+import { LockScreen } from '../components/LockScreen';
+import { isSessionExpired, isSessionUnlocked, setSessionUnlocked, touchSessionActivity } from '../utils/security';
+import { EnquiryScreen } from './screens/EnquiryScreen';
 import { ImportScreen } from './screens/ImportScreen';
 import { OnboardingScreen } from './screens/OnboardingScreen';
 import { OverviewScreen } from './screens/OverviewScreen';
@@ -15,6 +18,10 @@ import { RecallScreen } from './screens/RecallScreen';
 import { RemindersScreen } from './screens/RemindersScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { SupportScreen } from './screens/SupportScreen';
+
+/** Direct Gmail compose URL to pranav2410991479@gmail.com */
+export const GMAIL_ENQUIRY_URL =
+  'https://mail.google.com/mail/?view=cm&fs=1&to=pranav2410991479@gmail.com&su=RecallLC%20Enquiry';
 
 /**
  * The development-only tools panel. The `import.meta.env.DEV` guard is
@@ -42,11 +49,55 @@ const NAV_ITEMS: NavItem[] = [
 
 export function Dashboard() {
   const [route, navigate] = useHashRoute();
-  const { settings, update } = useSettings();
-  const { resolved, theme } = useTheme(settings?.theme);
+  const { settings, update, reload: reloadSettings } = useSettings();
+  const { resolved } = useTheme(settings?.theme);
   const [dueCount, setDueCount] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
 
   const stats = useAsync(() => callService('stats'), []);
+
+  // Check initial security lock status when settings load
+  useEffect(() => {
+    if (!settings?.securityAuthEnabled) {
+      setIsLocked(false);
+      return;
+    }
+    const unlocked = isSessionUnlocked() && !isSessionExpired(settings.securityAutoLockMinutes ?? 15);
+    setIsLocked(!unlocked);
+  }, [settings?.securityAuthEnabled, settings?.securityAutoLockMinutes]);
+
+  // User activity tracker for auto-lock inactivity timer
+  useEffect(() => {
+    if (!settings?.securityAuthEnabled || isLocked) return;
+
+    const handleActivity = () => {
+      touchSessionActivity();
+    };
+
+    window.addEventListener('mousemove', handleActivity, { passive: true });
+    window.addEventListener('keydown', handleActivity, { passive: true });
+    window.addEventListener('click', handleActivity, { passive: true });
+
+    // Periodic check for auto-lock timeout
+    const interval = setInterval(() => {
+      if (isSessionExpired(settings.securityAutoLockMinutes ?? 15)) {
+        setSessionUnlocked(false);
+        setIsLocked(true);
+      }
+    }, 15000);
+
+    return () => {
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('click', handleActivity);
+      clearInterval(interval);
+    };
+  }, [settings?.securityAuthEnabled, settings?.securityAutoLockMinutes, isLocked]);
+
+  function handleManualLock(): void {
+    setSessionUnlocked(false);
+    setIsLocked(true);
+  }
 
   useEffect(() => {
     void callService('list-due')
@@ -73,10 +124,25 @@ export function Dashboard() {
     );
   }
 
+  // Master Lock Screen guard — prevents unauthorized access to all LeetCode data
+  if (settings.securityAuthEnabled && isLocked) {
+    return (
+      <LockScreen
+        passcodeHash={settings.securityPasscodeHash}
+        passcodeSalt={settings.securityPasscodeSalt}
+        onUnlock={() => {
+          setIsLocked(false);
+          refreshStats();
+        }}
+      />
+    );
+  }
+
   const screen = renderScreen(route.segments, navigate, refreshStats);
 
   function refreshStats(): void {
     stats.reload();
+    void reloadSettings();
     void callService('list-due')
       .then((due) => setDueCount(due.length))
       .catch(() => setDueCount(0));
@@ -86,20 +152,23 @@ export function Dashboard() {
     <div className="flex min-h-screen flex-col bg-bg text-fg">
       <header className="sticky top-0 z-20 border-b border-line bg-surface/80 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <button type="button" onClick={() => navigate('/')} className="flex items-center gap-2 text-left">
-            <span
-              aria-hidden="true"
-              className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-contrast"
-            >
-              R
-            </span>
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2.5 text-left group cursor-pointer"
+          >
+            <img
+              src="/icons/icon48.png"
+              alt="RecallLC Logo"
+              className="h-7 w-7 rounded-lg object-contain drop-shadow-sm transition-transform group-hover:scale-105"
+            />
             <span>
               <span className="block text-sm font-semibold tracking-tight">RecallLC</span>
               <span className="hidden text-[11px] text-subtle sm:block">Solve it. Remember it. Master it.</span>
             </span>
           </button>
 
-          <nav className="flex items-center gap-1 overflow-x-auto">
+          <nav className="flex items-center gap-1.5 overflow-x-auto">
             {NAV_ITEMS.map((item) => {
               const active = route.path === item.path;
               return (
@@ -108,17 +177,25 @@ export function Dashboard() {
                   type="button"
                   onClick={() => navigate(item.path)}
                   aria-current={active ? 'page' : undefined}
-                  className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-1.5 text-[13px] font-medium transition-colors ${
-                    active ? 'bg-accent-soft text-accent' : 'text-muted hover:bg-surface-2 hover:text-fg'
+                  className={`group relative flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all duration-150 cursor-pointer ${
+                    active
+                      ? 'border border-accent/60 bg-accent-soft text-accent shadow-sm'
+                      : 'border border-transparent text-muted hover:border-line hover:bg-surface-2 hover:text-fg'
                   }`}
                 >
                   <span aria-hidden="true">{item.icon}</span>
-                  {item.label}
-                  {(item.path === '/reminders' || item.path === '/') && dueBadge > 0 ? (
+                  <span>{item.label}</span>
+                  {item.path === '/reminders' && dueBadge > 0 ? (
                     <span className="rounded-full bg-accent px-1.5 text-[10px] font-bold text-accent-contrast">
                       {dueBadge}
                     </span>
                   ) : null}
+                  {/* Indicator line for all tabs on click and hover */}
+                  <span
+                    className={`absolute bottom-0 left-2.5 right-2.5 h-[2px] rounded-full transition-all duration-150 ${
+                      active ? 'bg-accent opacity-100' : 'bg-accent/50 opacity-0 group-hover:opacity-100'
+                    }`}
+                  />
                 </button>
               );
             })}
@@ -127,10 +204,23 @@ export function Dashboard() {
               onClick={() => void update({ theme: resolved === 'dark' ? 'light' : 'dark' })}
               aria-label={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} theme`}
               title={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} theme`}
-              className="ml-1 rounded-md border border-line px-2 py-1 text-xs text-muted transition-colors hover:border-line-strong hover:text-fg"
+              className="ml-2 inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-semibold text-fg shadow-sm transition-all hover:border-accent hover:bg-surface-3 hover:text-accent cursor-pointer"
             >
-              {resolved === 'dark' ? '☀' : '☾'}
+              <span className="text-sm">{resolved === 'dark' ? '☀' : '☾'}</span>
+              <span className="hidden sm:inline">{resolved === 'dark' ? 'Light mode' : 'Dark mode'}</span>
             </button>
+
+            {settings.securityAuthEnabled ? (
+              <button
+                type="button"
+                onClick={handleManualLock}
+                title="Lock Dashboard (Passcode Protected)"
+                className="ml-1 inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-semibold text-muted shadow-sm transition-all hover:border-rose-500 hover:text-rose-400 hover:bg-surface-3 cursor-pointer"
+              >
+                <span>🔒</span>
+                <span className="hidden sm:inline">Lock</span>
+              </button>
+            ) : null}
           </nav>
         </div>
       </header>
@@ -146,31 +236,100 @@ export function Dashboard() {
         {isOnboarding ? <OnboardingScreen navigate={navigate} onDone={refreshStats} /> : screen}
       </main>
 
-      <footer className="border-t border-line px-4 py-4">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-2 text-[11px] text-subtle">
-          <div className="flex items-center gap-2">
-            <span>RecallLC · local-first · Created by Pranav Sharma</span>
-            <span>·</span>
+      <footer className="border-t border-line bg-surface/40 backdrop-blur-sm px-4 py-3.5 transition-colors">
+        <div className="mx-auto flex w-full max-w-6xl flex-col sm:flex-row items-center justify-between gap-3 text-xs text-subtle">
+          {/* Brand & Creator Attribution */}
+          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-[11px]">
+            <div className="flex items-center gap-1.5 font-semibold text-fg">
+              <img src="/icons/icon16.png" alt="" className="h-4 w-4 rounded object-contain" />
+              <span>RecallLC</span>
+            </div>
+            <span className="text-line-strong">·</span>
+            <span className="text-muted">Local-first Spaced Repetition</span>
+            <span className="text-line-strong">·</span>
+            <span>
+              Crafted by{' '}
+              <a
+                href="https://www.linkedin.com/in/pranavsharma1008/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-fg hover:text-accent transition-colors underline-offset-2 hover:underline"
+              >
+                Pranav Sharma
+              </a>
+            </span>
+          </div>
+
+          {/* Quick Actions & Status Badges */}
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 text-[11px]">
+            {/* Direct 1-Click Gmail Enquiry Button */}
+            <a
+              href={GMAIL_ENQUIRY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 font-medium text-indigo-400 hover:border-indigo-400 hover:bg-indigo-500/20 hover:text-indigo-300 transition-all cursor-pointer"
+              title="Open Gmail to send enquiry directly to pranav2410991479@gmail.com"
+            >
+              ✉️ Enquiry
+            </a>
+
             <button
               type="button"
               onClick={() => navigate('/support')}
-              className="text-accent hover:underline font-medium flex items-center gap-1"
+              className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 px-3 py-1 font-medium text-rose-400 hover:border-rose-400 hover:bg-rose-500/20 hover:text-rose-300 transition-all cursor-pointer"
             >
               💖 Support & Donate
             </button>
-            <span>·</span>
+
             <a
               href="https://www.linkedin.com/in/pranavsharma1008/"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-fg text-muted transition-colors flex items-center gap-1"
+              className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 px-2.5 py-1 font-medium text-muted hover:border-line-strong hover:text-fg hover:bg-surface-3 transition-all"
             >
-              💼 Contact (LinkedIn) ↗
+              💼 LinkedIn ↗
             </a>
+
+            {/* Master Lock Quick Action */}
+            {settings.securityAuthEnabled ? (
+              <button
+                type="button"
+                onClick={handleManualLock}
+                title="Lock Dashboard"
+                className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-muted hover:border-rose-500 hover:text-rose-400 hover:bg-surface-3 transition-all cursor-pointer"
+              >
+                <span>🔒</span>
+                <span>Lock</span>
+              </button>
+            ) : null}
+
+            {/* Revision status pill */}
+            <button
+              type="button"
+              onClick={() => navigate('/reminders')}
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2.5 py-1 font-medium transition-all hover:border-accent hover:text-accent cursor-pointer"
+            >
+              <span
+                className={`inline-block h-1.5 w-1.5 rounded-full ${
+                  dueCount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'
+                }`}
+              />
+              <span className={dueCount > 0 ? 'text-amber-500 font-semibold' : 'text-muted'}>
+                {dueCount > 0 ? `${dueCount} due today` : 'All caught up'}
+              </span>
+            </button>
+
+            {/* Theme switcher pill */}
+            <button
+              type="button"
+              onClick={() => void update({ theme: resolved === 'dark' ? 'light' : 'dark' })}
+              title={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} mode`}
+              className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-muted hover:border-accent hover:text-fg hover:bg-surface-3 transition-all cursor-pointer"
+            >
+              <span>{resolved === 'dark' ? '☾' : '☀'}</span>
+              <span className="capitalize">{resolved}</span>
+            </button>
           </div>
-          <span>
-            {dueCount > 0 ? `${dueCount} problem${dueCount === 1 ? '' : 's'} due` : 'Nothing due'} · theme: {theme}
-          </span>
         </div>
       </footer>
     </div>
@@ -197,6 +356,8 @@ function renderScreen(segments: string[], navigate: Navigate, refresh: () => voi
       return <SettingsScreen onChanged={refresh} />;
     case 'support':
       return <SupportScreen />;
+    case 'enquiry':
+      return <EnquiryScreen navigate={navigate} />;
     default:
       return (
         <div className="rlc-card p-8 text-center">

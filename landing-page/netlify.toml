@@ -1,0 +1,42 @@
+# Netlify Configuration for RecallLC Landing Page & Razorpay Functions
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+# API Redirects for Razorpay Standard Checkout
+[[redirects]]
+  from = "/api/create-order"
+  to = "/.netlify/functions/create-order"
+  status = 200
+
+[[redirects]]
+  from = "/api/verify-payment"
+  to = "/.netlify/functions/verify-payment"
+  status = 200
+
+[[redirects]]
+  from = "/api/config"
+  to = "/.netlify/functions/get-config"
+  status = 200
+
+# Security and Performance Headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Cache-Control = "public, max-age=3600"
+
+# Static asset caching
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800, immutable"
+
+# Fallback 404 Route
+[[redirects]]
+  from = "/*"
+  to = "/404.html"
+  status = 404

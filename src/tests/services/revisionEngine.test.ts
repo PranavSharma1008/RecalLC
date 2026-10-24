@@ -15,6 +15,7 @@ import {
   nextDueDate,
   overdueDays,
   pickReminder,
+  priorityScore,
   sortByPriority,
   summarizeDue,
 } from '../../services/revisionEngine';
@@ -235,5 +236,22 @@ describe('streaks', () => {
 
   it('counts a single review as a one day streak', () => {
     expect(computeStreak([NOW], NOW)).toBe(1);
+  });
+});
+
+describe('manual schedule & recent change priority', () => {
+  it('gives priority boost to manually rescheduled problems', () => {
+    const today = startOfLocalDay(NOW);
+    const regular = priorityScore({ dueAt: today }, null, NOW);
+    const manual = priorityScore({ dueAt: today, manualSchedule: true }, null, NOW);
+    expect(manual).toBeGreaterThan(regular);
+  });
+
+  it('sorts recently updated and manual problems higher in reminder queue', () => {
+    const today = startOfLocalDay(NOW);
+    const a = { slug: 'prob-a', dueAt: today, updatedAt: NOW - 10000 };
+    const b = { slug: 'prob-b', dueAt: today, manualSchedule: true, updatedAt: NOW };
+    const ordered = sortByPriority([a, b], NOW);
+    expect(ordered[0]?.slug).toBe('prob-b');
   });
 });

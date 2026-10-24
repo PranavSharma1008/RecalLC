@@ -38,6 +38,30 @@ export function addLocalDays(ts: number, days: number): number {
   return d.getTime();
 }
 
+/**
+ * Calculates the next Sunday (the standard weekly revision day).
+ * If `ts` is Monday-Saturday, returns the upcoming Sunday of this week.
+ * If `ts` is Sunday, returns the following Sunday (7 days later).
+ */
+export function getNextSunday(ts: number = Date.now()): number {
+  const d = new Date(startOfLocalDay(ts));
+  const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  const daysUntilSunday = (7 - day) % 7 || 7;
+  return addLocalDays(ts, daysUntilSunday);
+}
+
+/** Number of days until the upcoming/next Sunday revision day. */
+export function getDaysUntilNextSunday(ts: number = Date.now()): number {
+  const d = new Date(startOfLocalDay(ts));
+  const day = d.getDay();
+  return (7 - day) % 7 || 7;
+}
+
+/** True when the timestamp falls on a Sunday. */
+export function isSunday(ts: number): boolean {
+  return new Date(ts).getDay() === 0;
+}
+
 /** True when both timestamps fall on the same local calendar day. */
 export function isSameLocalDay(a: number, b: number): boolean {
   return startOfLocalDay(a) === startOfLocalDay(b);
@@ -58,6 +82,7 @@ export function localDayDiff(from: number, to: number): number {
 /* -------------------------------------------------------------- formatting */
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -66,6 +91,13 @@ export function formatDate(ts: number | null | undefined): string {
   if (ts === null || ts === undefined || Number.isNaN(ts)) return '—';
   const d = new Date(ts);
   return `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/** "Sun, 25 Oct 2026" */
+export function formatDateWithWeekday(ts: number | null | undefined): string {
+  if (ts === null || ts === undefined || Number.isNaN(ts)) return '—';
+  const d = new Date(ts);
+  return `${WEEKDAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 /** "21 Oct, 14:03" */

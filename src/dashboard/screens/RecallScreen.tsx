@@ -7,7 +7,9 @@ import { Card, CardHeader } from '../../components/ui/Card';
 import { ErrorState, Spinner } from '../../components/ui/States';
 import { useAsync } from '../../hooks/useAsync';
 import { callService } from '../../services/messaging';
-import { formatDate, formatRelativeTime } from '../../utils/date';
+import { addLocalDays, formatDate, formatRelativeTime } from '../../utils/date';
+import { getPopularProblem } from '../../data/popularProblems';
+import { parseProblemNotes, upsertChecklist } from '../../utils/notes';
 import type { RecallRating as RecallRatingValue } from '../../types';
 
 export interface RecallScreenProps {
@@ -54,6 +56,7 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
   const [busy, setBusy] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [nextDue, setNextDue] = useState<number | null>(null);
+  const [manualDays, setManualDays] = useState(3);
 
   useEffect(() => {
     setAnswers({ approach: '', dataStructure: '', complexity: '', mistake: '' });
@@ -61,7 +64,16 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
     setRating(null);
     setSavedAt(null);
     setNextDue(null);
+    setManualDays(3);
   }, [slug]);
+
+  useEffect(() => {
+    if (!savedAt) return;
+    const timer = setTimeout(() => {
+      setSavedAt(null);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [savedAt]);
 
   if (problem.loading && !problem.data) return <Spinner label="Loading the problem…" />;
   if (problem.error) return <ErrorState message={problem.error} onRetry={problem.reload} />;
@@ -90,6 +102,10 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
     if (!rating) return;
     setBusy(true);
     try {
+      const hasAnswers = Object.values(answers).some((val) => val.trim().length > 0);
+      if (hasAnswers) {
+        await saveAnswersToNotes();
+      }
       const outcome = await callService('rate', { slug, rating });
       setNextDue(outcome?.dueAt ?? null);
       setSavedAt(Date.now());
@@ -99,10 +115,32 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
     }
   }
 
+  async function submitManualReschedule(daysFromNow: number): Promise<void> {
+    const days = Math.max(0, Number(daysFromNow) ?? 0);
+    const targetDueAt = addLocalDays(Date.now(), days);
+    setBusy(true);
+    try {
+      const hasAnswers = Object.values(answers).some((val) => val.trim().length > 0);
+      if (hasAnswers) {
+        await saveAnswersToNotes();
+      }
+      if (rating) {
+        await callService('rate', { slug, rating });
+      }
+      await callService('reschedule', { slug, dueAt: targetDueAt });
+      setNextDue(targetDueAt);
+      setSavedAt(Date.now());
+      onChanged();
+    } catch (err) {
+      console.warn('Failed to set manual schedule:', err);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function saveAnswersToNotes(): Promise<void> {
     const lines = CHECKLIST.map((item) => `- ${item.prompt} ${answers[item.key].trim() || '_(not recorded)_'}`);
-    const block = `## Recall checklist\n${lines.join('\n')}`;
-    const next = tracked.notes.trim() ? `${tracked.notes.trim()}\n\n${block}` : block;
+    const next = upsertChecklist(tracked.notes, lines);
     await callService('update-notes', { slug, notes: next });
     problem.reload();
   }
@@ -120,7 +158,13 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
           </button>
           <h1 className="mt-1 text-xl font-semibold tracking-tight">{tracked.title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <DifficultyBadge difficulty={tracked.difficulty} />
+            <DifficultyBadge
+              difficulty={
+                tracked.difficulty !== 'Unknown'
+                  ? tracked.difficulty
+                  : (getPopularProblem(tracked.slug)?.difficulty ?? 'Unknown')
+              }
+            />
             {tracked.topics.slice(0, 3).map((tag) => (
               <Badge key={tag} tone="neutral">
                 {tag}
@@ -197,9 +241,45 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
         <div className="p-4">
           {notesRevealed ? (
             tracked.notes.trim() ? (
-              <pre className="whitespace-pre-wrap rounded-lg bg-surface-2 p-3 font-mono text-[12px] leading-relaxed text-muted">
-                {tracked.notes}
-              </pre>
+              <div className="space-y-3">
+                {(() => {
+                  const parsed = parseProblemNotes(tracked.notes);
+                  return (
+                    <>
+                      {parsed.code ? (
+                        <div className="overflow-hidden rounded-md border border-line bg-surface-2">
+                          <div className="flex items-center justify-between border-b border-line/60 bg-surface-3/40 px-3 py-1.5 text-[11px] font-medium text-fg">
+                            <span>💻 Solution Code ({parsed.language})</span>
+                            <button
+                              type="button"
+                              onClick={() => void navigator.clipboard.writeText(parsed.code || '')}
+                              className="text-subtle hover:text-fg text-xs"
+                            >
+                              📋 Copy
+                            </button>
+                          </div>
+                          <pre className="max-h-64 overflow-auto bg-[#0d1117] p-3 font-mono text-[11px] leading-relaxed text-zinc-200 select-text">
+                            <code>{parsed.code}</code>
+                          </pre>
+                        </div>
+                      ) : null}
+
+                      {parsed.userNotes ? (
+                        <div className="rounded-md border border-line bg-surface-2 p-3 text-xs text-muted leading-relaxed whitespace-pre-wrap">
+                          <p className="font-semibold text-fg mb-1 text-[11px]">📝 Notes</p>
+                          {parsed.userNotes}
+                        </div>
+                      ) : null}
+
+                      {!parsed.code && !parsed.userNotes ? (
+                        <pre className="whitespace-pre-wrap rounded-lg bg-surface-2 p-3 font-mono text-[12px] leading-relaxed text-muted">
+                          {tracked.notes}
+                        </pre>
+                      ) : null}
+                    </>
+                  );
+                })()}
+              </div>
             ) : (
               <p className="text-xs text-muted">You have not written any notes for this problem yet.</p>
             )
@@ -212,7 +292,10 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
       </Card>
 
       <Card>
-        <CardHeader title="3 · How well did you recall it?" subtitle="Your answer sets the next review date." />
+        <CardHeader
+          title="3 · How well did you recall it?"
+          subtitle="Your answer sets the next review date, or you can set a manual schedule below."
+        />
         <div className="space-y-4 p-4">
           <RecallRating value={rating} onChange={setRating} disabled={busy} />
           <div className="flex items-center justify-between gap-3">
@@ -227,6 +310,76 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
             <Button variant="primary" size="sm" disabled={!rating || busy} onClick={() => void submitRating()}>
               {busy ? 'Saving…' : '✓ Save rating & schedule'}
             </Button>
+          </div>
+
+          {/* Manual Scheduling Option */}
+          <div className="border-t border-line/60 pt-3.5 space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold text-fg">📅 Or set schedule manually:</p>
+                <p className="text-[11px] text-subtle">Choose exact days until the next review</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => void submitManualReschedule(1)}
+                  title="Schedule revision for tomorrow (1 day)"
+                >
+                  1 day
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => void submitManualReschedule(3)}
+                  title="Schedule revision in 3 days"
+                >
+                  3 days
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => void submitManualReschedule(5)}
+                  title="Schedule revision in 5 days"
+                >
+                  5 days
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => void submitManualReschedule(7)}
+                  title="Schedule revision in 7 days"
+                >
+                  7 days
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1 text-xs">
+              <span className="text-subtle">Or custom:</span>
+              <input
+                type="number"
+                min={0}
+                max={365}
+                className="rlc-input w-16 py-1 text-center text-xs font-semibold"
+                value={manualDays}
+                onChange={(e) => setManualDays(Math.max(0, Number(e.target.value) || 0))}
+                disabled={busy}
+              />
+              <span className="text-subtle">days (0 = Today)</span>
+              <Button
+                variant="primary"
+                size="sm"
+                disabled={busy}
+                onClick={() => void submitManualReschedule(manualDays)}
+              >
+                ✓ Set manual schedule
+              </Button>
+            </div>
           </div>
         </div>
       </Card>

@@ -284,12 +284,12 @@ try {
       // Set reminder delay to 0 so the reminder appears immediately
       await send('update-settings', { reminderDelayMs: 0, remindersEnabled: true, autoTrackSubmissions: true });
 
-      // Import coin-change (overdue by 3 days)
+      // Import coin-change (overdue by 4 days given 6-day default interval)
       const sample = JSON.stringify([
         {
           slug: 'coin-change',
           title: 'Coin Change',
-          attemptedAt: Date.now() - 3 * 86400000,
+          attemptedAt: Date.now() - 10 * 86400000,
           accepted: true,
           language: 'python3',
           submissionId: 'init-1'

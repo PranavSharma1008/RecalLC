@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { pushProblemToRecallLC } from './pushHelper';
 
@@ -9,7 +9,16 @@ export interface RocketPushButtonProps {
 export function RocketPushButton({ currentSlug }: RocketPushButtonProps) {
   const [launching, setLaunching] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [showTooltip, setShowTooltip] = useState(false);
+  const [showTooltip, setShowTooltip] = useState(true);
+
+  useEffect(() => {
+    // Show tooltip briefly when rocket button appears on successful submit
+    setShowTooltip(true);
+    const timer = setTimeout(() => {
+      setShowTooltip(false);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [currentSlug]);
 
   async function handlePush(): Promise<void> {
     if (launching || !currentSlug) return;
@@ -26,7 +35,7 @@ export function RocketPushButton({ currentSlug }: RocketPushButtonProps) {
 
       setTimeout(() => {
         setSuccess(false);
-      }, 3500);
+      }, 2000);
     } catch (err) {
       console.warn('[RecallLC] Could not push problem:', err);
       setLaunching(false);

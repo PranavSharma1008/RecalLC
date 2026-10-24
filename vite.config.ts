@@ -6,6 +6,10 @@ import { crx } from '@crxjs/vite-plugin';
 import manifest from './src/manifest.config.ts';
 
 export default defineConfig({
+  define: {
+    'process.env.NODE_ENV': JSON.stringify('production'),
+    'process.env': '{}',
+  },
   plugins: [react(), tailwindcss(), crx({ manifest })],
   build: {
     outDir: 'dist',

@@ -17,7 +17,14 @@
  */
 
 import type { RecallRating, RevisionRecord } from '../types';
-import { addLocalDays, endOfLocalDay, isSameLocalDay, localDayDiff, startOfLocalDay } from '../utils/date';
+import {
+  addLocalDays,
+  endOfLocalDay,
+  getNextSunday,
+  isSameLocalDay,
+  localDayDiff,
+  startOfLocalDay,
+} from '../utils/date';
 
 /** Default interval, in days, for each recall rating. */
 export const DEFAULT_INTERVALS: Record<RecallRating, number> = {
@@ -27,8 +34,8 @@ export const DEFAULT_INTERVALS: Record<RecallRating, number> = {
   easy: 14,
 };
 
-/** Default delay, in days, between a first attempt and the first review. */
-export const DEFAULT_INITIAL_INTERVAL_DAYS = 1;
+/** Default delay, in days, between a first attempt and the first review when using fixed days. */
+export const DEFAULT_INITIAL_INTERVAL_DAYS = 6;
 
 /** A problem is considered "due" from the start of its due day onwards. */
 export function isDue(dueAt: number, now: number): boolean {
@@ -69,9 +76,24 @@ export function nextDueDate(
   return addLocalDays(reviewedAt, days);
 }
 
-/** Due date for a problem that has been attempted but never reviewed. */
-export function initialDueDate(lastAttemptAt: number, initialIntervalDays = DEFAULT_INITIAL_INTERVAL_DAYS): number {
-  const days = Math.max(0, Math.floor(initialIntervalDays));
+/**
+ * Due date for a problem that has been attempted but never reviewed.
+ *
+ * Scheduling model:
+ * By default ('weekly_sunday'), problems solved Mon-Sat are scheduled for revision
+ * on the upcoming Sunday ("after 6 days on the 7th day we have a revision day").
+ * If solved on Sunday, it is scheduled for next Sunday (7 days later).
+ *
+ * If a number is passed for `intervalOrMode`, it adds that many calendar days.
+ */
+export function initialDueDate(
+  lastAttemptAt: number,
+  intervalOrMode: number | 'weekly_sunday' = 'weekly_sunday',
+): number {
+  if (intervalOrMode === 'weekly_sunday') {
+    return getNextSunday(lastAttemptAt);
+  }
+  const days = Math.max(0, Math.floor(intervalOrMode));
   return addLocalDays(lastAttemptAt, days);
 }
 
@@ -114,7 +136,14 @@ export function isReminderEligible(revision: Pick<RevisionRecord, 'dueAt'> & Eli
  * struggled with, then problems with more attempts.
  */
 export function priorityScore(
-  revision: { dueAt: number; snoozedUntil?: number | null; dismissedAt?: number | null; paused?: boolean },
+  revision: {
+    dueAt: number;
+    snoozedUntil?: number | null;
+    dismissedAt?: number | null;
+    paused?: boolean;
+    manualSchedule?: boolean;
+    updatedAt?: number;
+  },
   problem: { struggleScore?: number; attemptCount?: number } | null,
   now: number,
 ): number {
@@ -125,6 +154,10 @@ export function priorityScore(
   } else if (isDueToday(revision.dueAt, now)) {
     score += 500;
   }
+  // User manual reschedule / recent specific change takes priority
+  if (revision.manualSchedule) {
+    score += 150;
+  }
   score += (problem?.struggleScore ?? 0) * 100;
   score += Math.min(20, problem?.attemptCount ?? 0);
   return score;
@@ -132,16 +165,27 @@ export function priorityScore(
 
 /**
  * Order candidate problems for the reminder queue.
- * Deterministic: ties break on the oldest due date, then the slug.
+ * Highest score first, then earliest due date, then most recently changed, then slug.
  */
 export function sortByPriority<
-  T extends { slug: string; dueAt: number; struggleScore?: number; attemptCount?: number },
+  T extends {
+    slug: string;
+    dueAt: number;
+    struggleScore?: number;
+    attemptCount?: number;
+    manualSchedule?: boolean;
+    updatedAt?: number;
+  },
 >(candidates: readonly T[], now: number): T[] {
   return [...candidates].sort((a, b) => {
     // Highest priority first.
     const scoreDiff = priorityScore(b, b, now) - priorityScore(a, a, now);
     if (scoreDiff !== 0) return scoreDiff;
     if (a.dueAt !== b.dueAt) return a.dueAt - b.dueAt;
+    // Tie-break: most recently modified schedule takes precedence
+    const bUpdated = b.updatedAt ?? 0;
+    const aUpdated = a.updatedAt ?? 0;
+    if (bUpdated !== aUpdated) return bUpdated - aUpdated;
     return a.slug.localeCompare(b.slug);
   });
 }
@@ -150,11 +194,16 @@ export function sortByPriority<
  * Pick the single problem to remind about.
  * The problem the user is currently looking at is always excluded.
  */
-export function pickReminder<T extends { slug: string; dueAt: number; struggleScore?: number; attemptCount?: number }>(
-  candidates: readonly T[],
-  currentSlug: string | null | undefined,
-  now: number,
-): T | null {
+export function pickReminder<
+  T extends {
+    slug: string;
+    dueAt: number;
+    struggleScore?: number;
+    attemptCount?: number;
+    manualSchedule?: boolean;
+    updatedAt?: number;
+  },
+>(candidates: readonly T[], currentSlug: string | null | undefined, now: number): T | null {
   const eligible = candidates.filter((candidate) => candidate.slug !== currentSlug);
   if (eligible.length === 0) return null;
   const ordered = sortByPriority(eligible, now);

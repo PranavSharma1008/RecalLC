@@ -194,8 +194,21 @@ export function normalizeRecord(raw: unknown, options: { source?: AttemptSource 
 
   const rawUrl = pickField(record, 'url');
   let url = typeof rawUrl === 'string' && rawUrl.trim() ? rawUrl.trim() : null;
-  if (url && !/^https?:\/\//i.test(url)) {
-    // A bare slug/path was supplied in the url column.
+  if (url) {
+    try {
+      const parsed = new URL(url);
+      if (
+        (parsed.protocol === 'https:' || parsed.protocol === 'http:') &&
+        (parsed.hostname === 'leetcode.com' || parsed.hostname === 'www.leetcode.com')
+      ) {
+        url = `https://leetcode.com/problems/${slug}/`;
+      } else {
+        url = problemUrl(slug);
+      }
+    } catch {
+      url = problemUrl(slug);
+    }
+  } else {
     url = problemUrl(slug);
   }
 

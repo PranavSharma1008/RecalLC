@@ -1,9 +1,26 @@
 import { useId, useState } from 'react';
 
 import { Button } from '../../components/ui/Button';
+import { generateQrDataUrl } from '../../utils/qr';
+
+/**
+ * Razorpay & UPI Payment Configuration
+ *
+ * Edit these values with your actual Razorpay details from https://dashboard.razorpay.com:
+ * 1. paymentLink: Create a Payment Page or Payment Link in Razorpay Dashboard and paste it here.
+ * 2. upiId: Your UPI ID (from Google Pay, PhonePe, Paytm, or your Razorpay VPA).
+ */
+export const RAZORPAY_CONFIG = {
+  // Replace with your Razorpay Payment Link / Page (e.g., https://rzp.io/l/your-page)
+  paymentLink: 'https://rzp.io/l/recalllc',
+  // Replace with your UPI ID
+  upiId: 'pranavsharma@upi',
+  developerName: 'Pranav Sharma',
+};
 
 export function SupportScreen() {
-  const [selectedPlan, setSelectedPlan] = useState<'coffee' | 'claude' | 'custom'>('coffee');
+  const [coffeeSelected, setCoffeeSelected] = useState<boolean>(true);
+  const [claudeSelected, setClaudeSelected] = useState<boolean>(false);
   const [customAmount, setCustomAmount] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [message, setMessage] = useState<string>('');
@@ -15,24 +32,20 @@ export function SupportScreen() {
   const emailInputId = useId();
   const messageInputId = useId();
 
-  const currentAmount =
-    selectedPlan === 'coffee'
-      ? 89
-      : selectedPlan === 'claude'
-        ? 2399
-        : Number.parseFloat(customAmount) || 0;
+  const customVal = Number.parseFloat(customAmount) || 0;
+  const currentAmount = (coffeeSelected ? 89 : 0) + (claudeSelected ? 2399 : 0) + (customVal > 0 ? customVal : 0);
 
-  const upiId = '9317290976@upi';
-  const upiDeepLink = `upi://pay?pa=${upiId}&pn=Pranav%20Sharma&am=${currentAmount}&cu=INR&tn=${encodeURIComponent(
-    message || 'Support RecallLC extension',
-  )}`;
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiDeepLink)}`;
+  const upiId = RAZORPAY_CONFIG.upiId;
+  const upiDeepLink = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(
+    RAZORPAY_CONFIG.developerName,
+  )}&am=${currentAmount}&cu=INR&tn=${encodeURIComponent(message || 'Support RecallLC extension')}`;
+  const qrCodeUrl = generateQrDataUrl(upiDeepLink, 220);
 
   function handleCopyUpi(): void {
     if (typeof navigator !== 'undefined' && navigator.clipboard) {
       void navigator.clipboard.writeText(upiId);
       setCopiedUpi(true);
-      setTimeout(() => setCopiedUpi(false), 2500);
+      setTimeout(() => setCopiedUpi(false), 2000);
     }
   }
 
@@ -134,9 +147,9 @@ export function SupportScreen() {
             </div>
             <div className="mt-2 h-1 w-14 rounded-full bg-accent" />
             <p className="mt-4 text-xs leading-relaxed text-muted">
-              RecallLC is a 100% free, local-first browser extension designed to help software engineers never forget the
-              LeetCode problems they solved. No cloud lock-in, no paywalls, and zero ads. Your contributions help cover
-              development tools, testing devices, and ongoing maintenance.
+              RecallLC is a 100% free, local-first browser extension designed to help software engineers never forget
+              the LeetCode problems they solved. No cloud lock-in, no paywalls, and zero ads. Your contributions help
+              cover development tools, testing devices, and ongoing maintenance.
             </p>
           </div>
 
@@ -147,10 +160,10 @@ export function SupportScreen() {
               <div className="flex items-center gap-2 text-muted">
                 <span>✉️</span>
                 <a
-                  href="mailto:shpranav1008@gmail.com"
+                  href="mailto:pranav2410991479@gmail.com"
                   className="font-medium text-accent hover:underline hover:text-accent-hover"
                 >
-                  shpranav1008@gmail.com
+                  pranav2410991479@gmail.com
                 </a>
               </div>
               <div className="flex items-center gap-2 text-muted">
@@ -180,6 +193,18 @@ export function SupportScreen() {
                 <span className="text-fg font-medium">Developer: Pranav Sharma</span>
               </div>
             </div>
+
+            <div className="mt-4 pt-3 border-t border-line">
+              <a
+                href="https://mail.google.com/mail/?view=cm&fs=1&to=pranav2410991479@gmail.com&su=RecallLC%20Enquiry"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 text-xs font-semibold text-accent-contrast shadow-sm hover:bg-accent-hover transition-all cursor-pointer"
+              >
+                <span>📧</span>
+                <span>Open in Gmail (pranav2410991479@gmail.com)</span>
+              </a>
+            </div>
           </div>
 
           {/* Terms & Conditions */}
@@ -189,8 +214,8 @@ export function SupportScreen() {
               Payments on this page are voluntary contributions to support free browser extensions by{' '}
               <strong className="text-fg">Pranav Sharma</strong>. They do not buy a product, licence or extra features.
               Contributions are non-refundable, except duplicate or mistaken payments: email{' '}
-              <a href="mailto:shpranav1008@gmail.com" className="text-accent underline">
-                shpranav1008@gmail.com
+              <a href="mailto:pranav2410991479@gmail.com" className="text-accent underline">
+                pranav2410991479@gmail.com
               </a>{' '}
               within 7 days and they will be refunded to the original payment method.
             </p>
@@ -225,14 +250,8 @@ export function SupportScreen() {
                   step="1"
                   placeholder="Enter Amount"
                   value={customAmount}
-                  onFocus={() => setSelectedPlan('custom')}
-                  onChange={(e) => {
-                    setSelectedPlan('custom');
-                    setCustomAmount(e.target.value);
-                  }}
-                  className={`rlc-input pl-7 text-xs ${
-                    selectedPlan === 'custom' ? 'border-accent ring-1 ring-accent' : ''
-                  }`}
+                  onChange={(e) => setCustomAmount(e.target.value)}
+                  className={`rlc-input pl-7 text-xs ${customVal > 0 ? 'border-accent ring-1 ring-accent' : ''}`}
                 />
               </div>
             </div>
@@ -240,7 +259,7 @@ export function SupportScreen() {
             {/* Coffee Option: ₹89.00 */}
             <label
               className={`flex cursor-pointer items-center justify-between rounded-xl border p-3.5 transition-all ${
-                selectedPlan === 'coffee'
+                coffeeSelected
                   ? 'border-accent bg-accent-soft text-fg'
                   : 'border-line bg-surface-2 text-muted hover:border-line-strong hover:text-fg'
               }`}
@@ -252,11 +271,11 @@ export function SupportScreen() {
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold text-fg">₹ 89.00</span>
                 <input
-                  type="radio"
-                  name="plan"
-                  checked={selectedPlan === 'coffee'}
-                  onChange={() => setSelectedPlan('coffee')}
-                  className="h-4 w-4 accent-accent"
+                  type="checkbox"
+                  name="coffee"
+                  checked={coffeeSelected}
+                  onChange={(e) => setCoffeeSelected(e.target.checked)}
+                  className="h-4 w-4 rounded accent-accent cursor-pointer"
                 />
               </div>
             </label>
@@ -264,7 +283,7 @@ export function SupportScreen() {
             {/* Claude Pro Option: ₹2,399.00 */}
             <label
               className={`flex cursor-pointer items-center justify-between rounded-xl border p-3.5 transition-all ${
-                selectedPlan === 'claude'
+                claudeSelected
                   ? 'border-accent bg-accent-soft text-fg'
                   : 'border-line bg-surface-2 text-muted hover:border-line-strong hover:text-fg'
               }`}
@@ -276,11 +295,11 @@ export function SupportScreen() {
               <div className="flex items-center gap-3">
                 <span className="text-xs font-bold text-fg">₹ 2,399.00</span>
                 <input
-                  type="radio"
-                  name="plan"
-                  checked={selectedPlan === 'claude'}
-                  onChange={() => setSelectedPlan('claude')}
-                  className="h-4 w-4 accent-accent"
+                  type="checkbox"
+                  name="claude"
+                  checked={claudeSelected}
+                  onChange={(e) => setClaudeSelected(e.target.checked)}
+                  className="h-4 w-4 rounded accent-accent cursor-pointer"
                 />
               </div>
             </label>
@@ -384,6 +403,26 @@ export function SupportScreen() {
                   <p className="text-2xl font-bold text-fg mt-0.5">
                     ₹ {currentAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
+                </div>
+
+                {/* Razorpay Gateway Direct Button */}
+                <div className="rounded-xl border border-accent/40 bg-accent/10 p-3.5 text-center">
+                  <p className="text-[11px] font-semibold text-accent uppercase tracking-wide">Razorpay Gateway</p>
+                  <p className="text-xs text-muted mt-0.5">Supports Credit/Debit Cards, NetBanking, and UPI</p>
+                  <a
+                    href={RAZORPAY_CONFIG.paymentLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2.5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-accent py-2 text-xs font-bold text-accent-contrast shadow-sm hover:bg-accent-hover transition-all"
+                  >
+                    <span>💳</span> Pay via Razorpay Link ↗
+                  </a>
+                </div>
+
+                <div className="flex items-center gap-2 text-[10px] uppercase font-semibold text-subtle">
+                  <div className="h-px flex-1 bg-line" />
+                  <span>or scan UPI QR code</span>
+                  <div className="h-px flex-1 bg-line" />
                 </div>
 
                 {/* Live UPI QR Code */}

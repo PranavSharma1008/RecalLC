@@ -21,21 +21,20 @@ export function currentProblemSlug(): string | null {
   const fromHref = extractSlugFromUrl(window.location.href);
   if (fromHref) return fromHref;
 
-  // Fallback 2: check any link on the page pointing to /problems/<slug>
+  // Fallback 2: check canonical problem link tag on page
   try {
-    const problemLinks = Array.from(document.querySelectorAll('a[href*="/problems/"]'));
-    for (const link of problemLinks) {
-      const href = link.getAttribute('href') || '';
-      const slug = extractSlugFromUrl(`https://leetcode.com${href}`);
+    const canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+    if (canonical?.href) {
+      const slug = extractSlugFromUrl(canonical.href);
       if (slug) return slug;
     }
   } catch {
     // ignore
   }
 
-  // Fallback 3: check document.title (e.g. "Median of Two Sorted Arrays - LeetCode")
+  // Fallback 3: check document.title ONLY if on a problem URL path
   try {
-    if (document.title && document.title.includes('LeetCode')) {
+    if (pathname.includes('/problems/') && document.title && document.title.includes('LeetCode')) {
       const rawTitle = document.title.split('-')[0]?.trim() || '';
       if (rawTitle && rawTitle.toLowerCase() !== 'leetcode') {
         const derivedSlug = rawTitle
@@ -55,6 +54,61 @@ export function currentProblemSlug(): string | null {
 /** True when the current page is a LeetCode problem page. */
 export function isProblemPage(): boolean {
   return currentProblemSlug() !== null || window.location.pathname.startsWith(PROBLEM_PATH);
+}
+
+/**
+ * Detects if the current LeetCode page is currently displaying an "Accepted" submission verdict.
+ */
+export function isAcceptedOnPage(): boolean {
+  if (typeof document === 'undefined') return false;
+
+  const body = document.body ? document.body.innerText || document.body.textContent || '' : '';
+
+  // 1. Genuinely passed testcases (e.g. "1569 / 1569 testcases passed" or "66 / 66 testcases passed")
+  if (/\b\d+\s*\/\s*\d+\s*testcases\s+passed\b/i.test(body)) {
+    return true;
+  }
+
+  // 2. Direct URL check: if on a specific submission page
+  if (
+    /\/problems\/[^/]+\/submissions\/\d+/i.test(window.location.pathname) ||
+    /\/submissions\/\d+/i.test(window.location.href)
+  ) {
+    return true;
+  }
+
+  // 3. Both Analysis AND Solution buttons together (LeetCode submission details header)
+  const buttons = Array.from(
+    document.querySelectorAll('button, a, [role="button"], span, div, [class*="cursor-pointer"], [class*="btn"]'),
+  );
+  let hasAnalysis = false;
+  let hasSolution = false;
+  for (const b of buttons) {
+    if (b.closest('.monaco-editor, .view-lines, .view-line, header, nav')) continue;
+    const txt = (b.textContent || '').trim();
+    if (!txt || txt.length > 25) continue;
+    if (/analysis/i.test(txt) && !/solutions/i.test(txt)) {
+      hasAnalysis = true;
+    }
+    if (/^solution$/i.test(txt) || (/solution/i.test(txt) && !/solutions/i.test(txt))) {
+      hasSolution = true;
+    }
+  }
+  if (hasAnalysis && hasSolution) {
+    return true;
+  }
+
+  // 4. Check for active "Accepted" tab with close button in a tablist (not description stats like "Accepted 5.2M")
+  const tabs = Array.from(document.querySelectorAll('[role="tab"], [role="tablist"] [role="tab"], div[class*="tab"]'));
+  for (const tab of tabs) {
+    if (tab.closest('.monaco-editor, .view-lines, header, nav')) continue;
+    const text = (tab.textContent || '').trim();
+    if (/^accepted\s*(?:[✕×✔✓].*)?$/i.test(text) && !/\d{2,}/.test(text)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**

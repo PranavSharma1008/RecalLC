@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
-import { addLocalDays, endOfLocalDay, isSameLocalDay, localDayDiff, startOfLocalDay } from '../../utils/date';
+import {
+  addLocalDays,
+  endOfLocalDay,
+  formatDateWithWeekday,
+  getDaysUntilNextSunday,
+  getNextSunday,
+  isSameLocalDay,
+  isSunday,
+  localDayDiff,
+  startOfLocalDay,
+} from '../../utils/date';
 
 describe('local calendar helpers', () => {
   const noon = new Date(2026, 9, 21, 12, 0, 0, 0).getTime();
@@ -41,5 +51,33 @@ describe('local calendar helpers', () => {
   it('identifies the same local day', () => {
     expect(isSameLocalDay(noon, new Date(2026, 9, 21, 0, 0, 1).getTime())).toBe(true);
     expect(isSameLocalDay(noon, addLocalDays(noon, 1))).toBe(false);
+  });
+
+  describe('weekly Sunday revision helpers', () => {
+    // 2026-10-19 is Monday
+    const monday = new Date(2026, 9, 19, 14, 0, 0).getTime();
+    // 2026-10-24 is Saturday
+    const saturday = new Date(2026, 9, 24, 18, 0, 0).getTime();
+    // 2026-10-25 is Sunday
+    const sunday = new Date(2026, 9, 25, 10, 0, 0).getTime();
+
+    it('schedules Monday to Saturday for the coming Sunday', () => {
+      expect(isSunday(getNextSunday(monday))).toBe(true);
+      expect(getDaysUntilNextSunday(monday)).toBe(6);
+
+      expect(isSunday(getNextSunday(saturday))).toBe(true);
+      expect(getDaysUntilNextSunday(saturday)).toBe(1);
+    });
+
+    it('schedules Sunday for the following Sunday (7 days later)', () => {
+      expect(isSunday(getNextSunday(sunday))).toBe(true);
+      expect(getDaysUntilNextSunday(sunday)).toBe(7);
+      expect(localDayDiff(sunday, getNextSunday(sunday))).toBe(7);
+    });
+
+    it('formats dates with weekday', () => {
+      expect(formatDateWithWeekday(sunday)).toBe('Sun, 25 Oct 2026');
+      expect(formatDateWithWeekday(monday)).toBe('Mon, 19 Oct 2026');
+    });
   });
 });
