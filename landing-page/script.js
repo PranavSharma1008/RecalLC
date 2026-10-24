@@ -245,7 +245,11 @@ async function triggerRazorpayCheckout(amountPaise = 29900, btn = null) {
         theme: {
           color: '#7c5cff',
         },
-        prefill: {},
+        prefill: {
+          name: '',
+          email: '',
+          contact: '',
+        },
       };
 
       // @ts-ignore

@@ -245,11 +245,12 @@
             descEl.textContent = 'Opening Razorpay checkout...';
             spinnerEl.style.display = 'none';
 
-            // Dynamically construct prefill: omit empty fields so Razorpay keeps them optional/clean
-            const prefill = {};
-            if (emailParam) prefill.email = emailParam;
-            if (contactParam) prefill.contact = contactParam;
-            if (nameParam) prefill.name = nameParam;
+            // Ensure prefill has empty strings by default so Razorpay never autofills stale emails or numbers
+            const prefill = {
+              name: nameParam || '',
+              email: emailParam || '',
+              contact: contactParam || '',
+            };
 
             // 3. Launch Checkout in full mode
             const options = {
