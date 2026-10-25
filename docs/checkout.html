@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Recallc — razorpay.me/@recallc</title>
+    <link rel="icon" type="image/png" href="/icons/icon32.png" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        background: #ffffff;
+        color: #1e293b;
+        min-height: 100vh;
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      /* Diagonal blue hero background matching razorpay.me */
+      .hero-blue-bg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 380px;
+        background: #2554d7;
+        clip-path: polygon(0 0, 100% 0, 100% 320px, 92% 380px, 0 230px);
+        z-index: 1;
+      }
+
+      .main-wrapper {
+        position: relative;
+        z-index: 2;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 130px 16px 40px 16px;
+      }
+
+      /* Centered white card */
+      .payment-card {
+        background: #ffffff;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.05);
+        max-width: 440px;
+        width: 100%;
+        padding: 0 28px 28px 28px;
+        text-align: center;
+        position: relative;
+        animation: fadeIn 0.25s ease-out;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      /* Turquoise avatar badge */
+      .avatar-badge {
+        width: 58px;
+        height: 58px;
+        background: #76e8d4;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: -29px auto 14px auto;
+        font-size: 26px;
+        font-weight: 700;
+        color: #0d766e;
+        box-shadow: 0 4px 12px rgba(13, 118, 110, 0.15);
+      }
+
+      .paying-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: #64748b;
+        margin-bottom: 2px;
+      }
+
+      .merchant-title {
+        font-size: 22px;
+        font-weight: 800;
+        color: #0f172a;
+        margin-bottom: 3px;
+        letter-spacing: -0.3px;
+      }
+
+      .merchant-link {
+        font-size: 12px;
+        font-weight: 500;
+        color: #2563eb;
+        text-decoration: none;
+        display: inline-block;
+        margin-bottom: 20px;
+      }
+      .merchant-link:hover {
+        text-decoration: underline;
+      }
+
+      /* Amount input row */
+      .amount-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 20px 0;
+      }
+      .currency-symbol {
+        font-size: 32px;
+        font-weight: 700;
+        color: #0f172a;
+        margin-right: 2px;
+      }
+      .amount-input {
+        font-size: 44px;
+        font-weight: 800;
+        color: #0f172a;
+        border: none;
+        outline: none;
+        background: transparent;
+        width: 140px;
+        text-align: left;
+        font-family: inherit;
+        -moz-appearance: textfield;
+      }
+      .amount-input::-webkit-outer-spin-button,
+      .amount-input::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+
+      /* Note input */
+      .note-input {
+        width: 100%;
+        background: #f1f5f9;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        padding: 12px 16px;
+        font-size: 13px;
+        color: #334155;
+        text-align: center;
+        margin-bottom: 20px;
+        outline: none;
+        transition: all 0.15s;
+        font-family: inherit;
+      }
+      .note-input:focus {
+        background: #ffffff;
+        border-color: #cbd5e1;
+      }
+      .note-input::placeholder {
+        color: #94a3b8;
+      }
+
+      /* Pay button */
+      .pay-btn {
+        width: 100%;
+        padding: 14px 20px;
+        background: #93b4f9;
+        color: #ffffff;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+      .pay-btn.active {
+        background: #2563eb;
+      }
+      .pay-btn.active:hover {
+        background: #1d4ed8;
+      }
+      .pay-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      /* Footer Section below card */
+      .footer-section {
+        max-width: 440px;
+        width: 100%;
+        margin-top: 28px;
+        text-align: center;
+      }
+
+      .footer-top {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        margin-bottom: 10px;
+      }
+
+      .rzp-brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 15px;
+        font-weight: 800;
+        color: #0c2340;
+        text-decoration: none;
+        letter-spacing: -0.4px;
+      }
+      .rzp-icon {
+        width: 18px;
+        height: 18px;
+      }
+
+      .report-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #2563eb;
+        text-decoration: none;
+      }
+      .report-link:hover {
+        text-decoration: underline;
+      }
+
+      .footer-subtext {
+        font-size: 12px;
+        color: #64748b;
+        margin-bottom: 14px;
+        line-height: 1.5;
+      }
+      .footer-subtext a {
+        color: #2563eb;
+        text-decoration: none;
+        font-weight: 500;
+      }
+      .footer-subtext a:hover {
+        text-decoration: underline;
+      }
+
+      /* Payment method badges */
+      .payment-methods-row {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .badge-item {
+        display: inline-flex;
+        align-items: center;
+        font-size: 11px;
+        font-weight: 700;
+        color: #475569;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 4px;
+        padding: 3px 8px;
+      }
+      .badge-upi {
+        color: #00875a;
+        font-weight: 800;
+      }
+      .badge-visa {
+        color: #1a1f71;
+        font-weight: 800;
+        font-style: italic;
+      }
+      .badge-mc {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+      }
+      .mc-circle-red {
+        width: 10px;
+        height: 10px;
+        background: #eb001b;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .mc-circle-yellow {
+        width: 10px;
+        height: 10px;
+        background: #f79e1b;
+        border-radius: 50%;
+        display: inline-block;
+        margin-left: -4px;
+      }
+      .badge-rupay {
+        color: #0077b6;
+        font-weight: 800;
+      }
+      .badge-pci {
+        color: #475569;
+        font-size: 10px;
+      }
+
+      /* Success message */
+      .success-box {
+        padding: 24px 10px;
+      }
+      .success-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: #ecfdf5;
+        color: #059669;
+        font-size: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 14px auto;
+        border: 1px solid #a7f3d0;
+      }
+      .spinner {
+        display: inline-block;
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        border-radius: 50%;
+        border-top-color: #ffffff;
+        animation: spin 0.8s linear infinite;
+        vertical-align: middle;
+        margin-right: 6px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Slanted blue background -->
+    <div class="hero-blue-bg"></div>
+
+    <div class="main-wrapper">
+      <!-- Centered payment card -->
+      <div class="payment-card" id="card-content">
+        <!-- Avatar Badge -->
+        <div class="avatar-badge">R</div>
+
+        <p class="paying-label">Paying</p>
+        <h1 class="merchant-title">Recallc</h1>
+        <a href="https://razorpay.me/@recallc" target="_blank" rel="noopener noreferrer" class="merchant-link">
+          razorpay.me/@recallc
+        </a>
+
+        <!-- Amount row -->
+        <div class="amount-row">
+          <span class="currency-symbol">₹</span>
+          <input id="amount-input" type="number" min="1" step="1" value="0" class="amount-input" autofocus />
+        </div>
+
+        <!-- Add a note -->
+        <input id="note-input" type="text" placeholder="Add a note" class="note-input" />
+
+        <!-- Pay Button -->
+        <button id="pay-btn" type="button" class="pay-btn">Pay ₹0</button>
+      </div>
+
+      <!-- Footer section -->
+      <footer class="footer-section">
+        <div class="footer-top">
+          <a href="https://razorpay.com" target="_blank" rel="noopener noreferrer" class="rzp-brand">
+            <svg class="rzp-icon" viewBox="0 0 24 24" fill="none">
+              <path d="M14.5 3L6 14h5.5l-2 7 8.5-11H12.5l2-7z" fill="#0284c7" />
+            </svg>
+            <span>Razorpay</span>
+          </a>
+          <a href="https://razorpay.com/report-page/" target="_blank" rel="noopener noreferrer" class="report-link">
+            <span>🚩</span> Report Page
+          </a>
+        </div>
+        <p class="footer-subtext">
+          Want to accept online payments for your business? Visit
+          <a href="https://razorpay.com" target="_blank" rel="noopener noreferrer">razorpay.com</a> to get started!
+        </p>
+        <div class="payment-methods-row">
+          <span class="badge-item badge-upi">UPI</span>
+          <span class="badge-item badge-visa">VISA</span>
+          <span class="badge-item badge-mc">
+            <span class="mc-circle-red"></span>
+            <span class="mc-circle-yellow"></span>
+          </span>
+          <span class="badge-item badge-rupay">RuPay</span>
+          <span class="badge-item badge-pci">🛡️ PCI Compliant</span>
+        </div>
+      </footer>
+    </div>
+
+    <!-- Razorpay Standard Checkout SDK -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+      (function () {
+        const amountInput = document.getElementById('amount-input');
+        const noteInput = document.getElementById('note-input');
+        const payBtn = document.getElementById('pay-btn');
+        const cardContent = document.getElementById('card-content');
+
+        // Parse query params for default amount or note
+        const params = new URLSearchParams(window.location.search);
+        const queryAmount = parseFloat(params.get('amount'));
+        if (!isNaN(queryAmount) && queryAmount > 0) {
+          amountInput.value = Math.round(queryAmount);
+        }
+        if (params.get('note')) {
+          noteInput.value = params.get('note');
+        }
+
+        function updateButton() {
+          const val = parseFloat(amountInput.value) || 0;
+          if (val > 0) {
+            payBtn.textContent = 'Pay ₹' + Math.round(val);
+            payBtn.classList.add('active');
+            payBtn.disabled = false;
+          } else {
+            payBtn.textContent = 'Pay ₹0';
+            payBtn.classList.remove('active');
+            payBtn.disabled = true;
+          }
+        }
+
+        amountInput.addEventListener('input', updateButton);
+        updateButton();
+
+        // When user clicks "Pay ₹...", trigger Razorpay Standard Checkout (Screenshot 2: asking for mobile number)
+        payBtn.addEventListener('click', async function () {
+          const amountVal = parseFloat(amountInput.value) || 0;
+          if (amountVal <= 0) return;
+
+          const amountPaise = Math.round(amountVal * 100);
+          const noteText = noteInput.value.trim();
+
+          payBtn.disabled = true;
+          payBtn.innerHTML = '<span class="spinner"></span> Preparing...';
+
+          try {
+            // 1. Fetch Key ID
+            let keyId = '';
+            try {
+              const cfgRes = await fetch('/api/config');
+              if (cfgRes.ok) {
+                const cfg = await cfgRes.json();
+                keyId = cfg.razorpay_key_id;
+              }
+            } catch (e) {}
+
+            // 2. Create Order on backend
+            const orderRes = await fetch('/api/create-order', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                amount: amountPaise,
+                currency: 'INR',
+                receipt: 'rcpt_' + Date.now(),
+                notes: { note: noteText || 'Contribution for RecalLC' },
+              }),
+            });
+
+            if (!orderRes.ok) {
+              const err = await orderRes.json().catch(() => ({}));
+              throw new Error(err.error || 'Failed to create Razorpay order');
+            }
+
+            const order = await orderRes.json();
+
+            // 3. Launch Razorpay Standard Checkout (Screenshot 2)
+            // Empty prefill ensures Razorpay prompts: "Enter mobile number to continue"
+            const options = {
+              key: keyId,
+              amount: order.amount,
+              currency: order.currency || 'INR',
+              name: 'Recallc',
+              description: noteText || 'Support RecalLC',
+              order_id: order.order_id,
+              handler: async function (response) {
+                await verifyPayment(response, amountVal);
+              },
+              modal: {
+                ondismiss: function () {
+                  updateButton();
+                  window.parent.postMessage({ type: 'PAYMENT_CANCELLED' }, '*');
+                },
+                backdropclose: true,
+                escape: true,
+              },
+              theme: {
+                color: '#2554d7',
+              },
+              prefill: {
+                name: '',
+                email: '',
+                contact: '',
+              },
+            };
+
+            const rzp = new window.Razorpay(options);
+            rzp.on('payment.failed', function (res) {
+              updateButton();
+              alert(res.error?.description || 'Payment failed. Please try again.');
+            });
+            rzp.open();
+          } catch (err) {
+            updateButton();
+            alert(err.message || 'Payment server unreachable. Run npm run server.');
+          }
+        });
+
+        async function verifyPayment(paymentResponse, amountVal) {
+          try {
+            const verifyRes = await fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: paymentResponse.razorpay_order_id,
+                razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                razorpay_signature: paymentResponse.razorpay_signature,
+              }),
+            });
+
+            const verifyData = await verifyRes.json();
+            if (verifyRes.ok && verifyData.success) {
+              const safePaymentId = String(paymentResponse.razorpay_payment_id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+              cardContent.innerHTML = `
+                <div class="success-box">
+                  <div class="success-icon">✓</div>
+                  <h2 style="font-size: 20px; font-weight: 700; color: #059669; margin-bottom: 6px;">Payment Successful!</h2>
+                  <p style="font-size: 13px; color: #475569; margin-bottom: 14px;">
+                    Payment ID: <code style="background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-weight: 600;">${safePaymentId}</code><br/>
+                    Thank you for your generous contribution of ₹${amountVal.toFixed(2)}!
+                  </p>
+                </div>
+              `;
+
+              setTimeout(() => {
+                window.parent.postMessage(
+                  {
+                    type: 'PAYMENT_SUCCESS',
+                    payment_id: paymentResponse.razorpay_payment_id,
+                    amount: amountVal,
+                  },
+                  '*',
+                );
+              }, 2000);
+            } else {
+              alert(verifyData.message || 'Payment verification failed.');
+              updateButton();
+            }
+          } catch (e) {
+            alert('Verification network error: ' + e.message);
+            updateButton();
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>

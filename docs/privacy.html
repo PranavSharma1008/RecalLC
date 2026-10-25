@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Privacy Policy — RecallLC Chrome Extension</title>
+    <meta
+      name="description"
+      content="Privacy Policy for RecallLC. Learn how RecallLC operates as a 100% local-first, zero-telemetry Chrome extension."
+    />
+    <link rel="canonical" href="https://recalllc.netlify.app/privacy.html" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow-top" aria-hidden="true"></div>
+
+    <!-- Header -->
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a href="index.html" class="brand" aria-label="RecallLC Homepage">
+          <img src="favicon.svg" alt="RecallLC Logo" class="brand-icon" />
+          <span>RecallLC</span>
+        </a>
+
+        <nav aria-label="Main Navigation">
+          <ul class="nav-links">
+            <li><a href="index.html#features">Features</a></li>
+            <li><a href="installation.html">Installation</a></li>
+            <li><a href="index.html#pricing">Pricing</a></li>
+            <li><a href="contact.html">Contact</a></li>
+          </ul>
+        </nav>
+
+        <div class="nav-actions">
+          <a href="index.html" class="btn btn-secondary btn-sm">Home</a>
+          <a href="index.html#install" class="btn btn-primary btn-sm">Get RecallLC</a>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="policy-page">
+      <div class="container">
+        <div class="policy-head">
+          <span class="badge badge-purple" style="margin-bottom: 12px">Data Transparency</span>
+          <h1>Privacy Policy</h1>
+          <p class="policy-meta">Effective Date: October 24, 2026 • Last Updated: October 24, 2026</p>
+        </div>
+
+        <div class="policy-body">
+          <p>
+            RecallLC (&quot;we&quot;, &quot;our&quot;, or &quot;the extension&quot;) is developed by
+            <strong>Pranav Sharma</strong>. We believe your study habits, problem-solving history, and code notes belong
+            exclusively to you. This Privacy Policy explains our commitment to a
+            <strong>100% local-first, zero-telemetry</strong> software architecture.
+          </p>
+
+          <div class="policy-highlight-card">
+            <h3 style="margin-top: 0; color: var(--success)">🔒 Summary of Privacy Guarantees</h3>
+            <ul>
+              <li>
+                <strong>Zero Remote Servers:</strong> RecallLC does not transmit your revision data to any external
+                server.
+              </li>
+              <li>
+                <strong>Zero Cookies or Credentials:</strong> We never ask for, read, store, or forward your LeetCode
+                password or session cookies.
+              </li>
+              <li>
+                <strong>Zero Telemetry:</strong> No analytics, tracking pixels, or monitoring scripts are embedded in
+                the extension.
+              </li>
+              <li>
+                <strong>Local Storage:</strong> All revision attempts, flashcards, and notes reside strictly inside your
+                browser profile.
+              </li>
+            </ul>
+          </div>
+
+          <h2>1. Permissions Requested &amp; Their Purpose</h2>
+          <p>
+            RecallLC adheres strictly to the principle of least privilege. The extension manifest requests only the
+            following permissions:
+          </p>
+
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--line-border); text-align: left">
+                <th style="padding: 10px; color: var(--text-primary)">Permission</th>
+                <th style="padding: 10px; color: var(--text-primary)">Type</th>
+                <th style="padding: 10px; color: var(--text-primary)">Justification</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr style="border-bottom: 1px solid var(--line-subtle)">
+                <td style="padding: 10px"><code>storage</code></td>
+                <td style="padding: 10px">API Permission</td>
+                <td style="padding: 10px">
+                  Used to save your revision intervals, theme preference, and master passcode settings locally via
+                  <code>chrome.storage.local</code>.
+                </td>
+              </tr>
+              <tr style="border-bottom: 1px solid var(--line-subtle)">
+                <td style="padding: 10px"><code>https://leetcode.com/*</code></td>
+                <td style="padding: 10px">Host Permission</td>
+                <td style="padding: 10px">
+                  Enables the content script to detect problem URLs on <code>leetcode.com/problems/*</code>, render the
+                  in-page reminder, mount the inline Rocket button, and detect submit verdicts.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p>
+            RecallLC explicitly does <strong>NOT</strong> request permissions such as <code>tabs</code>,
+            <code>cookies</code>, <code>webRequest</code>, <code>history</code>, <code>notifications</code>, or
+            <code>&lt;all_urls&gt;</code>.
+          </p>
+
+          <h2>2. Information Stored Locally</h2>
+          <p>
+            When you use RecallLC, the following information is generated and stored locally in your browser's IndexedDB
+            and <code>chrome.storage.local</code>:
+          </p>
+          <ul>
+            <li>
+              <strong>Problem Identifiers:</strong> Problem title, slug (e.g. <code>two-sum</code>), difficulty level,
+              and topic tags.
+            </li>
+            <li>
+              <strong>Revision Records:</strong> Timestamps of attempts, user recall rating (Forgot, Hard, Good, Easy),
+              and calculated next due dates.
+            </li>
+            <li>
+              <strong>Submission Metadata:</strong> Submission verdicts (Accepted, Wrong Answer, TLE), language used (if
+              detected), and submission timestamp.
+            </li>
+            <li>
+              <strong>User Notes:</strong> Any conceptual notes, time/space complexities, or edge cases you enter on the
+              Problems or Recall screens.
+            </li>
+            <li>
+              <strong>Security Settings:</strong> Optional master passcode salt and hash (processed using Web Crypto
+              SHA-256; plain-text passwords are never stored).
+            </li>
+          </ul>
+
+          <h2>3. Data Sharing &amp; Third Parties</h2>
+          <p>We do not sell, rent, trade, or share any user data with third parties. No data leaves your machine.</p>
+          <p>
+            When you interact with LeetCode (e.g. submitting code or loading a problem), standard web requests are
+            handled directly by your browser to LeetCode under your own existing session. RecallLC does not inspect or
+            intercept your session tokens.
+          </p>
+
+          <h2>4. Data Retention &amp; Deletion</h2>
+          <p>
+            Because all data is stored on your local machine, you retain complete control over your data at all times:
+          </p>
+          <ul>
+            <li>
+              <strong>Export:</strong> You can export your full revision history to standard JSON or CSV anytime via the
+              Dashboard &gt; Settings screen.
+            </li>
+            <li>
+              <strong>Clear All Data:</strong> You can wipe all problems, revision logs, and attempts with one click via
+              Dashboard &gt; Settings &gt; Clear All Data.
+            </li>
+            <li>
+              <strong>Uninstall:</strong> Removing the extension from <code>chrome://extensions</code> immediately
+              deletes all associated extension-origin IndexedDB data.
+            </li>
+          </ul>
+
+          <h2>5. Website Privacy (Landing Page)</h2>
+          <p>
+            This landing website (<code>recalllc.netlify.app</code>) is a static website hosted on Netlify. Netlify may
+            collect standard server access logs (including visitor IP addresses, browser user-agent, and requested URLs)
+            strictly for operational security and DDoS protection as outlined in Netlify's Privacy Policy. No cookies or
+            marketing trackers are used on this website.
+          </p>
+
+          <h2>6. Contact for Privacy Inquiries</h2>
+          <p>
+            If you have questions about this Privacy Policy or RecallLC's security practices, please contact the
+            developer:
+          </p>
+          <div class="policy-highlight-card">
+            <p><strong>Developer:</strong> Pranav Sharma</p>
+            <p>
+              <strong>Support Email:</strong>
+              <a href="mailto:pranav2410991479@gmail.com" style="color: var(--accent); text-decoration: underline"
+                >pranav2410991479@gmail.com</a
+              >
+            </p>
+            <p>
+              <strong>GitHub:</strong>
+              <a
+                href="https://github.com/PranavSharma1008/RecalLc"
+                target="_blank"
+                rel="noopener noreferrer"
+                style="color: var(--accent); text-decoration: underline"
+                >https://github.com/PranavSharma1008/RecalLc</a
+              >
+            </p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+      <div class="container footer-bottom">
+        <div>© <span class="current-year">2026</span> RecallLC. Developed by <strong>Pranav Sharma</strong>.</div>
+        <div>
+          <a href="terms.html" style="margin-right: 14px">Terms of Service</a> <a href="refund.html">Refund Policy</a>
+        </div>
+      </div>
+    </footer>
+
+    <script src="script.js"></script>
+  </body>
+</html>

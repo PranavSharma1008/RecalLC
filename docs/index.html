@@ -1,0 +1,906 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RecallLC — Smart LeetCode Revision (Chrome Extension)</title>
+    <meta
+      name="description"
+      content="RecallLC is a 100% free, local-first Chrome extension that intelligently nudges you to revise older solved LeetCode problems the moment you open a new one."
+    />
+    <link rel="canonical" href="https://recalllc.netlify.app/" />
+
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="RecallLC — Smart LeetCode Revision" />
+    <meta
+      property="og:description"
+      content="Solve it. Remember it. Master it. Spaced-repetition revision prompts built directly into LeetCode."
+    />
+    <meta property="og:image" content="assets/dashboard-overview.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow-top" aria-hidden="true"></div>
+
+    <!-- Site Navigation -->
+    <header class="site-header">
+      <div class="container nav-wrap">
+        <a href="index.html" class="brand" aria-label="RecallLC Homepage">
+          <img src="favicon.svg" alt="RecallLC Logo" class="brand-icon" />
+          <span>RecallLC</span>
+          <span class="brand-version">v1.0.0</span>
+        </a>
+
+        <nav aria-label="Main Navigation">
+          <ul class="nav-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#how-it-works">How It Works</a></li>
+            <li><a href="#install">Installation</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#faq">FAQ</a></li>
+            <li><a href="contact.html">Contact</a></li>
+          </ul>
+        </nav>
+
+        <div class="nav-actions">
+          <a
+            href="https://github.com/PranavSharma1008/RecalLc"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-secondary btn-sm"
+            aria-label="GitHub Repository"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
+              />
+            </svg>
+            <span class="btn-github-text">GitHub</span>
+          </a>
+          <a href="#install" class="btn btn-primary btn-sm">Get RecallLC</a>
+          <button type="button" class="mobile-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- Hero Section -->
+      <section class="hero-section">
+        <div class="container hero-content">
+          <span class="badge badge-purple">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10" />
+              <path d="m9 12 2 2 4-4" />
+            </svg>
+            100% Free & Open Source • Local-First Chrome Extension
+          </span>
+
+          <h1 class="hero-title">Never Forget a <span class="hero-highlight">LeetCode Pattern</span> Again.</h1>
+
+          <p class="hero-subtitle">
+            RecallLC intelligently nudges you to revise older solved problems at the exact moment you open a new one.
+            Powered by deterministic spaced repetition right inside LeetCode.
+          </p>
+
+          <div class="hero-actions">
+            <a href="#install" class="btn btn-primary btn-lg">
+              <span>Install from GitHub (Free)</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M5 12h14M12 5l7 7-7 7" />
+              </svg>
+            </a>
+            <a href="#how-it-works" class="btn btn-secondary btn-lg">
+              <span>See How It Works</span>
+            </a>
+          </div>
+
+          <div class="hero-meta">
+            <span class="hero-meta-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+              No Cloud Accounts Needed
+            </span>
+            <span class="hero-meta-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+              Zero Telemetry / 100% Offline
+            </span>
+            <span class="hero-meta-item">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+              Never Touches Cookies or Passwords
+            </span>
+          </div>
+
+          <!-- Real Product Visual Container -->
+          <div class="hero-mockup">
+            <div class="mockup-frame">
+              <div class="mockup-header">
+                <span class="mockup-dot"></span>
+                <span class="mockup-dot"></span>
+                <span class="mockup-dot"></span>
+                <span class="mockup-title">RecallLC Dashboard — Overview & Revision Analytics</span>
+              </div>
+              <img
+                src="assets/dashboard-overview.png"
+                alt="RecallLC Extension Dashboard showing LeetCode revision streak, due count, and problem queue"
+                class="mockup-img"
+                loading="lazy"
+              />
+            </div>
+
+            <!-- Realistic In-Page Reminder Card Preview -->
+            <aside class="mockup-floating-card" aria-label="In-page revision card preview">
+              <div class="card-pill-header">
+                <span>⏰ TIME TO REVISE • 2 days late</span>
+              </div>
+              <h4 class="card-pill-title">Climbing Stairs</h4>
+              <div class="card-pill-tags">
+                <span class="badge badge-yellow">Medium</span>
+                <span class="badge badge-purple">Dynamic Programming</span>
+              </div>
+              <div class="card-pill-btn-group">
+                <button type="button" class="btn-accent-mini">Revise Now</button>
+                <button type="button">Remind Tomorrow</button>
+                <button type="button">Dismiss</button>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <!-- Real Features Section -->
+      <section id="features" class="section section-alt">
+        <div class="container">
+          <div class="section-head">
+            <span class="badge badge-purple">Engineered for Engineers</span>
+            <h2>Verified, Real Functionality</h2>
+            <p>
+              Every feature in RecallLC runs in your local browser sandbox. No simulated promises—just clean, reliable
+              revision tools.
+            </p>
+          </div>
+
+          <div class="features-grid">
+            <!-- Feature 1 -->
+            <article class="feature-card">
+              <div class="feature-icon-box">⚡</div>
+              <h3>Automatic LeetCode Verdict Detection</h3>
+              <p>
+                Listens for submit clicks on <code>leetcode.com/problems/*</code> and records Accepted, Wrong Answer,
+                and TLE verdicts automatically using resilient DOM selectors.
+              </p>
+              <div class="feature-why">
+                <strong>Why it matters:</strong> You don't have to manually log your attempts or disrupt your coding
+                rhythm.
+              </div>
+            </article>
+
+            <!-- Feature 2 -->
+            <article class="feature-card">
+              <div class="feature-icon-box">🧠</div>
+              <h3>Deterministic Spaced Repetition</h3>
+              <p>
+                Pure mathematical interval scheduling (Forgot: 1d, Hard: 2d, Good: 5d, Easy: 14d). Snoozing and
+                dismissing never alter your revision schedule until you explicitly rate it.
+              </p>
+              <div class="feature-why">
+                <strong>Why it matters:</strong> Defeats the Ebbinghaus forgetting curve so patterns stay sharp for
+                technical interviews.
+              </div>
+            </article>
+
+            <!-- Feature 3 -->
+            <article class="feature-card">
+              <div class="feature-icon-box">🚀</div>
+              <h3>Inline Rocket Push Button</h3>
+              <p>
+                Injected directly between LeetCode's <em>Analysis</em> and <em>Solution</em> top buttons. Push any
+                problem to RecallLC with 1 click and schedule a custom revision date.
+              </p>
+              <div class="feature-why">
+                <strong>Why it matters:</strong> Seamless native feel right inside LeetCode's modern Next.js interface.
+              </div>
+            </article>
+
+            <!-- Feature 4 -->
+            <article class="feature-card">
+              <div class="feature-icon-box">🎯</div>
+              <h3>Recall-First Flashcard Workflow</h3>
+              <p>
+                A dedicated 3-step recall screen that prompts you to think through your conceptual approach, time/space
+                complexity, and edge cases before revealing your notes.
+              </p>
+              <div class="feature-why">
+                <strong>Why it matters:</strong> Prevents passive recognition and builds active memory retrieval under
+                interview pressure.
+              </div>
+            </article>
+
+            <!-- Feature 5 -->
+            <article class="feature-card">
+              <div class="feature-icon-box">🔒</div>
+              <h3>Master Passcode Protection</h3>
+              <p>
+                Optional master passcode lock screen using Web Crypto SHA-256 hashing, anti-brute-force lockout delays,
+                and inactivity auto-lock timers to guard your revision notes.
+              </p>
+              <div class="feature-why">
+                <strong>Why it matters:</strong> Keeps your personal LeetCode notes and progress secure even on shared
+                or work laptops.
+              </div>
+            </article>
+
+            <!-- Feature 6 -->
+            <article class="feature-card">
+              <div class="feature-icon-box">📂</div>
+              <h3>RFC-4180 Bulk Import & Export</h3>
+              <p>
+                Full support for CSV and TSV imports with header aliasing, delimiter auto-detection, and JSON backups.
+                Deduplicates against your IndexedDB automatically.
+              </p>
+              <div class="feature-why">
+                <strong>Why it matters:</strong> You never lose your historical data and can migrate revision logs
+                anytime with zero lock-in.
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- How It Works Section -->
+      <section id="how-it-works" class="section">
+        <div class="container">
+          <div class="section-head">
+            <span class="badge badge-green">Simple & Focused</span>
+            <h2>How RecallLC Works</h2>
+            <p>No complex setup. Just install the extension and practice on LeetCode as you normally do.</p>
+          </div>
+
+          <div class="steps-container">
+            <div class="step-card">
+              <span class="step-number">1</span>
+              <h3>Solve a Problem</h3>
+              <p>
+                Open any question on LeetCode. RecallLC silently tracks your verdict or lets you push the problem with
+                the topbar Rocket button.
+              </p>
+            </div>
+
+            <div class="step-card">
+              <span class="step-number">2</span>
+              <h3>Receive a Spaced Nudge</h3>
+              <p>
+                When you start a new question days later, a compact reminder card displays an older problem due for
+                revision. The active question is excluded.
+              </p>
+            </div>
+
+            <div class="step-card">
+              <span class="step-number">3</span>
+              <h3>Recall Before Revealing</h3>
+              <p>
+                Open the Recall screen. Review your approach, complexity, and trade-offs before clicking to reveal your
+                past notes.
+              </p>
+            </div>
+
+            <div class="step-card">
+              <span class="step-number">4</span>
+              <h3>Rate & Reschedule</h3>
+              <p>
+                Rate how easily you recalled the solution (Forgot, Hard, Good, or Easy). RecallLC calculates the next
+                revision date and maintains your streak.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Installation Section -->
+      <section id="install" class="section section-alt">
+        <div class="container">
+          <div class="section-head">
+            <span class="badge badge-purple">Installation Guide</span>
+            <h2>How to Install RecallLC</h2>
+            <p>
+              RecallLC is distributed directly through GitHub. Follow these step-by-step instructions to load it into
+              Google Chrome in under 60 seconds.
+            </p>
+          </div>
+
+          <div class="install-card">
+            <ol class="install-stepper">
+              <li class="install-item">
+                <span class="install-item-number">1</span>
+                <div class="install-item-content">
+                  <h4>Clone or Download the Repository</h4>
+                  <p>Download the project repository archive from GitHub or clone it using your terminal:</p>
+                  <div class="code-box">
+                    <code>git clone https://github.com/PranavSharma1008/RecalLc.git</code>
+                    <button
+                      type="button"
+                      class="btn-copy"
+                      data-copy="git clone https://github.com/PranavSharma1008/RecalLc.git"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+              </li>
+
+              <li class="install-item">
+                <span class="install-item-number">2</span>
+                <div class="install-item-content">
+                  <h4>Open Chrome Extensions</h4>
+                  <p>
+                    In Google Chrome, navigate to the extensions management screen by typing this into your address bar:
+                  </p>
+                  <div class="code-box">
+                    <code>chrome://extensions</code>
+                    <button type="button" class="btn-copy" data-copy="chrome://extensions">Copy</button>
+                  </div>
+                </div>
+              </li>
+
+              <li class="install-item">
+                <span class="install-item-number">3</span>
+                <div class="install-item-content">
+                  <h4>Enable Developer Mode</h4>
+                  <p>
+                    Toggle the <strong>Developer mode</strong> switch located in the top-right corner of the Chrome
+                    extensions page.
+                  </p>
+                </div>
+              </li>
+
+              <li class="install-item">
+                <span class="install-item-number">4</span>
+                <div class="install-item-content">
+                  <h4>Click "Load unpacked" & Select the <code>dist</code> Folder</h4>
+                  <p>
+                    Click the <strong>Load unpacked</strong> button (top-left) and select the <code>dist</code> folder
+                    inside the extracted RecallLC directory (or run <code>npm run build</code> first if building from
+                    source).
+                  </p>
+                </div>
+              </li>
+
+              <li class="install-item">
+                <span class="install-item-number">5</span>
+                <div class="install-item-content">
+                  <h4>Pin to Toolbar & Start Revising</h4>
+                  <p>
+                    Click the puzzle icon in Chrome and pin RecallLC. Open any problem on
+                    <a
+                      href="https://leetcode.com/problems/two-sum/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style="color: var(--accent); text-decoration: underline"
+                      >leetcode.com</a
+                    >
+                    to see it in action!
+                  </p>
+                </div>
+              </li>
+            </ol>
+
+            <div class="notice-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <p>
+                <strong>Developer Mode Notice:</strong> Unpacked Chrome extensions do not update automatically from the
+                Chrome Web Store. When a new version is released on GitHub, simply pull the latest changes (or
+                re-download the archive) and press the reload (⟳) icon on the RecallLC card in
+                <code>chrome://extensions</code>.
+              </p>
+            </div>
+
+            <div style="margin-top: 24px; text-align: center">
+              <a href="installation.html" class="btn btn-secondary"
+                >View Detailed Installation & Troubleshooting Guide →</a
+              >
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Honest Pricing Section -->
+      <section id="pricing" class="section">
+        <div class="container">
+          <div class="section-head">
+            <span class="badge badge-purple">Transparent Pricing</span>
+            <h2>Free Forever Core. Optional Pro Planned.</h2>
+            <p>
+              All core spaced-repetition functionality is 100% free and open-source. No hidden paywalls on your local
+              data.
+            </p>
+          </div>
+
+          <div class="pricing-grid">
+            <!-- Free Core Plan -->
+            <div class="pricing-card featured">
+              <span class="badge badge-green pricing-badge">Active & Ready</span>
+              <div class="pricing-header">
+                <h3>Core Extension</h3>
+                <p>Everything you need to master LeetCode patterns locally.</p>
+                <div class="pricing-price">Free <span class="pricing-period">/ forever</span></div>
+              </div>
+
+              <ul class="pricing-features">
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Automatic submission verdict detection
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Spaced repetition algorithm (Forgot/Hard/Good/Easy)
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Non-intrusive floating in-page reminder
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Inline Rocket Push Button on LeetCode
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Full IndexedDB revision dashboard & notes
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Master passcode security lock screen
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  100% local-first, zero telemetry, zero ads
+                </li>
+              </ul>
+
+              <a href="#install" class="btn btn-primary btn-lg" style="width: 100%">Install Core (Free)</a>
+            </div>
+
+            <!-- Planned Pro Tier / Razorpay Supporter -->
+            <div class="pricing-card" id="pricing-note">
+              <span class="badge badge-purple pricing-badge">Razorpay Enabled</span>
+              <div class="pricing-header">
+                <h3>Pro / Supporter Cloud</h3>
+                <p>Support continuous open-source development and get early Pro features.</p>
+                <div class="pricing-price" style="font-size: 2.4rem">
+                  ₹299 <span class="pricing-period">/ supporter</span>
+                </div>
+              </div>
+
+              <ul class="pricing-features">
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  <strong>All Core Extension features included</strong>
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  End-to-end encrypted multi-device sync
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Automated cloud revision schedule backups
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Cross-browser profile synchronization
+                </li>
+                <li>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5" />
+                  </svg>
+                  Priority feature suggestions & developer support
+                </li>
+              </ul>
+
+              <button
+                type="button"
+                class="btn btn-primary btn-lg btn-razorpay-trigger"
+                data-amount="29900"
+                style="width: 100%"
+              >
+                Pay via Razorpay / UPI (₹299)
+              </button>
+
+              <p style="font-size: 0.78rem; color: var(--text-subtle); margin-top: 10px; text-align: center">
+                Supports Credit/Debit Cards, NetBanking, and UPI (GPay/PhonePe/Paytm). Powered by Razorpay.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Interactive Razorpay / UPI Modal -->
+      <div
+        id="razorpay-modal"
+        style="
+          display: none;
+          position: fixed;
+          inset: 0;
+          z-index: 1000;
+          background: rgba(0, 0, 0, 0.78);
+          backdrop-filter: blur(8px);
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+        "
+      >
+        <div
+          style="
+            background: var(--bg-surface);
+            border: 1px solid var(--line-border);
+            border-radius: var(--radius-lg);
+            max-width: 440px;
+            width: 100%;
+            padding: 28px;
+            box-shadow: var(--shadow-lg);
+            position: relative;
+          "
+        >
+          <button
+            type="button"
+            id="close-razorpay-modal"
+            style="
+              position: absolute;
+              top: 16px;
+              right: 16px;
+              background: transparent;
+              border: none;
+              color: var(--text-muted);
+              font-size: 1.3rem;
+              cursor: pointer;
+            "
+            aria-label="Close modal"
+          >
+            ✕
+          </button>
+
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px">
+            <span style="font-size: 1.8rem">⚡</span>
+            <div>
+              <h3 style="font-size: 1.25rem; font-weight: 700; color: var(--text-primary); margin: 0">
+                Support via Razorpay
+              </h3>
+              <p style="font-size: 0.82rem; color: var(--text-subtle); margin: 0">
+                Secured by Razorpay • Instant Confirmation
+              </p>
+            </div>
+          </div>
+
+          <div
+            style="
+              background: var(--accent-soft);
+              border: 1px solid rgba(124, 92, 255, 0.3);
+              border-radius: var(--radius-sm);
+              padding: 14px;
+              text-align: center;
+              margin-bottom: 20px;
+            "
+          >
+            <p style="font-size: 0.75rem; text-transform: uppercase; font-weight: 600; color: var(--accent); margin: 0">
+              Contribution Amount
+            </p>
+            <p style="font-size: 1.8rem; font-weight: 800; color: var(--text-primary); margin: 4px 0 0 0">₹ 299.00</p>
+          </div>
+
+          <!-- Razorpay Link Button -->
+          <a
+            href="/checkout.html?amount=299"
+            id="razorpay-direct-link"
+            class="btn btn-primary btn-lg"
+            style="width: 100%; margin-bottom: 16px"
+          >
+            <span>💳 Pay via Razorpay (₹299) ↗</span>
+          </a>
+
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 10px;
+              margin: 16px 0;
+              font-size: 0.75rem;
+              color: var(--text-subtle);
+              text-transform: uppercase;
+              font-weight: 600;
+            "
+          >
+            <div style="height: 1px; flex: 1; background: var(--line-border)"></div>
+            <span>OR SCAN UPI QR CODE</span>
+            <div style="height: 1px; flex: 1; background: var(--line-border)"></div>
+          </div>
+
+          <!-- Direct UPI Scanner Box -->
+          <div
+            style="
+              background: #ffffff;
+              border-radius: var(--radius-md);
+              padding: 16px;
+              text-align: center;
+              margin-bottom: 16px;
+            "
+          >
+            <img
+              id="razorpay-qr-img"
+              src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=upi%3A%2F%2Fpay%3Fpa%3Dpranavsharma%40upi%26pn%3DPranav%2520Sharma%26am%3D299%26cu%3DINR%26tn%3DSupport%2520RecallLC"
+              alt="Razorpay / UPI Payment QR Code"
+              style="width: 160px; height: 160px; display: inline-block"
+            />
+            <p style="font-size: 0.72rem; font-weight: 600; color: #1e2330; margin-top: 8px">
+              Scan with GPay, PhonePe, Paytm, or BHIM
+            </p>
+          </div>
+
+          <div
+            style="
+              background: var(--bg-surface-2);
+              border: 1px solid var(--line-border);
+              border-radius: var(--radius-sm);
+              padding: 10px 14px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              margin-bottom: 14px;
+            "
+          >
+            <div>
+              <p
+                style="
+                  font-size: 0.7rem;
+                  color: var(--text-subtle);
+                  margin: 0;
+                  text-transform: uppercase;
+                  font-weight: 600;
+                "
+              >
+                UPI ID
+              </p>
+              <p
+                style="
+                  font-size: 0.88rem;
+                  font-family: var(--font-mono);
+                  font-weight: 700;
+                  color: var(--text-primary);
+                  margin: 0;
+                "
+                id="razorpay-upi-text"
+              >
+                pranavsharma@upi
+              </p>
+            </div>
+            <button type="button" class="btn-copy" data-copy="pranavsharma@upi">Copy UPI</button>
+          </div>
+
+          <p style="font-size: 0.74rem; color: var(--text-subtle); text-align: center; margin: 0">
+            💡 <em>To configure your Razorpay Key ID or custom link, edit <code>config.js</code></em
+            >.
+          </p>
+        </div>
+      </div>
+
+      <!-- FAQ Section -->
+      <section id="faq" class="section section-alt">
+        <div class="container">
+          <div class="section-head">
+            <span class="badge badge-purple">Got Questions?</span>
+            <h2>Frequently Asked Questions</h2>
+            <p>Accurate, transparent answers about RecallLC's architecture, permissions, and distribution.</p>
+          </div>
+
+          <div class="faq-list">
+            <details class="faq-item">
+              <summary class="faq-summary">
+                <span>Why is RecallLC installed via GitHub rather than the Chrome Web Store?</span>
+                <span class="faq-icon">+</span>
+              </summary>
+              <div class="faq-answer">
+                RecallLC is currently distributed through GitHub so developers can inspect the source code, run unit
+                tests, and load the unpacked extension immediately. Chrome Web Store verification and listing submission
+                are currently in preparation.
+              </div>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-summary">
+                <span>Does RecallLC have access to my LeetCode password or cookies?</span>
+                <span class="faq-icon">+</span>
+              </summary>
+              <div class="faq-answer">
+                <strong>No. Absolutely never.</strong> RecallLC does not request the <code>cookies</code>,
+                <code>webRequest</code>, or <code>tabs</code> permissions. It never reads, stores, or forwards session
+                credentials. All catalog requests originate from your existing tab context with standard browser
+                security.
+              </div>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-summary">
+                <span>Where is my revision schedule and problem data stored?</span>
+                <span class="faq-icon">+</span>
+              </summary>
+              <div class="faq-answer">
+                All problem logs, attempts, and schedules live entirely on your own device inside the browser's
+                IndexedDB (isolated to the extension origin) and <code>chrome.storage.local</code>. Nothing is sent to
+                any external server because RecallLC operates completely without a cloud backend.
+              </div>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-summary">
+                <span>What happens if I dismiss a revision reminder?</span>
+                <span class="faq-icon">+</span>
+              </summary>
+              <div class="faq-answer">
+                Unlike simplistic reminder tools, RecallLC stores dismissals in a separate
+                <code>dismissedAt</code> field. Dismissing a card merely hides it for the rest of today—it
+                <strong>never reschedules</strong> your problem. Only explicitly rating your recall (Forgot, Hard, Good,
+                Easy) moves your revision due date.
+              </div>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-summary">
+                <span>How do I update RecallLC when a new version is released?</span>
+                <span class="faq-icon">+</span>
+              </summary>
+              <div class="faq-answer">
+                Because unpacked extensions are loaded from your local disk, simply pull the latest code with
+                <code>git pull</code> (or download the latest ZIP release) and click the reload icon (⟳) on the RecallLC
+                card in <code>chrome://extensions</code>. Your IndexedDB data is fully preserved across reloads.
+              </div>
+            </details>
+
+            <details class="faq-item">
+              <summary class="faq-summary">
+                <span>How can I support development or submit feature requests?</span>
+                <span class="faq-icon">+</span>
+              </summary>
+              <div class="faq-answer">
+                You can star the project on
+                <a
+                  href="https://github.com/PranavSharma1008/RecalLc"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style="color: var(--accent); text-decoration: underline"
+                  >GitHub</a
+                >, open an issue for feature suggestions, or support development directly via
+                <a href="checkout.html" style="color: var(--accent); text-decoration: underline">Razorpay</a>.
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <!-- Call to Action Banner -->
+      <section class="section">
+        <div class="container">
+          <div class="cta-box">
+            <h2>Master DSA Patterns With Zero Stress</h2>
+            <p>
+              Join developers who solve LeetCode problems and actually remember them months later during interviews.
+            </p>
+            <div style="display: flex; justify-content: center; gap: 14px; flex-wrap: wrap">
+              <a href="#install" class="btn btn-primary btn-lg">Install RecallLC Free</a>
+              <a
+                href="https://github.com/PranavSharma1008/RecalLc"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn-secondary btn-lg"
+                >View Source on GitHub</a
+              >
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Site Footer -->
+    <footer class="site-footer">
+      <div class="container">
+        <div class="footer-grid">
+          <div class="footer-col">
+            <div class="brand" style="margin-bottom: 14px">
+              <img src="favicon.svg" alt="RecallLC Logo" class="brand-icon" />
+              <span>RecallLC</span>
+            </div>
+            <p style="font-size: 0.9rem; line-height: 1.6; max-width: 320px; color: var(--text-muted)">
+              Solve it. Remember it. Master it.<br />
+              A local-first, private Chrome extension for long-term LeetCode pattern retention.
+            </p>
+          </div>
+
+          <div class="footer-col">
+            <h4>Product</h4>
+            <ul class="footer-links">
+              <li><a href="#features">Features</a></li>
+              <li><a href="#how-it-works">How It Works</a></li>
+              <li><a href="installation.html">Installation Guide</a></li>
+              <li><a href="#pricing">Pricing & Roadmap</a></li>
+            </ul>
+          </div>
+
+          <div class="footer-col">
+            <h4>Resources</h4>
+            <ul class="footer-links">
+              <li>
+                <a href="https://github.com/PranavSharma1008/RecalLc" target="_blank" rel="noopener noreferrer"
+                  >GitHub Repository ↗</a
+                >
+              </li>
+              <li>
+                <a href="https://github.com/PranavSharma1008/RecalLc/issues" target="_blank" rel="noopener noreferrer"
+                  >Bug Reports & Issues ↗</a
+                >
+              </li>
+              <li><a href="contact.html">Contact Developer</a></li>
+              <li>
+                <a href="checkout.html">Support via Razorpay ↗</a>
+              </li>
+            </ul>
+          </div>
+
+          <div class="footer-col">
+            <h4>Legal & Policies</h4>
+            <ul class="footer-links">
+              <li><a href="privacy.html">Privacy Policy</a></li>
+              <li><a href="terms.html">Terms of Service</a></li>
+              <li><a href="refund.html">Refund Policy</a></li>
+              <li><a href="contact.html">Support & Inquiries</a></li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="footer-bottom">
+          <div>
+            © <span class="current-year">2026</span> RecallLC. Developed by <strong>Pranav Sharma</strong>. Released as
+            open-source software.
+          </div>
+          <div>Distributed via GitHub Unpacked Extension • Not affiliated with or endorsed by LeetCode.</div>
+        </div>
+      </div>
+    </footer>
+
+    <script src="config.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
