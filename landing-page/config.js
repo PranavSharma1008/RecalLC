@@ -21,7 +21,7 @@ const RECALLC_CONFIG = {
   developerName: 'Pranav Sharma',
   supportEmail: 'pranav2410991479@gmail.com',
   linkedInUrl: 'https://www.linkedin.com/in/pranavsharma1008/',
-  githubSponsorsUrl: 'https://github.com/sponsors/PranavSharma1008',
+  razorpayUrl: 'https://razorpay.me/@recallc',
 
   // Version
   currentVersion: 'v1.0.0',

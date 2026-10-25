@@ -691,14 +691,14 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
             </a>
           </div>
           <div className="flex items-center justify-between">
-            <span className="font-medium text-fg">GitHub Sponsor</span>
+            <span className="font-medium text-fg">Support / Donate</span>
             <a
-              href="https://github.com/sponsors/PranavSharma1008"
+              href="https://razorpay.me/@recallc"
               target="_blank"
               rel="noopener noreferrer"
               className="text-accent hover:underline flex items-center gap-1"
             >
-              github.com/sponsors/PranavSharma1008 ↗
+              razorpay.me/@recallc ↗
             </a>
           </div>
           <div className="pt-2 border-t border-line flex items-center justify-between">

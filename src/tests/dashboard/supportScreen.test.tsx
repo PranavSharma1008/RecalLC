@@ -16,7 +16,7 @@ describe('SupportScreen', () => {
     document.body.appendChild(container);
   });
 
-  it('renders both Razorpay and GitHub Sponsors option cards with direct external links opening in new tabs', async () => {
+  it('renders centered Razorpay option card with direct external link opening in new tab and no GitHub Sponsors', async () => {
     const root = createRoot(container);
     await act(async () => {
       root.render(<SupportScreen />);
@@ -25,10 +25,9 @@ describe('SupportScreen', () => {
     // Check main title
     expect(container.textContent).toContain('Support my Free Extensions');
 
-    // Razorpay Card
-    expect(container.textContent).toContain('In India');
-    expect(container.textContent).toContain('Razorpay');
-    expect(container.textContent).toContain('Pay once, in rupees (UPI, Cards, NetBanking).');
+    // Razorpay Card (Centered)
+    expect(container.textContent).toContain('Support via Razorpay');
+    expect(container.textContent).toContain('Pay once via UPI (GPay, PhonePe, Paytm), Cards, or NetBanking.');
 
     const razorpayLink = Array.from(container.querySelectorAll('a')).find((a) =>
       a.textContent?.includes('Pay with Razorpay'),
@@ -38,18 +37,11 @@ describe('SupportScreen', () => {
     expect(razorpayLink?.getAttribute('target')).toBe('_blank');
     expect(razorpayLink?.getAttribute('rel')).toBe('noopener noreferrer');
 
-    // GitHub Sponsors Card
-    expect(container.textContent).toContain('Outside India');
-    expect(container.textContent).toContain('GitHub Sponsors');
-    expect(container.textContent).toContain('Sponsor through GitHub, from any country.');
-
-    const githubLink = Array.from(container.querySelectorAll('a')).find((a) =>
-      a.textContent?.includes('Sponsor on GitHub'),
-    );
-    expect(githubLink).toBeDefined();
-    expect(githubLink?.getAttribute('href')).toBe('https://github.com/sponsors/PranavSharma1008');
-    expect(githubLink?.getAttribute('target')).toBe('_blank');
-    expect(githubLink?.getAttribute('rel')).toBe('noopener noreferrer');
+    // GitHub Sponsors is completely removed
+    expect(container.textContent).not.toContain('GitHub Sponsors');
+    expect(container.textContent).not.toContain('Outside India');
+    expect(container.textContent).not.toContain('Sponsor on GitHub');
+    expect(container.textContent).not.toContain('sponsors/PranavSharma1008');
 
     // Does not render bottom contact/terms section
     expect(container.textContent).not.toContain('Terms & Conditions:');
