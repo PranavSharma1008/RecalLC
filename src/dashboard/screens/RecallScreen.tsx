@@ -87,8 +87,8 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
           RecallLC does not have a record for <span className="font-mono">{slug}</span>.
         </p>
         <div className="mt-4 flex justify-center">
-          <Button variant="primary" size="sm" onClick={() => navigate('/')}>
-            Back to overview
+          <Button variant="primary" size="sm" onClick={() => navigate('/reminders')}>
+            Back to reminders
           </Button>
         </div>
       </div>
@@ -110,6 +110,7 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
       setNextDue(outcome?.dueAt ?? null);
       setSavedAt(Date.now());
       onChanged();
+      navigate('/reminders');
     } finally {
       setBusy(false);
     }
@@ -131,6 +132,7 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
       setNextDue(targetDueAt);
       setSavedAt(Date.now());
       onChanged();
+      navigate('/reminders');
     } catch (err) {
       console.warn('Failed to set manual schedule:', err);
     } finally {
@@ -151,7 +153,7 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
         <div className="min-w-0">
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/reminders')}
             className="text-[11px] text-subtle underline-offset-2 hover:underline"
           >
             ← Back
@@ -197,8 +199,8 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
             again until then.
           </p>
           <div className="mt-3 flex gap-2">
-            <Button variant="secondary" size="sm" onClick={() => navigate('/')}>
-              📊 Back to overview
+            <Button variant="secondary" size="sm" onClick={() => navigate('/reminders')}>
+              🔔 Back to reminders
             </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate(`/problems`)}>
               📚 All problems

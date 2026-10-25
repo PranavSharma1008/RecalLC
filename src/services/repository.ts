@@ -421,20 +421,28 @@ export async function rateRecall(
   rating: RecallRating,
   now: number = Date.now(),
 ): Promise<{ revision: RevisionRecord; event: ReviewEvent }> {
+  const clean = normalizeSlug(slug);
+  if (!clean) throw new Error(`Invalid problem slug: ${String(slug)}`);
+
+  const VALID_RATINGS: RecallRating[] = ['easy', 'good', 'hard', 'forgot'];
+  if (!VALID_RATINGS.includes(rating)) {
+    throw new Error(`Invalid recall rating: ${String(rating)}. Must be one of: ${VALID_RATINGS.join(', ')}.`);
+  }
+
   const database = db();
   const settings = await readSettings();
-  const existing = await database.revisions.get(slug);
-  const problem = await database.problems.get(slug);
+  const existing = await database.revisions.get(clean);
+  const problem = await database.problems.get(clean);
 
   const previousDueAt = existing?.dueAt ?? now;
   const base: RevisionRecord =
-    existing ?? createRevision(slug, await computeInitialDue(problem?.lastAttemptAt ?? now), now);
+    existing ?? createRevision(clean, await computeInitialDue(problem?.lastAttemptAt ?? now), now);
 
   const revision = applyRating(base, rating, now, settings.intervals);
 
   const event: ReviewEvent = {
     id: createId('evt'),
-    slug,
+    slug: clean,
     rating,
     reviewedAt: now,
     previousDueAt,
@@ -506,13 +514,18 @@ export async function rescheduleProblem(
   dueAt: number,
   now: number = Date.now(),
 ): Promise<{ revision: RevisionRecord; event: ReviewEvent } | null> {
+  const clean = normalizeSlug(slug);
+  if (!clean || !Number.isFinite(dueAt) || dueAt < 0) {
+    throw new Error('Invalid problem slug or reschedule timestamp');
+  }
+
   const database = db();
-  const existing = await database.revisions.get(slug);
-  const problem = await database.problems.get(slug);
+  const existing = await database.revisions.get(clean);
+  const problem = await database.problems.get(clean);
   if (!existing && !problem) return null;
 
   const previousDueAt = existing?.dueAt ?? now;
-  const base: RevisionRecord = existing ?? createRevision(slug, dueAt, now);
+  const base: RevisionRecord = existing ?? createRevision(clean, dueAt, now);
   const revision: RevisionRecord = {
     ...base,
     dueAt,
@@ -524,7 +537,7 @@ export async function rescheduleProblem(
 
   const event: ReviewEvent = {
     id: createId('evt'),
-    slug,
+    slug: clean,
     rating: null,
     reviewedAt: now,
     previousDueAt,
@@ -573,12 +586,38 @@ export async function markViewed(slug: string, now: number = Date.now()): Promis
 
 /** Merge cached catalogue metadata into tracked problems. */
 export async function mergeCatalog(entries: CatalogEntry[], now: number = Date.now()): Promise<number> {
+  if (!Array.isArray(entries)) return 0;
   const database = db();
   let updated = 0;
   await database.transaction('rw', [database.problems, database.catalog], async () => {
-    for (const entry of entries) {
-      await database.catalog.put({ ...entry, updatedAt: now });
-      const problem = await database.problems.get(entry.slug);
+    for (const rawEntry of entries) {
+      if (!rawEntry || typeof rawEntry !== 'object') continue;
+      const slug = normalizeSlug(rawEntry.slug);
+      if (!slug) continue;
+
+      const title =
+        typeof rawEntry.title === 'string' && rawEntry.title.trim()
+          ? rawEntry.title.trim().slice(0, 300)
+          : titleFromSlug(slug);
+      const difficulty = (
+        ['Easy', 'Medium', 'Hard'].includes(rawEntry.difficulty) ? rawEntry.difficulty : 'Unknown'
+      ) as Difficulty;
+      const topics = Array.isArray(rawEntry.topics)
+        ? rawEntry.topics.filter((t): t is string => typeof t === 'string' && t.trim().length > 0).slice(0, 30)
+        : [];
+      const paidOnly = Boolean(rawEntry.paidOnly);
+
+      const entry: CatalogEntry = {
+        slug,
+        title,
+        difficulty,
+        topics,
+        paidOnly,
+        updatedAt: now,
+      };
+
+      await database.catalog.put(entry);
+      const problem = await database.problems.get(slug);
       if (!problem) continue;
       let changed = false;
       if (entry.title && entry.title !== problem.title) {

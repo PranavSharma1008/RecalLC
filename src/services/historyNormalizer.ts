@@ -162,6 +162,15 @@ export function parseDifficulty(value: unknown): Difficulty | null {
 
 export type NormalizeResult = { ok: true; value: NormalizedAttempt } | { ok: false; error: string };
 
+function sanitizeCsvFormula(value: string | null): string | null {
+  if (!value) return value;
+  // Defense-in-depth against CSV Formula Injection (OWASP): neutralize leading =, +, -, @, \t, \r
+  if (/^[=+\-@\t\r]/.test(value)) {
+    return `'${value}`;
+  }
+  return value;
+}
+
 /**
  * Validate and normalise one raw record.
  *
@@ -215,13 +224,14 @@ export function normalizeRecord(raw: unknown, options: { source?: AttemptSource 
   const rawTitle = pickField(record, 'title');
   let title: string | null = null;
   if (typeof rawTitle === 'string' && rawTitle.trim()) {
-    title = rawTitle.trim();
+    title = sanitizeCsvFormula(rawTitle.trim());
   } else if (rawTitle !== undefined && rawTitle !== null && typeof rawTitle !== 'string') {
-    title = String(rawTitle);
+    title = sanitizeCsvFormula(String(rawTitle));
   }
 
   const rawLanguage = pickField(record, 'language');
-  const language = typeof rawLanguage === 'string' && rawLanguage.trim() ? rawLanguage.trim() : null;
+  const language =
+    typeof rawLanguage === 'string' && rawLanguage.trim() ? sanitizeCsvFormula(rawLanguage.trim()) : null;
 
   const rawSubmissionId = pickField(record, 'submissionId');
   const submissionId =

@@ -92,11 +92,13 @@ export function upsertChecklist(existingNotes: string, checklistLines: string[])
  * - Preserves any user handwritten notes
  */
 export function sanitizeProblemNotes(notes: string): string {
-  if (!notes) return '';
+  if (!notes || typeof notes !== 'string') return '';
+  // Defense-in-depth: Bound input length to 250 KB to defend against catastrophic backtracking or memory DoS
+  const boundedNotes = notes.length > 250000 ? notes.slice(0, 250000) : notes;
 
   // Extract all solution code blocks and pick the cleanest/latest one
   const codeBlockRegex = /Solution Code\s*(?:\(([^)]*)\))?\s*:\s*\n+```[a-z0-9_-]*\s*([\s\S]*?)```/gi;
-  const matches = [...notes.matchAll(codeBlockRegex)];
+  const matches = [...boundedNotes.matchAll(codeBlockRegex)];
 
   let bestLang = 'code';
   let bestCode = '';
@@ -132,7 +134,7 @@ export function sanitizeProblemNotes(notes: string): string {
   }
 
   // Remove all code blocks and checklists from notes to get any custom user text
-  let remaining = removeExistingCodeBlocks(notes);
+  let remaining = removeExistingCodeBlocks(boundedNotes);
   remaining = removeExistingChecklists(remaining).trim();
 
   // Rebuild cleanly:

@@ -108,44 +108,54 @@ const handlers: { [K in keyof ServiceMap]: Handler<K> } = {
   'list-problems': async (payload) => listProblemSchedule(payload?.now ?? now()),
 
   'get-problem': async (payload) => {
-    const [problem, revision, attempts] = await Promise.all([
-      getProblem(payload.slug),
-      getRevision(payload.slug),
-      listAttempts(payload.slug),
-    ]);
+    const slug = typeof payload?.slug === 'string' ? payload.slug : '';
+    const [problem, revision, attempts] = await Promise.all([getProblem(slug), getRevision(slug), listAttempts(slug)]);
     return { problem: problem ?? null, revision: revision ?? null, attempts };
   },
 
   'save-problem': async (payload) => saveProblem(payload),
 
-  'update-notes': async (payload) => updateNotes(payload.slug, payload.notes),
+  'update-notes': async (payload) => {
+    const slug = typeof payload?.slug === 'string' ? payload.slug : '';
+    const notes = typeof payload?.notes === 'string' ? payload.notes : '';
+    return updateNotes(slug, notes);
+  },
 
   'delete-problem': async (payload) => {
-    await deleteProblem(payload.slug);
+    const slug = typeof payload?.slug === 'string' ? payload.slug : '';
+    await deleteProblem(slug);
     return true;
   },
 
   rate: async (payload) => {
-    const outcome = await rateRecall(payload.slug, payload.rating as RecallRating);
+    const slug = typeof payload?.slug === 'string' ? payload.slug : '';
+    const outcome = await rateRecall(slug, payload?.rating as RecallRating);
     return outcome.revision;
   },
 
   snooze: async (payload) => {
-    const outcome = await snooze(payload.slug);
+    const slug = typeof payload?.slug === 'string' ? payload.slug : '';
+    const outcome = await snooze(slug);
     return outcome ? outcome.revision : null;
   },
 
   dismiss: async (payload) => {
-    const outcome = await dismiss(payload.slug);
+    const slug = typeof payload?.slug === 'string' ? payload.slug : '';
+    const outcome = await dismiss(slug);
     return outcome ? outcome.revision : null;
   },
 
   reschedule: async (payload) => {
-    const outcome = await rescheduleProblem(payload.slug, payload.dueAt, now());
+    const slug = typeof payload?.slug === 'string' ? payload.slug : '';
+    const dueAt = Number(payload?.dueAt);
+    const outcome = await rescheduleProblem(slug, dueAt, now());
     return outcome ? outcome.revision : null;
   },
 
-  'set-paused': async (payload) => setPaused(payload.slug, payload.paused),
+  'set-paused': async (payload) => {
+    const slug = typeof payload?.slug === 'string' ? payload.slug : '';
+    return setPaused(slug, Boolean(payload?.paused));
+  },
 
   'record-attempt': async (payload) => {
     const outcome = await recordAttempt(payload);
@@ -153,7 +163,8 @@ const handlers: { [K in keyof ServiceMap]: Handler<K> } = {
   },
 
   'mark-viewed': async (payload) => {
-    await markViewed(payload.slug);
+    const slug = typeof payload?.slug === 'string' ? payload.slug : '';
+    await markViewed(slug);
     return true;
   },
 
@@ -174,7 +185,10 @@ const handlers: { [K in keyof ServiceMap]: Handler<K> } = {
     return true;
   },
 
-  'catalog-merge': async (payload) => mergeCatalog(payload.entries as CatalogEntry[]),
+  'catalog-merge': async (payload) => {
+    if (!payload || !Array.isArray(payload.entries)) return 0;
+    return mergeCatalog(payload.entries as CatalogEntry[]);
+  },
 
   'catalog-needed': async () => {
     const [problems, catalog] = await Promise.all([listProblems(), listCatalog()]);
@@ -217,6 +231,10 @@ const handlers: { [K in keyof ServiceMap]: Handler<K> } = {
       errors: [],
       warnings: [],
     };
+
+    if (!payload || !Array.isArray(payload.attempts)) {
+      return result;
+    }
 
     const existing = new Set((await listProblems()).map((problem: Problem) => problem.slug));
     const knownIds = new Set(
@@ -285,6 +303,9 @@ const handlers: { [K in keyof ServiceMap]: Handler<K> } = {
   },
 
   'open-problem': async (payload) => {
+    if (!payload || typeof payload.url !== 'string') {
+      throw new Error('Refusing to open an invalid URL.');
+    }
     let parsed: URL;
     try {
       parsed = new URL(payload.url);
@@ -299,14 +320,21 @@ const handlers: { [K in keyof ServiceMap]: Handler<K> } = {
       throw new Error('Refusing to open an unexpected URL.');
     }
 
-    await chrome.tabs.create({ url: payload.url, active: true });
+    // Security: Disallow embedded userinfo / credentials in URL
+    if (parsed.username || parsed.password) {
+      throw new Error('Refusing to open URL with credentials.');
+    }
+
+    await chrome.tabs.create({ url: parsed.href, active: true });
     return true;
   },
 
   'open-dashboard': async (payload) => {
-    const rawHash = payload?.hash ?? '';
-    const cleanHash = rawHash.startsWith('#') ? rawHash : rawHash ? `#${rawHash}` : '';
-    const url = chrome.runtime.getURL(`src/dashboard/index.html${cleanHash}`);
+    const rawHash = typeof payload?.hash === 'string' ? payload.hash : '';
+    // Security: Only allow safe hash routing characters (alphanumeric, hyphens, underscores, slashes, query strings)
+    const cleanHash = rawHash.replace(/[^a-zA-Z0-9_\-/?&=#]/g, '').slice(0, 500);
+    const normalizedHash = cleanHash.startsWith('#') ? cleanHash : cleanHash ? `#${cleanHash}` : '';
+    const url = chrome.runtime.getURL(`src/dashboard/index.html${normalizedHash}`);
     await chrome.tabs.create({ url, active: true });
     return true;
   },

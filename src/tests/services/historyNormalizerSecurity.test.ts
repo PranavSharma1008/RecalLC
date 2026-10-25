@@ -62,4 +62,21 @@ describe('History Normalizer Security & Phishing Defense', () => {
     // @ts-expect-error testing prototype pollution
     expect(Object.prototype.evil).toBeUndefined();
   });
+
+  it('neutralizes CSV formula injection in imported title and language fields', () => {
+    const formulaPayload = {
+      slug: 'two-sum',
+      title: "=cmd|' /C calc'!A0",
+      language: '+cmd|',
+      attemptedAt: 1700000000000,
+    };
+
+    const result = normalizeRecord(formulaPayload);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // Must be prepended with single-quote to neutralize Excel / Calc macro execution
+    expect(result.value.title).toBe("'=cmd|' /C calc'!A0");
+    expect(result.value.language).toBe("'+cmd|");
+  });
 });

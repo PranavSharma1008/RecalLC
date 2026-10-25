@@ -112,7 +112,7 @@ npm run preview    # preview the production build
 | `npm run dev`            | Vite dev server with CRXJS HMR (content scripts reload too).                                 |
 | `npm run build`          | `tsc --noEmit` then `vite build` → `dist/`.                                                  |
 | `npm run server`         | Starts the local backend server (port 3000) for Razorpay checkout & landing page.            |
-| `npm test`               | Vitest, single run (273 unit, integration & penetration tests across 29 test suites).        |
+| `npm test`               | Vitest, single run (281 unit, integration & penetration tests across 30 test suites).        |
 | `npm run test:watch`     | Vitest in watch mode.                                                                        |
 | `npm run typecheck`      | Strict TypeScript check (`tsc --noEmit`).                                                    |
 | `npm run verify`         | Real-Chrome E2E verification of manifest, SW restart, IndexedDB, and UI pages via CDP.       |
@@ -280,7 +280,10 @@ steps:
 2. **Your notes** — hidden behind a _Reveal my notes_ button, so you cannot
    accidentally read your own solution before trying.
 3. **How well did you recall it?** — Forgot / Hard / Good / Easy. Your answer
-   sets the next review date.
+   sets the next review date (or choose an exact manual schedule like 1, 3, 5, or 7 days).
+   Upon clicking **Save rating & schedule** or any manual schedule option, RecallLC
+   automatically navigates back to your **Revision Reminders** queue without requiring
+   you to manually scroll back up or click the Back button.
 
 RecallLC never injects a solution, a hint or anything else into LeetCode's
 editor, and never modifies the page.
@@ -426,7 +429,7 @@ npm run verify
 npm run verify:content
 ```
 
-258 unit & integration tests across 26 test files plus full Chrome E2E automation suites, covering:
+281 unit & integration tests across 30 test files plus full Chrome E2E automation suites, covering:
 
 - **Ultra-Fast Request & Response Acceleration** — in-flight request coalescing/deduplication
   for both network and IPC messaging channels, sub-millisecond in-memory read micro-caching
@@ -436,12 +439,14 @@ npm run verify:content
 - **Security & Penetration Hardening** — timing-safe comparisons (`timingSafeEqual`),
   passcode cryptographic hashing (SHA-256 + salt + pepper) with pure TS FIPS fallback,
   anti-brute-force lockout and storage-backed rate limiting, safe URL validation
-  against malicious schemes (`javascript:`, `data:`, `vbscript:`, protocol-relative `//`),
+  against malicious schemes (`javascript:`, `data:`, `vbscript:`, userinfo credentials, protocol-relative `//`),
   and HTML sanitization.
 - **IPC & Cross-Context Security** — internal extension origin validation for
   privileged service worker actions (`export`, `restore`, `clear-all`, `delete-problem`,
   `update-settings`) restricting execution strictly to `chrome.runtime.id`, preventing
-  content scripts and third-party extensions from escalating privileges.
+  content scripts and third-party extensions from escalating privileges. All service worker
+  message handlers enforce strict runtime bounds and input sanitization (reschedule timestamp checks,
+  recall rating whitelisting, note byte-capping against storage exhaustion DoS).
 - **Backend & Razorpay Standard Checkout** — HMAC-SHA256 signature verification,
   secure order creation with parameter validation, rate limiting per IP,
   strict CORS whitelisting, and OWASP security headers.
