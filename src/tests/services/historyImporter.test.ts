@@ -165,4 +165,35 @@ describe('buildPreview', () => {
     const preview = previewImport('history.json', JSON.stringify([{ slug: 'two-sum', attemptedAt: '2026-10-21' }]));
     expect(preview.warnings.join(' ')).toMatch(/local midnight/i);
   });
+
+  it('strictly rejects mock sample-import data so only genuine user problems are imported', () => {
+    const preview = previewImport(
+      'history.json',
+      JSON.stringify([
+        // Mock sample problem (Two Sum with mock submission ID 88012301)
+        {
+          slug: 'two-sum',
+          title: 'Two Sum',
+          attemptedAt: 1790758800000,
+          submissionId: '88012301',
+          source: 'import',
+        },
+        // Real user problem solved on device
+        {
+          slug: 'trapping-rain-water',
+          title: 'Trapping Rain Water',
+          attemptedAt: 1792454400000,
+          submissionId: 'user-sub-999',
+          source: 'auto',
+        },
+      ]),
+    );
+
+    // Mock problem is dropped from valid imports
+    expect(preview.valid).toHaveLength(1);
+    expect(preview.valid[0]?.slug).toBe('trapping-rain-water');
+    expect(preview.problems).toHaveLength(1);
+    expect(preview.problems[0]?.slug).toBe('trapping-rain-water');
+    expect(preview.warnings.join(' ')).toContain('Sample / demo problem "two-sum" was ignored');
+  });
 });

@@ -134,18 +134,6 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
     }
   }
 
-  async function loadSampleProblems(): Promise<void> {
-    try {
-      const res = await fetch(chrome.runtime.getURL('sample-import.json'));
-      const text = await res.text();
-      await callService('import-commit', { fileName: 'sample-import.json', content: text });
-      setSuccessToast('Sample problems loaded successfully!');
-      await refresh();
-    } catch (err) {
-      console.warn('Could not load sample problems:', err);
-    }
-  }
-
   return (
     <div className="space-y-4">
       {successToast ? (
@@ -333,17 +321,21 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
           title={entries.length === 0 ? 'No problems tracked yet' : 'Nothing matches your filters'}
           description={
             entries.length === 0
-              ? 'Click the 🚀 rocket button while on any LeetCode problem, import your history, or load sample problems.'
+              ? 'Click the 🚀 rocket button while on any LeetCode problem, auto-sync with LeetCode, or import your history.'
               : 'Try loosening the filters or clearing the search.'
           }
           action={
             entries.length === 0 ? (
               <div className="flex flex-wrap justify-center gap-2">
-                <Button variant="primary" size="sm" onClick={() => void loadSampleProblems()}>
-                  ⚡ Load sample problems
-                </Button>
-                <Button variant="secondary" size="sm" onClick={() => navigate('/import')}>
+                <Button variant="primary" size="sm" onClick={() => navigate('/import')}>
                   📥 Import history
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => window.open('https://leetcode.com/problemset/all/', '_blank')}
+                >
+                  🌐 Open LeetCode to Solve
                 </Button>
               </div>
             ) : (

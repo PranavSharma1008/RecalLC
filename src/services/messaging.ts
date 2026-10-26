@@ -55,6 +55,10 @@ export interface ServiceMap {
   export: { payload: void; response: BackupFile };
   restore: { payload: { backup: BackupFile }; response: { problems: number; attempts: number } };
   'clear-all': { payload: void; response: boolean };
+  'purge-sample-data': {
+    payload: void;
+    response: { deletedAttempts: number; deletedProblems: number };
+  };
   'catalog-merge': { payload: { entries: CatalogEntry[] }; response: number };
   'catalog-needed': { payload: void; response: { slugs: string[] } };
   'catalog-legacy-refresh': { payload: void; response: number };

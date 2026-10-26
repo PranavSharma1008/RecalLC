@@ -40,6 +40,7 @@ import {
   listRevisions,
   markViewed,
   mergeCatalog,
+  purgeSampleData,
   rateRecall,
   recordAttempt,
   recordImport,
@@ -184,6 +185,8 @@ const handlers: { [K in keyof ServiceMap]: Handler<K> } = {
     await clearAll();
     return true;
   },
+
+  'purge-sample-data': async () => purgeSampleData(),
 
   'catalog-merge': async (payload) => {
     if (!payload || !Array.isArray(payload.entries)) return 0;
@@ -350,6 +353,7 @@ const PRIVILEGED_METHODS = new Set<keyof ServiceMap>([
   'export',
   'restore',
   'clear-all',
+  'purge-sample-data',
   'delete-problem',
   'update-settings',
   'get-settings',
@@ -495,6 +499,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   }
 
   void seedCatalogIfEmpty();
+  void purgeSampleData();
 
   if (details.reason === 'install') {
     try {
@@ -508,6 +513,8 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 
 // Seed catalog on worker start if it is still empty.
 void seedCatalogIfEmpty();
+// Ensure any mock/sample questions are purged so only genuine device solves appear.
+void purgeSampleData();
 
 // Make sure the defaults exist even if the install event is missed.
 void readSettings().then((settings) => {

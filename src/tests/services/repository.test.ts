@@ -25,6 +25,7 @@ import {
   syncUnscheduledWithSettings,
   updateNotes,
   mergeCatalog,
+  purgeSampleData,
 } from '../../services/repository';
 import { addLocalDays, getNextSunday, startOfLocalDay } from '../../utils/date';
 import { writeSettings } from '../../services/storage';
@@ -454,5 +455,96 @@ describe('persistence', () => {
     expect(await listProblems()).toHaveLength(0);
     expect(await listAttempts()).toHaveLength(0);
     expect(await listRevisions()).toHaveLength(0);
+  });
+
+  it('purges mock sample-import data while retaining real user solves', async () => {
+    // 1. Add a real user solve
+    await recordAttempt(
+      {
+        slug: 'median-of-two-sorted-arrays',
+        title: 'Median of Two Sorted Arrays',
+        attemptedAt: NOW - 3600000,
+        accepted: true,
+        language: 'python3',
+        submissionId: 'user-real-sub-1',
+        source: 'auto',
+      },
+      NOW,
+    );
+
+    // 2. Add fake sample attempts (matching SAMPLE_SUBMISSION_IDS)
+    await recordAttempt(
+      {
+        slug: 'two-sum',
+        title: 'Two Sum',
+        attemptedAt: 1790758800000,
+        accepted: true,
+        language: 'python3',
+        submissionId: '88012301',
+        source: 'import',
+      },
+      NOW,
+    );
+    await recordAttempt(
+      {
+        slug: 'climbing-stairs',
+        title: 'Climbing Stairs',
+        attemptedAt: 1792137600000,
+        accepted: true,
+        language: 'python3',
+        submissionId: '88014501',
+        source: 'import',
+      },
+      NOW,
+    );
+
+    expect(await listProblems()).toHaveLength(3);
+    expect(await listAttempts()).toHaveLength(3);
+
+    // Purge sample data
+    const result = await purgeSampleData();
+    expect(result.deletedAttempts).toBe(2);
+    expect(result.deletedProblems).toBe(2);
+
+    // Only the real user problem remains!
+    const remainingProblems = await listProblems();
+    expect(remainingProblems).toHaveLength(1);
+    expect(remainingProblems[0]?.slug).toBe('median-of-two-sorted-arrays');
+
+    const remainingAttempts = await listAttempts();
+    expect(remainingAttempts).toHaveLength(1);
+    expect(remainingAttempts[0]?.submissionId).toBe('user-real-sub-1');
+  });
+
+  it('exportBackup excludes mock sample attempts and only exports real user solves', async () => {
+    // 1. Add real user solve
+    await recordAttempt(
+      {
+        slug: 'trapping-rain-water',
+        title: 'Trapping Rain Water',
+        attemptedAt: NOW,
+        accepted: true,
+        source: 'auto',
+      },
+      NOW,
+    );
+
+    // 2. Add fake sample attempt
+    await recordAttempt(
+      {
+        slug: 'two-sum',
+        title: 'Two Sum',
+        attemptedAt: 1790758800000,
+        submissionId: '88012301',
+        source: 'import',
+      },
+      NOW,
+    );
+
+    const backup = await exportBackup(NOW);
+    expect(backup.attempts.some((a) => a.slug === 'trapping-rain-water')).toBe(true);
+    expect(backup.attempts.some((a) => a.slug === 'two-sum')).toBe(false);
+    expect(backup.problems.some((p) => p.slug === 'trapping-rain-water')).toBe(true);
+    expect(backup.problems.some((p) => p.slug === 'two-sum')).toBe(false);
   });
 });

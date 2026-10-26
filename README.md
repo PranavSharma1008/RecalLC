@@ -2,6 +2,11 @@
 
 **Solve it. Remember it. Master it.**
 
+[![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Published-blue?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo)
+[![Version](https://img.shields.io/badge/version-1.0.1-brightgreen.svg)](https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo)
+[![Tests](https://img.shields.io/badge/tests-285%20passed-success)](https://github.com/PranavSharma1008/RecalLc)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 RecallLC is a Chrome extension (Manifest V3) that helps you revise the LeetCode
 problems you have already solved — at the exact moment you open a new one.
 
@@ -45,9 +50,13 @@ Everything runs **locally**. No account, no server, no telemetry.
 
 ## Install from Chrome Web Store
 
-RecalLC is published on the official **Chrome Web Store**:
+RecallLC is published and available on the official **Google Chrome Web Store**:
 
-👉 **[Install RecalLC on Chrome Web Store](https://chromewebstore.google.com/detail/jacijplemaiemipphfcihkjccbbbfhkh)**
+👉 **[Install RecallLC on Chrome Web Store](https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo)**
+
+1. Click **"Add to Chrome"**.
+2. Click the puzzle-piece icon 🧩 on your toolbar and pin 📌 **RecallLC**.
+3. Visit any problem on [leetcode.com](https://leetcode.com/problemset/all/) — RecallLC will automatically begin tracking your problem verdicts and scheduling spaced repetition reminders!
 
 ---
 
@@ -112,12 +121,12 @@ npm run preview    # preview the production build
 | `npm run dev`            | Vite dev server with CRXJS HMR (content scripts reload too).                                 |
 | `npm run build`          | `tsc --noEmit` then `vite build` → `dist/`.                                                  |
 | `npm run server`         | Starts the local backend server (port 3000) for Razorpay checkout & landing page.            |
-| `npm test`               | Vitest, single run (281 unit, integration & penetration tests across 30 test suites).        |
+| `npm test`               | Vitest, single run (285 unit, integration & penetration tests across 31 test suites).        |
 | `npm run test:watch`     | Vitest in watch mode.                                                                        |
 | `npm run typecheck`      | Strict TypeScript check (`tsc --noEmit`).                                                    |
 | `npm run verify`         | Real-Chrome E2E verification of manifest, SW restart, IndexedDB, and UI pages via CDP.       |
 | `npm run verify:content` | Real-Chrome E2E verification of the in-page reminder island and verdict submission tracking. |
-| `npm run package`        | Builds production extension and creates distributable `recalllc-v1.0.0.zip`.                 |
+| `npm run package`        | Builds production extension and creates distributable `recalllc-v1.0.1.zip`.                 |
 | `npm run screenshot`     | Captures popup and dashboard screenshots via headless Chrome.                                |
 | `npm run format`         | Formats codebase using Prettier.                                                             |
 | `npm run format:check`   | Verifies code formatting against Prettier rules.                                             |

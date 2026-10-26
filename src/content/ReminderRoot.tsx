@@ -39,7 +39,11 @@ export function ReminderRoot({ currentSlug }: ReminderRootProps) {
         setVisible(false);
         return;
       }
-      if (shownCount.current >= settings.maxRemindersPerSession) {
+      const maxReminders =
+        typeof settings.maxRemindersPerSession === 'number' && settings.maxRemindersPerSession > 0
+          ? settings.maxRemindersPerSession
+          : 5;
+      if (shownCount.current >= maxReminders) {
         setVisible(false);
         return;
       }

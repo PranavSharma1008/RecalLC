@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Button } from '../../components/ui/Button';
 import { Card, CardHeader } from '../../components/ui/Card';
@@ -11,7 +11,6 @@ import {
   RATING_HINTS,
   RATING_LABELS,
   RECALL_RATINGS,
-  type BackupFile,
   type RecallRating,
   type ThemePreference,
 } from '../../types';
@@ -24,9 +23,9 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
   const { settings, loading, error, update } = useSettings();
   const [status, setStatus] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
-  const [confirmClear, setConfirmClear] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [busy, setBusy] = useState(false);
-  const restoreRef = useRef<HTMLInputElement | null>(null);
 
   // Security state
   const [showSecuritySetup, setShowSecuritySetup] = useState(false);
@@ -53,6 +52,14 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
     return () => clearTimeout(timer);
   }, [failure]);
 
+  useEffect(() => {
+    if (!showSuccessPopup) return;
+    const timer = setTimeout(() => {
+      setShowSuccessPopup(false);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [showSuccessPopup]);
+
   if (loading || !settings) {
     return <p className="text-xs text-muted">Loading settings…</p>;
   }
@@ -61,41 +68,6 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
     if (!Number.isFinite(days) || days < 0) return;
     await update({ intervals: { ...settings!.intervals, [rating]: Math.floor(days) } });
     onChanged();
-  }
-
-  async function exportBackup(): Promise<void> {
-    setBusy(true);
-    setFailure(null);
-    try {
-      const backup = await callService('export');
-      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `recalllc-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-      setStatus('Backup downloaded.');
-    } catch (cause) {
-      setFailure(cause instanceof Error ? cause.message : 'Could not export your data.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function restoreBackup(file: File): Promise<void> {
-    setBusy(true);
-    setFailure(null);
-    try {
-      const parsed = JSON.parse(await file.text()) as BackupFile;
-      const outcome = await callService('restore', { backup: parsed });
-      setStatus(`Restored ${outcome.problems} problems and ${outcome.attempts} attempts.`);
-      onChanged();
-    } catch (cause) {
-      setFailure(cause instanceof Error ? cause.message : 'Could not restore that backup.');
-    } finally {
-      setBusy(false);
-    }
   }
 
   async function handleSaveSecurity(e: React.FormEvent) {
@@ -179,10 +151,16 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       {error ? <ErrorState message={error} /> : null}
-      {failure ? <ErrorState message={failure} /> : null}
+      {failure ? (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl border border-danger/40 bg-bg-card/95 backdrop-blur-md px-5 py-3 text-xs text-danger shadow-2xl transition-all">
+          <span>⚠️</span>
+          <span className="font-medium">{failure}</span>
+        </div>
+      ) : null}
       {status ? (
-        <div className="rounded-lg border border-success/40 bg-success-soft px-3 py-2 text-[11px] text-success">
-          {status}
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-xl border border-success/40 bg-bg-card/95 backdrop-blur-md px-5 py-3 text-xs text-success shadow-2xl transition-all">
+          <span>✓</span>
+          <span className="font-medium">{status}</span>
         </div>
       ) : null}
 
@@ -328,7 +306,7 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
               <p className="text-xs font-medium text-fg">Delay before showing</p>
               <p className="text-[11px] text-subtle">Lets the page settle before the card appears.</p>
             </div>
-            <label className="flex items-center gap-2 text-[11px] text-subtle">
+            <div className="flex items-center gap-2">
               <input
                 type="number"
                 min={0}
@@ -339,26 +317,26 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
                 onChange={(event) => void update({ reminderDelayMs: Number(event.target.value) })}
                 aria-label="Reminder delay in milliseconds"
               />
-              ms
-            </label>
+              <span className="w-12 text-[11px] text-subtle">ms</span>
+            </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs font-medium text-fg">Maximum reminders per session</p>
               <p className="text-[11px] text-subtle">Prevents the extension from becoming noisy.</p>
             </div>
-            <label className="flex items-center gap-2 text-[11px] text-subtle">
+            <div className="flex items-center gap-2">
               <input
                 type="number"
                 min={0}
                 max={50}
-                className="rlc-input w-20 text-center"
+                className="rlc-input w-24 text-center"
                 value={settings.maxRemindersPerSession}
                 onChange={(event) => void update({ maxRemindersPerSession: Number(event.target.value) })}
                 aria-label="Maximum reminders per session"
               />
-              cards
-            </label>
+              <span className="w-12 text-[11px] text-subtle">cards</span>
+            </div>
           </div>
         </div>
       </Card>
@@ -587,63 +565,31 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
       </Card>
 
       <Card>
-        <CardHeader title="Your data" subtitle="Everything lives in this browser profile." />
-        <div className="space-y-3 p-4">
-          <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" disabled={busy} onClick={() => void exportBackup()}>
-              💾 Export backup
-            </Button>
-            <Button variant="secondary" size="sm" disabled={busy} onClick={() => restoreRef.current?.click()}>
-              📥 Restore backup
-            </Button>
-            <input
-              ref={restoreRef}
-              type="file"
-              accept="application/json,.json"
-              className="hidden"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file) void restoreBackup(file);
-                event.target.value = '';
-              }}
-            />
-          </div>
+        <CardHeader
+          title="Danger Zone"
+          subtitle="Manage irreversible actions for your locally stored problem and revision data."
+        />
+        <div className="p-5">
+          <div className="rounded-xl border border-danger/40 bg-danger-soft p-5 space-y-4">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl mt-0.5">⚠️</span>
+              <div>
+                <p className="text-sm font-bold text-danger">Delete all problem and revision data</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  Permanently deletes all tracked problems, submission attempts, revision intervals, and review logs from this device. Your themes, reminders, and configuration settings are preserved.
+                </p>
+              </div>
+            </div>
 
-          <div className="rounded-lg border border-danger/40 bg-danger-soft p-3">
-            <p className="text-xs font-medium text-danger">Delete everything</p>
-            <p className="mt-1 text-[11px] text-muted">
-              Removes every tracked problem, attempt and review from this device. Your settings are kept.
-            </p>
-            <div className="mt-2">
-              {confirmClear ? (
-                <div className="flex gap-2">
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    disabled={busy}
-                    onClick={async () => {
-                      setBusy(true);
-                      try {
-                        await callService('clear-all');
-                        setStatus('All RecallLC data was deleted.');
-                        setConfirmClear(false);
-                        onChanged();
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                  >
-                    ⚠️ Yes, delete it all
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setConfirmClear(false)}>
-                    ✕ Cancel
-                  </Button>
-                </div>
-              ) : (
-                <Button variant="danger" size="sm" onClick={() => setConfirmClear(true)}>
-                  🗑️ Delete all data
-                </Button>
-              )}
+            <div className="pt-2">
+              <Button
+                variant="danger"
+                size="md"
+                className="px-6 py-3 text-sm font-bold shadow-md hover:scale-[1.02] transition-transform"
+                onClick={() => setShowDeleteModal(true)}
+              >
+                🗑️ Delete all data
+              </Button>
             </div>
           </div>
         </div>
@@ -712,6 +658,95 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
           </div>
         </div>
       </Card>
+
+      {/* Confirmation Modal Popup */}
+      {showDeleteModal ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in"
+          onClick={() => !busy && setShowDeleteModal(false)}
+        >
+          <div
+            className="rlc-card w-full max-w-md p-6 shadow-2xl border border-border space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-3xl mt-0.5">⚠️</span>
+              <div>
+                <h2 className="text-base font-bold text-fg">Delete all data?</h2>
+                <p className="mt-1 text-xs leading-relaxed text-muted">
+                  Permanently deletes all tracked problems, submission attempts, revision intervals, and review logs from this device.
+                </p>
+                <p className="mt-2 text-xs font-semibold text-danger">
+                  This action is irreversible and cannot be undone.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/50">
+              <Button
+                variant="ghost"
+                size="md"
+                disabled={busy}
+                onClick={() => setShowDeleteModal(false)}
+              >
+                ✕ Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="md"
+                className="px-5 py-2.5 text-sm font-semibold shadow-md"
+                disabled={busy}
+                onClick={async () => {
+                  setBusy(true);
+                  try {
+                    await callService('clear-all');
+                    setShowDeleteModal(false);
+                    setShowSuccessPopup(true);
+                    onChanged();
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                {busy ? 'Deleting…' : '⚠️ Yes, permanently delete'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Success Modal Popup */}
+      {showSuccessPopup ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in"
+          onClick={() => setShowSuccessPopup(false)}
+        >
+          <div
+            className="rlc-card w-full max-w-md p-6 shadow-2xl border border-border space-y-4 text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-success/20 text-success text-2xl font-bold">
+              ✓
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-fg">All Data Deleted</h2>
+              <p className="mt-1.5 text-xs text-muted">
+                All RecallLC problem records, attempts, and revision schedules have been successfully removed from this device.
+              </p>
+            </div>
+            <div className="pt-2 flex justify-center">
+              <Button
+                variant="primary"
+                size="md"
+                className="px-6 py-2.5 text-sm font-semibold"
+                onClick={() => setShowSuccessPopup(false)}
+              >
+                Got it
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

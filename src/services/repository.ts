@@ -830,23 +830,31 @@ export async function exportBackup(now: number = Date.now()): Promise<BackupFile
     listEvents(),
   ]);
 
-  const problems = rawProblems.map((problem) => {
-    let difficulty = problem.difficulty;
-    let topics = problem.topics ?? [];
-    if (difficulty === 'Unknown' || !difficulty) {
-      const pop = getPopularProblem(problem.slug);
-      if (pop) {
-        difficulty = pop.difficulty;
-        if (topics.length === 0 && pop.topics.length > 0) topics = [...pop.topics];
+  const cleanAttempts = attempts.filter((a) => !isSampleAttempt(a));
+  const validSlugs = new Set(cleanAttempts.map((a) => a.slug));
+
+  const problems = rawProblems
+    .filter((p) => validSlugs.has(p.slug) || (p.notes && p.notes.trim().length > 0))
+    .map((problem) => {
+      let difficulty = problem.difficulty;
+      let topics = problem.topics ?? [];
+      if (difficulty === 'Unknown' || !difficulty) {
+        const pop = getPopularProblem(problem.slug);
+        if (pop) {
+          difficulty = pop.difficulty;
+          if (topics.length === 0 && pop.topics.length > 0) topics = [...pop.topics];
+        }
       }
-    }
-    return {
-      ...problem,
-      difficulty: difficulty ?? 'Easy',
-      topics,
-      notes: sanitizeProblemNotes(problem.notes ?? ''),
-    };
-  });
+      return {
+        ...problem,
+        difficulty: difficulty ?? 'Easy',
+        topics,
+        notes: sanitizeProblemNotes(problem.notes ?? ''),
+      };
+    });
+
+  const cleanRevisions = revisions.filter((r) => validSlugs.has(r.slug));
+  const cleanEvents = events.filter((e) => validSlugs.has(e.slug));
 
   return {
     format: 'recalllc-backup',
@@ -854,9 +862,9 @@ export async function exportBackup(now: number = Date.now()): Promise<BackupFile
     exportedAt: now,
     settings,
     problems,
-    attempts,
-    revisions,
-    events,
+    attempts: cleanAttempts,
+    revisions: cleanRevisions,
+    events: cleanEvents,
   };
 }
 
@@ -1047,4 +1055,135 @@ export async function clearAll(): Promise<void> {
 /** Remember that an import ran, so the dashboard can show import history. */
 export async function recordImport(batch: ImportBatch): Promise<void> {
   await db().imports.put(batch);
+}
+
+/** Known mock submission IDs from demo datasets and sample-import.json */
+export const SAMPLE_SUBMISSION_IDS = new Set([
+  '88012301',
+  '88012290',
+  '88012455',
+  '88013002',
+  '88013410',
+  '88013777',
+  '88014012',
+  '88014099',
+  '88014501',
+  '88014777',
+  '88014880',
+  '88015004',
+  '88015142',
+  '88015201',
+  '88015330',
+  '88013900',
+  '88014123',
+]);
+
+export const SAMPLE_SLUGS = new Set([
+  'two-sum',
+  'add-two-numbers',
+  'longest-substring-without-repeating-characters',
+  'valid-parentheses',
+  'merge-two-sorted-lists',
+  'maximum-subarray',
+  'climbing-stairs',
+  'coin-change',
+  'number-of-islands',
+  'course-schedule',
+  'word-search',
+  'reverse-linked-list',
+  'reverse-integer',
+]);
+
+export const SAMPLE_TIMESTAMPS = new Set<number>([
+  1790758800000,
+  1790755200000,
+  1790924400000,
+  1791352800000,
+  1791608400000,
+  1791777600000,
+  1791946800000,
+  1791968400000,
+  1792137600000,
+  1792220400000,
+  1792303200000,
+  1792386000000,
+  1792468800000,
+  1792465200000,
+  1792573200000,
+  1791882000000,
+  1791882000,
+  1792054800000,
+  1760518800000,
+]);
+
+/** Check whether an attempt is part of demo / mock datasets. */
+export function isSampleAttempt(attempt: {
+  slug?: string | null;
+  submissionId?: string | null;
+  attemptedAt?: number | null;
+  source?: string | null;
+}): boolean {
+  const subId = attempt.submissionId ? String(attempt.submissionId).trim() : '';
+  if (subId) {
+    if (SAMPLE_SUBMISSION_IDS.has(subId) || subId.startsWith('demo-') || /^8801\d{4}$/.test(subId)) {
+      return true;
+    }
+  }
+
+  const slug = attempt.slug ? normalizeSlug(attempt.slug) : '';
+  if (slug && SAMPLE_SLUGS.has(slug)) {
+    const rawAt = attempt.attemptedAt ? Number(attempt.attemptedAt) : 0;
+    const ms = rawAt > 0 && rawAt < 10000000000 ? rawAt * 1000 : rawAt;
+    if (SAMPLE_TIMESTAMPS.has(ms) || SAMPLE_TIMESTAMPS.has(rawAt)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/** Purge demo / fake sample problems and attempts that were previously loaded. */
+export async function purgeSampleData(): Promise<{ deletedAttempts: number; deletedProblems: number }> {
+  const database = db();
+  let deletedAttempts = 0;
+  let deletedProblems = 0;
+
+  await database.transaction(
+    'rw',
+    [database.problems, database.attempts, database.revisions, database.events, database.imports],
+    async () => {
+      const allAttempts = await database.attempts.toArray();
+      const sampleAttempts = allAttempts.filter((a) => isSampleAttempt(a));
+
+      for (const attempt of sampleAttempts) {
+        await database.attempts.delete(attempt.id);
+        deletedAttempts++;
+      }
+
+      // Remove any sample import batch records
+      const allImports = await database.imports.toArray();
+      for (const batch of allImports) {
+        if (
+          batch.fileName.toLowerCase().includes('sample-import') ||
+          batch.fileName.toLowerCase().includes('sample')
+        ) {
+          await database.imports.delete(batch.id);
+        }
+      }
+
+      // Check all problems in database. If a problem has 0 attempts left and no user notes: remove it!
+      const allProblems = await database.problems.toArray();
+      for (const problem of allProblems) {
+        const remainingAttemptsCount = await database.attempts.where('slug').equals(problem.slug).count();
+        if (remainingAttemptsCount === 0 && (!problem.notes || !problem.notes.trim())) {
+          await database.problems.delete(problem.slug);
+          await database.revisions.delete(problem.slug);
+          await database.events.where('slug').equals(problem.slug).delete();
+          deletedProblems++;
+        }
+      }
+    },
+  );
+
+  return { deletedAttempts, deletedProblems };
 }

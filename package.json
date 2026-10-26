@@ -1,6 +1,6 @@
 {
   "name": "recalllc",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "private": true,
   "description": "RecalLC — Smart LeetCode revision. Solve it. Remember it. Master it.",
   "type": "module",
@@ -15,7 +15,7 @@
     "verify": "node scripts/verify-extension.mjs dist",
     "verify:content": "node scripts/verify-content-script.mjs dist",
     "screenshot": "node scripts/screenshot.mjs",
-    "package": "npm run build && (cd dist && zip -r -FS ../recalllc-v1.0.0.zip .)",
+    "package": "npm run build && (cd dist && zip -r -FS ../recalllc-v1.0.2.zip .) && cp recalllc-v1.0.2.zip recalllc-v1.0.1.zip",
     "server": "node server.js",
     "start": "node server.js",
     "format": "prettier --write .",

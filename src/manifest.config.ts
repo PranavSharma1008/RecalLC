@@ -15,7 +15,7 @@ export default defineManifest({
   manifest_version: 3,
   name: 'RecalLC — Smart LeetCode Revision',
   short_name: 'RecalLC',
-  version: '1.0.0',
+  version: '1.0.2',
   description:
     'Revise the LeetCode problems you already solved — RecalLC nudges you to review an older problem, at the moment you open a new one.',
   minimum_chrome_version: '116',

@@ -21,7 +21,7 @@ export const DEFAULT_SETTINGS: UserSettings = {
   reminderDelayMs: 1500,
   maxRemindersPerSession: 5,
   autoTrackSubmissions: true,
-  accountSyncEnabled: false,
+  accountSyncEnabled: true,
   accountSyncLimit: 200,
   showTopicInReminder: true,
   onboardingCompleted: false,
