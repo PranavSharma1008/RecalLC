@@ -38,6 +38,7 @@ import {
 import { getDb, type ImportBatch, type RecallDatabase } from './db';
 import { readSettings } from './storage';
 import { getPopularProblem } from '../data/popularProblems';
+import { isSafeUrl } from '../utils/security';
 import { localDayDiff, startOfLocalDay } from '../utils/date';
 import { sanitizeProblemNotes } from '../utils/notes';
 
@@ -50,6 +51,7 @@ function db(): RecallDatabase {
 export interface AttemptInput {
   slug: string;
   title?: string | null;
+  url?: string | null;
   attemptedAt: number;
   accepted?: boolean | null;
   language?: string | null;
@@ -62,6 +64,7 @@ export interface AttemptInput {
 export interface ManualSaveInput {
   slug: string;
   title?: string | null;
+  url?: string | null;
   difficulty?: Difficulty | null;
   topics?: string[] | null;
   notes?: string | null;
@@ -89,12 +92,13 @@ export function computeStruggleScore(input: {
   return Math.max(0, Math.min(1, Number(score.toFixed(4))));
 }
 
-function emptyProblem(slug: string, now: number): Problem {
+function emptyProblem(slug: string, now: number, customUrl?: string): Problem {
   const popular = getPopularProblem(slug);
+  const url = customUrl && isSafeUrl(customUrl) ? customUrl : problemUrl(slug);
   return {
     slug,
     title: popular?.title ?? titleFromSlug(slug),
-    url: problemUrl(slug),
+    url,
     difficulty: popular?.difficulty ?? 'Unknown',
     topics: popular?.topics ? [...popular.topics] : [],
     notes: '',
@@ -299,7 +303,10 @@ export async function recordAttempt(input: AttemptInput, now: number = Date.now(
 
   const previous = await database.problems.get(slug);
   const catalogEntry = await database.catalog.get(slug);
-  const problem: Problem = previous ?? emptyProblem(slug, now);
+  const problem: Problem = previous ?? emptyProblem(slug, now, input.url ?? undefined);
+  if (input.url && isSafeUrl(input.url)) {
+    problem.url = input.url;
+  }
 
   const firstAttemptAt =
     problem.firstAttemptAt === null ? input.attemptedAt : Math.min(problem.firstAttemptAt, input.attemptedAt);
@@ -574,12 +581,15 @@ export async function setPaused(
 }
 
 /** Record that the user merely opened a problem (never creates an untracked record). */
-export async function markViewed(slug: string, now: number = Date.now()): Promise<void> {
+export async function markViewed(slug: string, now: number = Date.now(), urlInput?: string): Promise<void> {
   const database = db();
   const existing = await database.problems.get(slug);
   // Only update lastViewedAt if problem is already tracked; never create ghost problems
   if (existing) {
     existing.lastViewedAt = now;
+    if (urlInput && isSafeUrl(urlInput)) {
+      existing.url = urlInput;
+    }
     await database.problems.put(existing);
   }
 }

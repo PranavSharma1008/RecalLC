@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 
 import type { ReminderCandidate } from '../types';
 import { formatAttempts, formatRelativeTime } from '../utils/date';
-import { DifficultyBadge } from './ui/Badge';
+import { DifficultyBadge, PlatformBadge } from './ui/Badge';
 
 export interface RevisionReminderProps {
   candidate: ReminderCandidate;
@@ -73,6 +73,7 @@ export function RevisionReminder({
       <div className="rlc-reminder-body">
         <p className="rlc-reminder-problem">{candidate.title}</p>
         <div className="rlc-reminder-meta">
+          <PlatformBadge url={candidate.url} />
           <DifficultyBadge difficulty={candidate.difficulty} />
           {topic ? (
             <span className="rlc-badge rlc-badge-neutral">

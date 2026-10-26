@@ -242,6 +242,8 @@ function PopupDueItem({ candidate, onOpen }: { candidate: ReminderCandidate; onO
         ) : null}
       </div>
       <p className="mt-1 truncate text-[11px] text-subtle">
+        <span className="font-medium text-fg/80">{candidate.url?.includes('geeksforgeeks.org') ? 'GFG' : 'LC'}</span>
+        {' · '}
         {candidate.difficulty}
         {candidate.topics[0] ? ` · ${candidate.topics[0]}` : ''} · {candidate.attemptCount} attempt
         {candidate.attemptCount === 1 ? '' : 's'}

@@ -12,7 +12,7 @@ export function currentProblemSlug(): string | null {
   if (pathname.startsWith(PROBLEM_PATH)) {
     const segment = pathname.slice(PROBLEM_PATH.length).split('/')[0] ?? '';
     if (segment) {
-      const slug = extractSlugFromUrl(`https://leetcode.com${pathname}`);
+      const slug = extractSlugFromUrl(`https://${window.location.hostname || 'leetcode.com'}${pathname}`);
       if (slug) return slug;
     }
   }
@@ -34,14 +34,26 @@ export function currentProblemSlug(): string | null {
 
   // Fallback 3: check document.title ONLY if on a problem URL path
   try {
-    if (pathname.includes('/problems/') && document.title && document.title.includes('LeetCode')) {
-      const rawTitle = document.title.split('-')[0]?.trim() || '';
-      if (rawTitle && rawTitle.toLowerCase() !== 'leetcode') {
-        const derivedSlug = rawTitle
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-+|-+$/g, '');
-        if (derivedSlug) return derivedSlug;
+    if (pathname.includes('/problems/') && document.title) {
+      if (document.title.includes('LeetCode')) {
+        const rawTitle = document.title.split('-')[0]?.trim() || '';
+        if (rawTitle && rawTitle.toLowerCase() !== 'leetcode') {
+          const derivedSlug = rawTitle
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+          if (derivedSlug) return derivedSlug;
+        }
+      }
+      if (document.title.includes('GeeksforGeeks')) {
+        const rawTitle = document.title.split('|')[0]?.trim() || '';
+        if (rawTitle && rawTitle.toLowerCase() !== 'geeksforgeeks') {
+          const derivedSlug = rawTitle
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+          if (derivedSlug) return derivedSlug;
+        }
       }
     }
   } catch {
@@ -51,21 +63,31 @@ export function currentProblemSlug(): string | null {
   return null;
 }
 
-/** True when the current page is a LeetCode problem page. */
+/** True when the current page is a LeetCode or GeeksforGeeks problem page. */
 export function isProblemPage(): boolean {
   return currentProblemSlug() !== null || window.location.pathname.startsWith(PROBLEM_PATH);
 }
 
 /**
- * Detects if the current LeetCode page is currently displaying an "Accepted" submission verdict.
+ * Detects if the current page is currently displaying an "Accepted" / "Problem Solved Successfully" submission verdict.
  */
 export function isAcceptedOnPage(): boolean {
   if (typeof document === 'undefined') return false;
 
-  const body = document.body ? document.body.innerText || document.body.textContent || '' : '';
+  const textContent = document.body ? document.body.textContent || '' : '';
+  const innerText = document.body ? document.body.innerText || '' : '';
+  const body = `${innerText} ${textContent}`;
 
-  // 1. Genuinely passed testcases (e.g. "1569 / 1569 testcases passed" or "66 / 66 testcases passed")
-  if (/\b\d+\s*\/\s*\d+\s*testcases\s+passed\b/i.test(body)) {
+  // 1. Genuinely passed testcases (e.g. "1569 / 1569 testcases passed" or "1112 / 1112 test cases passed")
+  if (/\b\d+\s*\/\s*\d+\s*(?:test\s*cases?|testcases)\s+passed\b/i.test(body)) {
+    return true;
+  }
+
+  // 2. GeeksforGeeks problem solved / correct answer detection
+  if (
+    /problem solved successfully/i.test(body) ||
+    /correct answer/i.test(body)
+  ) {
     return true;
   }
 

@@ -11,10 +11,12 @@ export interface InlineRocketButtonProps {
 
 export function InlineRocketButton({ currentSlug, autoOpen = false }: InlineRocketButtonProps) {
   const [busy, setBusy] = useState(false);
+  const [launching, setLaunching] = useState(false);
   const [success, setSuccess] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [isRevision, setIsRevision] = useState(false);
   const [ratedFeedback, setRatedFeedback] = useState<string | null>(null);
+  const isGfg = typeof window !== 'undefined' && window.location.hostname.includes('geeksforgeeks.org');
 
   useEffect(() => {
     if (autoOpen && currentSlug) {
@@ -30,6 +32,7 @@ export function InlineRocketButton({ currentSlug, autoOpen = false }: InlineRock
     event.stopPropagation();
     if (busy || !currentSlug) return;
     setBusy(true);
+    setLaunching(true);
 
     try {
       // Check if problem was already tracked before pushing attempt
@@ -37,6 +40,11 @@ export function InlineRocketButton({ currentSlug, autoOpen = false }: InlineRock
       const alreadyTracked = Boolean(existing?.problem);
 
       await pushProblemToRecallLC(currentSlug);
+
+      // Rocket flight animation
+      await new Promise((r) => setTimeout(r, 900));
+
+      setLaunching(false);
       setBusy(false);
       setIsRevision(alreadyTracked);
       setSuccess(true);
@@ -50,6 +58,7 @@ export function InlineRocketButton({ currentSlug, autoOpen = false }: InlineRock
       }
     } catch (err) {
       console.warn('[RecallLC] Could not push problem:', err);
+      setLaunching(false);
       setBusy(false);
     }
   }
@@ -71,6 +80,17 @@ export function InlineRocketButton({ currentSlug, autoOpen = false }: InlineRock
 
   return (
     <>
+      {/* Floating Rocket Launch Animation (flies up with flame & smoke) */}
+      {launching ? (
+        <div className="rlc-flying-rocket-container" aria-hidden="true">
+          <div className="rlc-flying-rocket">
+            <span className="rlc-rocket-symbol">🚀</span>
+            <span className="rlc-rocket-flame">🔥</span>
+            <span className="rlc-rocket-smoke">💨</span>
+          </div>
+        </div>
+      ) : null}
+
       {/* Floating success / revision rating toast notification */}
       {success ? (
         <div className="rlc-rocket-toast" role="status" aria-live="polite">
@@ -153,43 +173,48 @@ export function InlineRocketButton({ currentSlug, autoOpen = false }: InlineRock
           display: 'inline-flex',
           alignItems: 'center',
           height: '100%',
+          marginRight: isGfg ? '18px' : undefined,
+          marginLeft: isGfg ? '10px' : undefined,
         }}
       >
-        {/* Subtle vertical separator matching LeetCode's top bar dividers */}
-        <div
-          className="rlc-topbar-divider"
-          aria-hidden="true"
-          style={{
-            width: '1px',
-            height: '14px',
-            backgroundColor: 'currentColor',
-            opacity: 0.25,
-            margin: '0 6px',
-            flexShrink: 0,
-          }}
-        />
+            {/* Subtle vertical separator matching LeetCode's top bar dividers (only on LeetCode) */}
+            {!isGfg ? (
+              <div
+                className="rlc-topbar-divider"
+                aria-hidden="true"
+                style={{
+                  width: '1px',
+                  height: '14px',
+                  backgroundColor: 'currentColor',
+                  opacity: 0.25,
+                  margin: '0 6px',
+                  flexShrink: 0,
+                }}
+              />
+            ) : null}
 
-        {/* Rocket button wrapper with downward tooltip */}
-        <div
-          className="rlc-inline-rocket-wrapper"
-          style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
-          onMouseEnter={() => setShowTooltip(true)}
-          onMouseLeave={() => setShowTooltip(false)}
-        >
-          {showTooltip && !busy && !success ? (
+            {/* Rocket button wrapper with tooltip */}
             <div
-              className="rlc-inline-rocket-tooltip"
-              role="tooltip"
-              style={{
-                position: 'absolute',
-                top: 'calc(100% + 6px)',
-                left: '50%',
-                transform: 'translateX(-50%)',
-              }}
+              className="rlc-inline-rocket-wrapper"
+              style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}
+              onMouseEnter={() => setShowTooltip(true)}
+              onMouseLeave={() => setShowTooltip(false)}
             >
-              <span>Push to RecallLC 🚀</span>
-            </div>
-          ) : null}
+              {showTooltip && !busy && !success ? (
+                <div
+                  className="rlc-inline-rocket-tooltip"
+                  role="tooltip"
+                  style={{
+                    position: 'absolute',
+                    top: isGfg ? 'auto' : 'calc(100% + 6px)',
+                    bottom: isGfg ? 'calc(100% + 8px)' : 'auto',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                  }}
+                >
+                  <span>Push to RecallLC 🚀</span>
+                </div>
+              ) : null}
 
           <button
             type="button"

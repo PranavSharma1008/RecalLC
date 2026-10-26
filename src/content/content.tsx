@@ -19,12 +19,12 @@ import { createRoot, type Root } from 'react-dom/client';
 
 import { ReminderRoot } from './ReminderRoot';
 import { startInlineRocketObserver, updateInlineRocket } from './inlineInjector';
-import { detectDifficultyFromPage } from './pushHelper';
+import { detectDifficultyFromPage, extractTitleFromPage } from './pushHelper';
 import { currentProblemSlug, isAcceptedOnPage, observeUrlChanges } from './reminder';
 import { callService } from '../services/messaging';
 import { readSettings } from '../services/storage';
 import { fetchCatalogViaGraphQL, fetchSubmissionHistory, statusToAccepted } from '../services/leetcodeApi';
-import { SubmissionTracker } from '../services/submissionTracker';
+import { detectLanguage, SubmissionTracker } from '../services/submissionTracker';
 import type { ThemePreference } from '../types';
 import '../styles/content.css';
 
@@ -168,9 +168,11 @@ async function recordAttempt(attempt: {
     const detectedDiff = detectDifficultyFromPage();
     const difficulty =
       detectedDiff !== 'Unknown' ? detectedDiff : slug.toLowerCase() === 'two-sum' ? 'Easy' : undefined;
+    const title = extractTitleFromPage() || null;
     await callService('record-attempt', {
       slug,
-      title: null,
+      title,
+      url: window.location.href,
       difficulty,
       attemptedAt: attempt.at,
       accepted: attempt.accepted,
@@ -186,6 +188,7 @@ async function recordAttempt(attempt: {
 /* ------------------------------------------------------------ enrichment */
 
 async function maybeEnrichCatalogue(): Promise<void> {
+  if (!window.location.hostname.includes('leetcode.com')) return;
   try {
     const last = await getLocal<number>(LAST_CATALOG_SYNC_KEY);
     if (last && Date.now() - last < CATALOG_REFRESH_INTERVAL_MS) return;
@@ -214,6 +217,7 @@ async function maybeEnrichCatalogue(): Promise<void> {
 }
 
 async function maybeSyncAccountHistory(): Promise<void> {
+  if (!window.location.hostname.includes('leetcode.com')) return;
   try {
     const settings = await readSettings();
     if (!settings.accountSyncEnabled) return;
@@ -257,7 +261,7 @@ function onSlugChange(slug: string | null): void {
   }
 
   // Opening a problem is *not* an attempt — it only refreshes metadata.
-  void callService('mark-viewed', { slug }).catch(() => undefined);
+  void callService('mark-viewed', { slug, url: window.location.href }).catch(() => undefined);
 
   startTracker();
 }
@@ -274,7 +278,7 @@ function boot(): void {
   renderReminder(currentSlug);
 
   if (currentSlug) {
-    void callService('mark-viewed', { slug: currentSlug }).catch(() => undefined);
+    void callService('mark-viewed', { slug: currentSlug, url: window.location.href }).catch(() => undefined);
     startTracker();
   }
 
@@ -291,8 +295,14 @@ function boot(): void {
         if (!hasSuccessfulSubmit) {
           hasSuccessfulSubmit = true;
           renderReminder(slug);
+          void handleAttempt({
+            accepted: true,
+            language: detectLanguage(),
+            verdict: 'Accepted',
+            at: Date.now(),
+          });
         }
-        updateInlineRocket(slug);
+        updateInlineRocket(slug, true);
       }
       const el = document.getElementById(HOST_ID);
       if (!el || !el.isConnected) {

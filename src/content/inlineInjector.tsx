@@ -147,12 +147,139 @@ function findTopNavBar(): HTMLElement | null {
   return null;
 }
 
+function findGfgCustomInputElement(): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+
+  // Search for elements containing "Custom Input"
+  const candidates = Array.from(document.querySelectorAll('label, div, span, button, p, a'));
+  for (const el of candidates) {
+    if (!(el instanceof HTMLElement)) continue;
+    if (el.id === INLINE_HOST_ID || el.closest(`#${INLINE_HOST_ID}`)) continue;
+    const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
+    if (txt === 'custom input' || (txt.startsWith('custom input') && txt.length <= 25)) {
+      let cur: HTMLElement = el;
+      while (
+        cur.parentElement &&
+        cur.parentElement.children.length === 1 &&
+        !/^(nav|header|body|html)$/i.test(cur.parentElement.tagName)
+      ) {
+        cur = cur.parentElement;
+      }
+      return cur;
+    }
+  }
+
+  // Fallback: checkbox with custom input nearby
+  const checkboxes = Array.from(document.querySelectorAll('input[type="checkbox"]'));
+  for (const cb of checkboxes) {
+    const parent = cb.closest('label, div');
+    if (parent instanceof HTMLElement && /custom\s*input/i.test(parent.textContent || '')) {
+      return parent;
+    }
+  }
+
+  return null;
+}
+
+function findGfgInlineTarget(): {
+  container: HTMLElement;
+  referenceNode: HTMLElement | null;
+  position: 'after' | 'before' | 'append';
+} | null {
+  if (typeof document === 'undefined') return null;
+
+  // 1. Primary for GFG: Place before Custom Input in the open free space
+  const customInputEl = findGfgCustomInputElement();
+  if (customInputEl) {
+    const ref = getNavReferenceNode(customInputEl);
+    if (ref) {
+      return {
+        container: ref.container,
+        referenceNode: ref.referenceNode,
+        position: 'before',
+      };
+    }
+  }
+
+  // 2. Fallback: Look for GFG Compile & Run action buttons
+  const buttons = Array.from(
+    document.querySelectorAll('button, a, [role="button"]'),
+  );
+  for (const b of buttons) {
+    if (!(b instanceof HTMLElement)) continue;
+    if (b.id === INLINE_HOST_ID || b.closest(`#${INLINE_HOST_ID}`)) continue;
+    const txt = (b.innerText || b.textContent || '').trim().toLowerCase();
+    if (txt.includes('compile') && txt.includes('run')) {
+      const ref = getNavReferenceNode(b);
+      if (ref) {
+        return {
+          container: ref.container,
+          referenceNode: ref.referenceNode,
+          position: 'before',
+        };
+      }
+    }
+  }
+
+  // 3. Fallback: before Submit button directly
+  for (const b of buttons) {
+    if (!(b instanceof HTMLElement)) continue;
+    if (b.id === INLINE_HOST_ID || b.closest(`#${INLINE_HOST_ID}`)) continue;
+    const txt = (b.innerText || b.textContent || '').trim().toLowerCase();
+    if (txt === 'submit' || txt.startsWith('submit')) {
+      const ref = getNavReferenceNode(b);
+      if (ref) {
+        return {
+          container: ref.container,
+          referenceNode: ref.referenceNode,
+          position: 'before',
+        };
+      }
+    }
+  }
+
+  // 2. Look for GFG problem tab / header
+  const gfgHeader = document.querySelector<HTMLElement>(
+    '.problem-tab__header, .problems_header_content, .problem_header, [class*="problemHead" i], [class*="problem-header" i]',
+  );
+  if (gfgHeader) {
+    return {
+      container: gfgHeader,
+      referenceNode: null,
+      position: 'append',
+    };
+  }
+
+  // 3. Look for GFG editor toolbar (language selector)
+  const langSelector = document.querySelector<HTMLElement>(
+    '[class*="language" i], [class*="lang-select" i], select[class*="lang" i]',
+  );
+  if (langSelector) {
+    const ref = getNavReferenceNode(langSelector);
+    if (ref) {
+      return {
+        container: ref.container,
+        referenceNode: ref.referenceNode,
+        position: 'after',
+      };
+    }
+  }
+
+  return null;
+}
+
 export function findInlineTarget(): {
   container: HTMLElement;
   referenceNode: HTMLElement | null;
   position: 'after' | 'before' | 'append';
 } | null {
   if (typeof document === 'undefined') return null;
+
+  // On GeeksforGeeks, prioritize GFG action buttons
+  if (typeof window !== 'undefined' && window.location.hostname.includes('geeksforgeeks.org')) {
+    const gfgTarget = findGfgInlineTarget();
+    if (gfgTarget) return gfgTarget;
+  }
 
   // 1. Primary Strategy: Place after the Random/Shuffle button in the top navigation cluster
   const randomBtn = findRandomButton();
@@ -165,6 +292,12 @@ export function findInlineTarget(): {
         position: 'after',
       };
     }
+  }
+
+  // 2. GeeksforGeeks specific action targets fallback
+  const gfgTarget = findGfgInlineTarget();
+  if (gfgTarget) {
+    return gfgTarget;
   }
 
   // 2. Secondary Strategy: Place after the last item in the Problem List navigation group (e.g. <, >, 🔀)
@@ -239,9 +372,8 @@ function ensureInlineHost(): HTMLDivElement {
   return inlineHost;
 }
 
-export function updateInlineRocket(slug: string | null, isAccepted?: boolean, autoOpenToast?: boolean): void {
-  const accepted = isAccepted ?? isAcceptedOnPage();
-  if (!slug || !accepted) {
+export function updateInlineRocket(slug: string | null, _isAccepted?: boolean, autoOpenToast?: boolean): void {
+  if (!slug) {
     removeInlineRocket();
     return;
   }
@@ -302,8 +434,8 @@ export function removeInlineRocket(): void {
 export function startInlineRocketObserver(getSlug: () => string | null): () => void {
   const check = () => {
     const slug = getSlug();
-    if (slug && isAcceptedOnPage()) {
-      updateInlineRocket(slug, true);
+    if (slug) {
+      updateInlineRocket(slug, isAcceptedOnPage());
     } else {
       removeInlineRocket();
     }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { RecallRating } from '../../components/RecallRating';
 import { Button } from '../../components/ui/Button';
-import { Badge, DifficultyBadge } from '../../components/ui/Badge';
+import { Badge, DifficultyBadge, PlatformBadge } from '../../components/ui/Badge';
 import { Card, CardHeader } from '../../components/ui/Card';
 import { ErrorState, Spinner } from '../../components/ui/States';
 import { useAsync } from '../../hooks/useAsync';
@@ -160,6 +160,7 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
           </button>
           <h1 className="mt-1 text-xl font-semibold tracking-tight">{tracked.title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
+            <PlatformBadge url={tracked.url} />
             <DifficultyBadge
               difficulty={
                 tracked.difficulty !== 'Unknown'
@@ -184,10 +185,16 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
           variant="secondary"
           size="sm"
           onClick={() => {
-            void callService('open-problem', { url: tracked.url || `https://leetcode.com/problems/${tracked.slug}/` });
+            void callService('open-problem', {
+              url:
+                tracked.url ||
+                (tracked.slug.includes('-') && tracked.url?.includes('geeksforgeeks.org')
+                  ? `https://www.geeksforgeeks.org/problems/${tracked.slug}/1`
+                  : `https://leetcode.com/problems/${tracked.slug}/`),
+            });
           }}
         >
-          🌐 Open on LeetCode
+          🌐 Open on {tracked.url?.includes('geeksforgeeks.org') ? 'GeeksforGeeks' : 'LeetCode'}
         </Button>
       </div>
 

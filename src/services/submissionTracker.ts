@@ -16,6 +16,8 @@
  * it normally does.
  */
 
+import { isAcceptedOnPage } from '../content/reminder';
+
 export interface DetectedAttempt {
   /** Human-readable verdict, e.g. "Accepted" or "Wrong Answer". */
   verdict: string;
@@ -50,7 +52,7 @@ const VERDICTS: VerdictSpec[] = [
   { label: 'Output Limit Exceeded', pattern: /output limit exceeded/i, accepted: false },
   { label: 'Compilation Error', pattern: /compilation error/i, accepted: false },
   { label: 'Answer Too Long', pattern: /answer too long/i, accepted: false },
-  { label: 'Accepted', pattern: /\baccepted\b/i, accepted: true },
+  { label: 'Accepted', pattern: /\b(?:accepted|problem solved successfully|correct answer)\b/i, accepted: true },
 ];
 
 /**
@@ -78,6 +80,11 @@ const VERDICT_SELECTORS = [
   '[data-cypress*="submission" i]',
   '[class*="result-state" i]',
   '[class*="submission-result" i]',
+  '[class*="submission-status" i]',
+  '[class*="problem-solved" i]',
+  '[class*="compile-status" i]',
+  '[class*="output-area" i]',
+  '[class*="problems_header_content" i]',
   '[class*="verdict" i]',
   '[class*="toast" i]',
   '[role="alert"]',
@@ -90,7 +97,15 @@ const VERDICT_SELECTORS = [
 
 function isSubmitButton(element: Element): boolean {
   const tag = element.tagName?.toLowerCase();
-  if (tag !== 'button' && element.getAttribute('role') !== 'button') return false;
+  const role = element.getAttribute('role')?.toLowerCase();
+  const isButtonLike =
+    tag === 'button' ||
+    role === 'button' ||
+    tag === 'a' ||
+    element.classList.contains('btn') ||
+    element.classList.contains('button') ||
+    (element.className && typeof element.className === 'string' && /btn|button/i.test(element.className));
+  if (!isButtonLike) return false;
 
   const e2e = element.getAttribute('data-e2e-locator') || element.getAttribute('data-cy') || '';
   if (e2e && /submit/i.test(e2e)) return true;
@@ -102,7 +117,7 @@ function isSubmitButton(element: Element): boolean {
   const text = (element.textContent ?? '').trim();
   if (!text) return false;
   if (RUN_BUTTON_PATTERN.test(text)) return false;
-  return SUBMIT_BUTTON_PATTERN.test(text);
+  return SUBMIT_BUTTON_PATTERN.test(text) || /\bsubmit\b/i.test(text);
 }
 
 export class SubmissionTracker {
@@ -200,12 +215,12 @@ export class SubmissionTracker {
     const target = event.target;
     if (!(target instanceof Element)) return;
 
-    const button = target.closest('button, [role="button"]');
+    const button = target.closest('button, [role="button"], a, div[class*="btn" i], div[class*="button" i]');
     if (!button || !isSubmitButton(button)) return;
 
     this.awaitingVerdict = true;
     this.awaitingSince = this.options.now();
-    this.baseline = this.readVerdictText();
+    this.baseline = null;
 
     // Give the editor a moment, then start looking for the verdict.
     if (this.checkTimer) clearTimeout(this.checkTimer);
@@ -219,6 +234,11 @@ export class SubmissionTracker {
   private readVerdictText(): string | null {
     if (typeof document === 'undefined') return null;
 
+    // 1. First check if the page as a whole reports an accepted verdict
+    if (isAcceptedOnPage()) {
+      return 'Accepted';
+    }
+
     for (const selector of VERDICT_SELECTORS) {
       const nodes = Array.from(document.querySelectorAll(selector));
       for (const node of nodes) {
@@ -227,8 +247,15 @@ export class SubmissionTracker {
         const match = matchExactVerdict(text);
         if (match) return match.label;
 
-        // If the element contains "testcases passed" and "accepted"
-        if (/testcases passed/i.test(text) && /\baccepted\b/i.test(text)) {
+        // If the element contains "testcases passed" and "accepted" / "problem solved" / "correct"
+        if (
+          (/test\s*cases?\s*passed/i.test(text) || /testcases passed/i.test(text)) &&
+          (/\baccepted\b/i.test(text) || /problem solved successfully/i.test(text) || /correct/i.test(text))
+        ) {
+          return 'Accepted';
+        }
+
+        if (/problem solved successfully/i.test(text) || /^correct answer/i.test(text)) {
           return 'Accepted';
         }
 
@@ -250,12 +277,11 @@ export class SubmissionTracker {
       }
     }
 
-    // Fall back to the tail of the visible text — LeetCode renders the
-    // latest result in the lower-right panel.
+    // Fall back to checking visible body text for any standard verdicts
     const bodyText = document.body?.innerText ?? '';
     if (!bodyText) return null;
     const tail = bodyText.slice(-900);
-    const match = matchVerdict(tail);
+    const match = matchVerdict(tail) || matchVerdict(bodyText);
     return match ? match.label : null;
   }
 
@@ -316,6 +342,14 @@ export function matchExactVerdict(text: string): { label: string; accepted: bool
  * Returns `null` when it cannot be determined — never guesses.
  */
 export function detectLanguage(root: ParentNode = document): string | null {
+  const selects = Array.from(root.querySelectorAll('select'));
+  for (const select of selects) {
+    const text = select.value || (select.options[select.selectedIndex]?.text ?? '');
+    if (text && LANGUAGE_PATTERN.test(text.trim())) {
+      return text.trim();
+    }
+  }
+
   const candidates = Array.from(root.querySelectorAll('button, [role="button"], select'));
 
   let fallback: string | null = null;

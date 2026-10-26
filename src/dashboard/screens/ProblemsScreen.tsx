@@ -54,7 +54,8 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
       const probDifficulty = getEffectiveDifficulty(problem);
       if (needle) {
         const probTopics = problem.topics.length > 0 ? problem.topics : (getPopularProblem(problem.slug)?.topics ?? []);
-        const haystack = `${problem.title} ${problem.slug} ${probTopics.join(' ')} ${probDifficulty}`.toLowerCase();
+        const platformText = problem.url?.includes('geeksforgeeks.org') ? 'gfg geeksforgeeks' : 'leetcode lc';
+        const haystack = `${problem.title} ${problem.slug} ${probTopics.join(' ')} ${probDifficulty} ${platformText}`.toLowerCase();
         if (!haystack.includes(needle)) return false;
       }
       const problemTopics =
@@ -321,7 +322,7 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
           title={entries.length === 0 ? 'No problems tracked yet' : 'Nothing matches your filters'}
           description={
             entries.length === 0
-              ? 'Click the 🚀 rocket button while on any LeetCode problem, auto-sync with LeetCode, or import your history.'
+              ? 'Click the 🚀 rocket button while on any LeetCode or GeeksforGeeks problem, or import your history.'
               : 'Try loosening the filters or clearing the search.'
           }
           action={
@@ -335,7 +336,14 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                   size="sm"
                   onClick={() => window.open('https://leetcode.com/problemset/all/', '_blank')}
                 >
-                  🌐 Open LeetCode to Solve
+                  🌐 Open LeetCode
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => window.open('https://www.geeksforgeeks.org/explore?page=1&sortBy=submissions', '_blank')}
+                >
+                  🌐 Open GeeksforGeeks
                 </Button>
               </div>
             ) : (

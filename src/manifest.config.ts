@@ -45,7 +45,11 @@ export default defineManifest({
 
   content_scripts: [
     {
-      matches: ['https://leetcode.com/problems/*'],
+      matches: [
+        'https://leetcode.com/problems/*',
+        'https://*.geeksforgeeks.org/problems/*',
+        'https://geeksforgeeks.org/problems/*',
+      ],
       js: ['src/content/content.tsx'],
       run_at: 'document_idle',
       all_frames: false,
@@ -58,7 +62,11 @@ export default defineManifest({
   },
 
   permissions: ['storage'],
-  host_permissions: ['https://leetcode.com/*'],
+  host_permissions: [
+    'https://leetcode.com/*',
+    'https://*.geeksforgeeks.org/*',
+    'https://geeksforgeeks.org/*',
+  ],
   content_security_policy: {
     extension_pages:
       "script-src 'self'; object-src 'none'; frame-src 'self' https://*.razorpay.com https://api.razorpay.com;",

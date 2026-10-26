@@ -165,7 +165,8 @@ const handlers: { [K in keyof ServiceMap]: Handler<K> } = {
 
   'mark-viewed': async (payload) => {
     const slug = typeof payload?.slug === 'string' ? payload.slug : '';
-    await markViewed(slug);
+    const url = typeof payload?.url === 'string' ? payload.url : undefined;
+    await markViewed(slug, Date.now(), url);
     return true;
   },
 
@@ -316,10 +317,13 @@ const handlers: { [K in keyof ServiceMap]: Handler<K> } = {
       throw new Error('Refusing to open an invalid URL.');
     }
 
-    if (
-      parsed.protocol !== 'https:' ||
-      (parsed.hostname !== 'leetcode.com' && parsed.hostname !== 'www.leetcode.com')
-    ) {
+    const isLeetCode = parsed.hostname === 'leetcode.com' || parsed.hostname === 'www.leetcode.com';
+    const isGfg =
+      parsed.hostname === 'geeksforgeeks.org' ||
+      parsed.hostname === 'www.geeksforgeeks.org' ||
+      parsed.hostname === 'practice.geeksforgeeks.org';
+
+    if (parsed.protocol !== 'https:' || (!isLeetCode && !isGfg)) {
       throw new Error('Refusing to open an unexpected URL.');
     }
 

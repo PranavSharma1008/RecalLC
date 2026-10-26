@@ -47,7 +47,7 @@ export interface ServiceMap {
     payload: AttemptInput;
     response: { created: boolean; duplicate: boolean };
   };
-  'mark-viewed': { payload: { slug: string }; response: boolean };
+  'mark-viewed': { payload: { slug: string; url?: string }; response: boolean };
   stats: { payload: void; response: DashboardStats };
   'import-preview': { payload: { fileName: string; content: string }; response: ImportPreview };
   'import-commit': { payload: { fileName: string; content: string }; response: ImportResult };

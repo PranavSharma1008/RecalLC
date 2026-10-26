@@ -3,7 +3,7 @@ import { getPopularProblem } from '../data/popularProblems';
 import type { Problem, RevisionRecord } from '../types';
 import { formatAttempts, formatDateWithWeekday, formatRelativeTime, isSunday } from '../utils/date';
 import { parseProblemNotes } from '../utils/notes';
-import { Badge, DifficultyBadge } from './ui/Badge';
+import { Badge, DifficultyBadge, PlatformBadge } from './ui/Badge';
 
 export interface RevisionCardProps {
   problem: Problem;
@@ -82,11 +82,11 @@ export function RevisionCard({
           <div className="min-w-0 flex-1">
             <div>
               <a
-                href={`https://leetcode.com/problems/${problem.slug}/`}
+                href={problem.url || `https://leetcode.com/problems/${problem.slug}/`}
                 target="_blank"
                 rel="noreferrer"
                 className="group/title inline-flex items-center gap-1.5 max-w-full text-fg transition-all cursor-pointer"
-                title={`Open "${problem.title}" on LeetCode (${effectiveDifficulty} · ${topic || 'General'})`}
+                title={`Open "${problem.title}" on ${problem.url && problem.url.includes('geeksforgeeks.org') ? 'GeeksforGeeks' : 'LeetCode'} (${effectiveDifficulty} · ${topic || 'General'})`}
               >
                 <h3 className="truncate text-[13px] sm:text-sm font-semibold text-fg group-hover/title:text-accent group-hover/title:underline transition-colors underline-offset-2">
                   {problem.title}
@@ -103,6 +103,7 @@ export function RevisionCard({
 
         {/* Badges & Attempts */}
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <PlatformBadge url={problem.url} />
           <DifficultyBadge difficulty={effectiveDifficulty} />
           {topic ? <Badge tone="neutral">{topic}</Badge> : null}
           {revision?.paused ? <Badge tone="warning">Paused</Badge> : null}

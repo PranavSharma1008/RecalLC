@@ -192,6 +192,17 @@ describe('Service Worker Security & IPC Sender Verification', () => {
       extensionSender,
     );
     expect(resValid.ok).toBe(true);
+
+    // Accepts valid geeksforgeeks.org
+    const resGfg = await dispatch(
+      {
+        channel: MESSAGE_CHANNEL,
+        method: 'open-problem',
+        payload: { url: 'https://www.geeksforgeeks.org/problems/kadanes-algorithm-1587115620/1' },
+      },
+      extensionSender,
+    );
+    expect(resGfg.ok).toBe(true);
   });
 
   it('sanitizes open-dashboard hash parameters against control characters and code injection', async () => {

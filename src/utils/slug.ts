@@ -50,17 +50,22 @@ export function normalizeSlug(raw: unknown): string | null {
   return value;
 }
 
-/** Canonical LeetCode URL for a slug. */
-export function problemUrl(slug: string): string {
+/** Canonical problem URL for a slug (LeetCode by default, or GeeksforGeeks if specified). */
+export function problemUrl(slug: string, urlOrPlatform?: string): string {
+  if (urlOrPlatform && (urlOrPlatform.includes('geeksforgeeks.org') || urlOrPlatform.toLowerCase() === 'gfg')) {
+    return `https://www.geeksforgeeks.org/problems/${slug}/1`;
+  }
   return `https://leetcode.com/problems/${slug}/`;
 }
 
 /**
  * Derive a human title from a slug.
  * "two-sum" -> "Two Sum". Used only as a fallback when no title is known.
+ * Also cleans trailing numeric IDs common in GeeksforGeeks slugs.
  */
 export function titleFromSlug(slug: string): string {
-  return slug
+  const cleanedSlug = slug.replace(/-\d{6,}$/, '');
+  return cleanedSlug
     .split('-')
     .filter(Boolean)
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/States';
@@ -23,14 +23,6 @@ import { SupportScreen } from './screens/SupportScreen';
 export const GMAIL_ENQUIRY_URL =
   'https://mail.google.com/mail/?view=cm&fs=1&to=pranav2410991479@gmail.com&su=RecallLC%20Enquiry';
 
-/**
- * The development-only tools panel. The `import.meta.env.DEV` guard is
- * replaced at build time, so the dynamic import — and the demo dataset it
- * pulls in — are removed from production builds entirely.
- */
-const DevPanel = import.meta.env.DEV
-  ? lazy(() => import('../dev/DevPanel').then((module) => ({ default: module.DevPanel })))
-  : null;
 
 interface NavItem {
   path: string;
@@ -267,13 +259,6 @@ export function Dashboard() {
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
-        {DevPanel ? (
-          <div className="mb-4">
-            <Suspense fallback={null}>
-              <DevPanel onChanged={refreshStats} />
-            </Suspense>
-          </div>
-        ) : null}
         {isOnboarding ? <OnboardingScreen navigate={navigate} onDone={refreshStats} /> : screen}
       </main>
 

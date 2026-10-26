@@ -12,6 +12,22 @@ export function DifficultyBadge({ difficulty }: { difficulty: Difficulty }) {
   return <span className={`rlc-badge ${DIFFICULTY_CLASS[difficulty]}`}>{difficulty}</span>;
 }
 
+export function PlatformBadge({ url }: { url?: string }) {
+  const isGfg = Boolean(url && url.includes('geeksforgeeks.org'));
+  return (
+    <span
+      className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded tracking-wide uppercase inline-flex items-center ${
+        isGfg
+          ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+          : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+      }`}
+      title={isGfg ? 'Platform: GeeksforGeeks' : 'Platform: LeetCode'}
+    >
+      {isGfg ? 'GFG' : 'LC'}
+    </span>
+  );
+}
+
 export type BadgeTone = 'accent' | 'neutral' | 'success' | 'warning' | 'danger';
 
 const TONE_CLASS: Record<BadgeTone, string> = {

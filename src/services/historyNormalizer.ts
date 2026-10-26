@@ -211,6 +211,13 @@ export function normalizeRecord(raw: unknown, options: { source?: AttemptSource 
         (parsed.hostname === 'leetcode.com' || parsed.hostname === 'www.leetcode.com')
       ) {
         url = `https://leetcode.com/problems/${slug}/`;
+      } else if (
+        (parsed.protocol === 'https:' || parsed.protocol === 'http:') &&
+        (parsed.hostname === 'geeksforgeeks.org' ||
+          parsed.hostname === 'www.geeksforgeeks.org' ||
+          parsed.hostname === 'practice.geeksforgeeks.org')
+      ) {
+        url = parsed.href;
       } else {
         url = problemUrl(slug);
       }
