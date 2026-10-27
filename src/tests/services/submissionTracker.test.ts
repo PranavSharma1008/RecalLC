@@ -128,6 +128,25 @@ describe('SubmissionTracker', () => {
     expect(onAttempt).not.toHaveBeenCalled();
   });
 
+  it('ignores LeetCode console run button with text "Run" and sample testcase results', async () => {
+    mount('<button data-e2e-locator="console-run-button"><span>Run</span></button>');
+    const onAttempt = vi.fn();
+    const tracker = new SubmissionTracker({ onAttempt, pollIntervalMs: 10 });
+    tracker.start();
+
+    document.querySelector('button')?.click();
+    const consolePanel = document.createElement('div');
+    consolePanel.id = 'console';
+    consolePanel.className = 'testcase-console';
+    consolePanel.innerHTML = '<span class="text-green-500">Accepted</span><span>Case 1</span>';
+    document.body.appendChild(consolePanel);
+
+    await new Promise((resolve) => setTimeout(resolve, 120));
+    tracker.stop();
+
+    expect(onAttempt).not.toHaveBeenCalled();
+  });
+
   it('does not record the same verdict twice', async () => {
     mount('<button id="submit">Submit</button>');
     const onAttempt = vi.fn();

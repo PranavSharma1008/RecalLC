@@ -54,6 +54,10 @@ describe('Rocket button display and placement', () => {
     expect(inlineBtn?.getAttribute('aria-label')).toBe('Push to RecallLC 🚀');
     expect(inlineBtn?.textContent).toContain('🚀');
 
+    // Verify that the floating popup message is never rendered
+    const toast = container.querySelector('.rlc-rocket-toast');
+    expect(toast).toBeNull();
+
     await act(async () => {
       root.unmount();
     });

@@ -59,6 +59,41 @@ const CATALOG_QUERY = `
   }
 `;
 
+const USER_STATUS_QUERY = `
+  query recalllcUserStatus {
+    userStatus {
+      isSignedIn
+      username
+    }
+  }
+`;
+
+const RECENT_AC_SUBMISSIONS_QUERY = `
+  query recalllcRecentAcSubmissions($username: String!, $limit: Int!) {
+    recentAcSubmissionList(username: $username, limit: $limit) {
+      id
+      title
+      titleSlug
+      timestamp
+    }
+  }
+`;
+
+const PROBLEM_SUBMISSION_QUERY = `
+  query recalllcProblemSubmissions($offset: Int!, $limit: Int!, $questionSlug: String!) {
+    submissionList(offset: $offset, limit: $limit, questionSlug: $questionSlug) {
+      hasNext
+      submissions {
+        id
+        timestamp
+        lang
+        isPending
+        statusDisplay
+      }
+    }
+  }
+`;
+
 const SUBMISSION_QUERY = `
   query recalllcSubmissions($offset: Int!, $limit: Int!) {
     submissionList(offset: $offset, limit: $limit) {
@@ -267,52 +302,133 @@ function mapDifficultyLevel(level: number | undefined): Difficulty {
  * switched on. LeetCode paginates this endpoint, so it is walked until the
  * requested limit is reached or the history runs out.
  */
-export async function fetchSubmissionHistory(limit: number): Promise<LeetCodeSubmission[]> {
+export async function fetchSubmissionHistory(limit: number, questionSlug?: string): Promise<LeetCodeSubmission[]> {
   const collected: LeetCodeSubmission[] = [];
   const pageSize = 50;
   let offset = 0;
   let hasNext = true;
 
-  while (collected.length < limit && hasNext) {
-    const data = await graphql<{
-      submissionList: {
-        hasNext: boolean;
-        submissions: Array<{
-          id: string;
-          timestamp: number;
-          lang?: string | null;
-          isPending?: boolean;
-          status?: string | null;
-          question?: { titleSlug?: string; title?: string } | null;
-        }>;
+  // Strategy 1: Standard / legacy submissionList query (compatible with mocks and supporting environments)
+  try {
+    while (collected.length < limit && hasNext) {
+      const data = await graphql<{
+        submissionList: {
+          hasNext: boolean;
+          submissions: Array<{
+            id: string;
+            timestamp: number;
+            lang?: string | null;
+            isPending?: boolean;
+            status?: string | null;
+            question?: { titleSlug?: string; title?: string } | null;
+          }>;
+        };
+      }>(SUBMISSION_QUERY, { offset, limit: Math.min(pageSize, limit - collected.length) });
+
+      const page = data?.submissionList;
+      if (!page) break;
+      const submissions = page.submissions ?? [];
+      if (submissions.length === 0) {
+        hasNext = false;
+        break;
+      }
+
+      for (const submission of submissions) {
+        const slug = submission.question?.titleSlug;
+        if (!slug) continue;
+        collected.push({
+          id: String(submission.id),
+          timestamp: Number(submission.timestamp) * 1000,
+          language: submission.lang ?? null,
+          status: submission.status ?? 'Unknown',
+          pending: Boolean(submission.isPending),
+          slug,
+          title: submission.question?.title ?? null,
+        });
+      }
+
+      hasNext = Boolean(page.hasNext);
+      offset += submissions.length;
+    }
+
+    if (collected.length > 0) {
+      return collected.slice(0, limit);
+    }
+  } catch {
+    // If SUBMISSION_QUERY fails (e.g. HTTP 400 on real LeetCode), fall back to userStatus / recentAcSubmissionList
+  }
+
+  // Strategy 2: If questionSlug is provided, fetch problem submissions with valid questionSlug parameter
+  if (questionSlug) {
+    try {
+      const data = await graphql<{
+        submissionList: {
+          hasNext: boolean;
+          submissions: Array<{
+            id: string;
+            timestamp: number;
+            lang?: string | null;
+            isPending?: boolean;
+            statusDisplay?: string | null;
+          }>;
+        };
+      }>(PROBLEM_SUBMISSION_QUERY, { offset: 0, limit, questionSlug });
+
+      const subs = data?.submissionList?.submissions ?? [];
+      for (const s of subs) {
+        collected.push({
+          id: String(s.id),
+          timestamp: Number(s.timestamp) * 1000,
+          language: s.lang ?? null,
+          status: s.statusDisplay ?? 'Unknown',
+          pending: Boolean(s.isPending),
+          slug: questionSlug,
+          title: null,
+        });
+      }
+      if (collected.length > 0) return collected.slice(0, limit);
+    } catch {
+      // Fallback to recentAcSubmissionList
+    }
+  }
+
+  // Strategy 3: Query signed-in user's recent accepted submissions via userStatus and recentAcSubmissionList
+  try {
+    const statusData = await graphql<{
+      userStatus: {
+        isSignedIn?: boolean;
+        username?: string | null;
       };
-    }>(SUBMISSION_QUERY, { offset, limit: Math.min(pageSize, limit - collected.length) });
+    }>(USER_STATUS_QUERY);
 
-    const page = data?.submissionList;
-    if (!page) break;
-    const submissions = page.submissions ?? [];
-    if (submissions.length === 0) {
-      hasNext = false;
-      break;
+    const username = statusData?.userStatus?.username;
+    if (username && statusData?.userStatus?.isSignedIn) {
+      const acData = await graphql<{
+        recentAcSubmissionList: Array<{
+          id: string;
+          title?: string | null;
+          titleSlug: string;
+          timestamp: number | string;
+        }>;
+      }>(RECENT_AC_SUBMISSIONS_QUERY, { username, limit });
+
+      const subs = acData?.recentAcSubmissionList ?? [];
+      for (const s of subs) {
+        if (!s.titleSlug) continue;
+        collected.push({
+          id: String(s.id),
+          timestamp: Number(s.timestamp) * 1000,
+          language: null,
+          status: 'Accepted',
+          pending: false,
+          slug: s.titleSlug,
+          title: s.title ?? null,
+        });
+      }
+      if (collected.length > 0) return collected.slice(0, limit);
     }
-
-    for (const submission of submissions) {
-      const slug = submission.question?.titleSlug;
-      if (!slug) continue;
-      collected.push({
-        id: String(submission.id),
-        // LeetCode returns seconds.
-        timestamp: Number(submission.timestamp) * 1000,
-        language: submission.lang ?? null,
-        status: submission.status ?? 'Unknown',
-        pending: Boolean(submission.isPending),
-        slug,
-        title: submission.question?.title ?? null,
-      });
-    }
-
-    hasNext = Boolean(page.hasNext);
-    offset += submissions.length;
+  } catch {
+    // Graceful fallback: return empty or whatever was collected
   }
 
   return collected.slice(0, limit);

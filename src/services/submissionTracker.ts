@@ -16,7 +16,7 @@
  * it normally does.
  */
 
-import { isAcceptedOnPage } from '../content/reminder';
+import { isAcceptedOnPage, isInsideConsole } from '../content/reminder';
 
 export interface DetectedAttempt {
   /** Human-readable verdict, e.g. "Accepted" or "Wrong Answer". */
@@ -69,7 +69,7 @@ const LANGUAGE_PATTERN =
   /^(python3?|py|c\+\+|cpp|cxx|cc|c#|csharp|cs|c|java|javascript|js|typescript|ts|go|golang|rust|rs|ruby|rb|swift|kotlin|kt|scala|php|dart|elixir|clojure|erlang|haskell|hs|perl|lua|pascal|fortran|bash|sh|shell|mysql|postgresql|oracle|mongodb|mssql|sql|r|vb\.net|vb|zig|pandas)$/i;
 
 const SUBMIT_BUTTON_PATTERN = /^\s*submit\b/i;
-const RUN_BUTTON_PATTERN = /run\s*code/i;
+const RUN_BUTTON_PATTERN = /^\s*run\b|\brun\s*code\b/i;
 
 /** Elements that commonly carry a transient verdict. */
 const VERDICT_SELECTORS = [
@@ -108,15 +108,17 @@ function isSubmitButton(element: Element): boolean {
   if (!isButtonLike) return false;
 
   const e2e = element.getAttribute('data-e2e-locator') || element.getAttribute('data-cy') || '';
+  if (e2e && /run/i.test(e2e) && !/submit/i.test(e2e)) return false;
   if (e2e && /submit/i.test(e2e)) return true;
 
   const aria = element.getAttribute('aria-label') || element.getAttribute('title') || '';
-  if (aria && SUBMIT_BUTTON_PATTERN.test(aria) && !RUN_BUTTON_PATTERN.test(aria)) return true;
+  if (aria && RUN_BUTTON_PATTERN.test(aria) && !SUBMIT_BUTTON_PATTERN.test(aria)) return false;
+  if (aria && SUBMIT_BUTTON_PATTERN.test(aria)) return true;
 
   if (element.getAttribute('type') === 'submit' && !element.textContent?.trim()) return true;
   const text = (element.textContent ?? '').trim();
   if (!text) return false;
-  if (RUN_BUTTON_PATTERN.test(text)) return false;
+  if (RUN_BUTTON_PATTERN.test(text) && !SUBMIT_BUTTON_PATTERN.test(text)) return false;
   return SUBMIT_BUTTON_PATTERN.test(text) || /\bsubmit\b/i.test(text);
 }
 
@@ -242,17 +244,25 @@ export class SubmissionTracker {
     for (const selector of VERDICT_SELECTORS) {
       const nodes = Array.from(document.querySelectorAll(selector));
       for (const node of nodes) {
+        // Skip any elements located inside the testcase runner / console panel
+        if (isInsideConsole(node)) continue;
+
         const text = (node.textContent ?? '').trim();
         if (!text || text.length > 300) continue;
         const match = matchExactVerdict(text);
         if (match) return match.label;
 
         // If the element contains "testcases passed" and "accepted" / "problem solved" / "correct"
+        const tcMatch = text.match(/\b(\d+)\s*\/\s*(\d+)\s*(?:test\s*cases?|testcases)\s+passed\b/i);
         if (
-          (/test\s*cases?\s*passed/i.test(text) || /testcases passed/i.test(text)) &&
+          tcMatch &&
           (/\baccepted\b/i.test(text) || /problem solved successfully/i.test(text) || /correct/i.test(text))
         ) {
-          return 'Accepted';
+          const passed = Number(tcMatch[1]);
+          const total = Number(tcMatch[2]);
+          if (passed > 0 && passed === total) {
+            return 'Accepted';
+          }
         }
 
         if (/problem solved successfully/i.test(text) || /^correct answer/i.test(text)) {
@@ -268,6 +278,7 @@ export class SubmissionTracker {
 
         // Check child elements for a direct verdict match
         for (const child of Array.from(node.children)) {
+          if (isInsideConsole(child)) continue;
           const childText = (child.textContent ?? '').trim();
           if (childText && childText.length <= 120) {
             const childMatch = matchExactVerdict(childText);
@@ -282,6 +293,9 @@ export class SubmissionTracker {
     if (!bodyText) return null;
     const tail = bodyText.slice(-900);
     const match = matchVerdict(tail) || matchVerdict(bodyText);
+    if (match && match.label === 'Accepted' && !isAcceptedOnPage()) {
+      return null;
+    }
     return match ? match.label : null;
   }
 
@@ -303,6 +317,12 @@ export class SubmissionTracker {
 
     const spec = VERDICTS.find((verdict) => verdict.label === current);
     if (!spec) return;
+
+    // For "Accepted" verdicts, only record if isAcceptedOnPage() confirms full submission passed.
+    // Never record "Accepted" from sample testcases.
+    if (spec.accepted && !isAcceptedOnPage()) {
+      return;
+    }
 
     this.awaitingVerdict = false;
     this.lastRecorded = { label: spec.label, at: this.options.now() };

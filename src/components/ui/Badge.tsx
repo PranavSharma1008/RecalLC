@@ -17,7 +17,7 @@ export function PlatformBadge({ url, slug }: { url?: string; slug?: string }) {
   const isGfg = Boolean((url && url.includes('geeksforgeeks.org')) || (slug && isGfgSlug(slug)));
   return (
     <span
-      className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded tracking-wide uppercase inline-flex items-center ${
+      className={`rlc-badge-platform ${isGfg ? 'rlc-badge-platform-gfg' : 'rlc-badge-platform-lc'} text-[9.5px] font-bold px-1.5 py-0.5 rounded tracking-wide uppercase inline-flex items-center ${
         isGfg
           ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
           : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'

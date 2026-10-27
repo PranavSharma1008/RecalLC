@@ -20,7 +20,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { ReminderRoot } from './ReminderRoot';
 import { startInlineRocketObserver, updateInlineRocket } from './inlineInjector';
 import { detectDifficultyFromPage, extractTitleFromPage } from './pushHelper';
-import { currentProblemSlug, isAcceptedOnPage, observeUrlChanges } from './reminder';
+import { currentProblemSlug, isAcceptedOnPage, isProblemSolvedBadgeOnPage, observeUrlChanges } from './reminder';
 import { callService } from '../services/messaging';
 import { readSettings } from '../services/storage';
 import { fetchCatalogViaGraphQL, fetchSubmissionHistory, statusToAccepted } from '../services/leetcodeApi';
@@ -149,7 +149,7 @@ async function handleAttempt(attempt: {
     void recordAttempt(attempt);
   }
 
-  // When a solution is submitted and accepted, update the inline rocket button and show reschedule prompt
+  // When a solution is submitted and accepted, update the inline rocket button
   if (attempt.accepted) {
     hasSuccessfulSubmit = true;
     updateInlineRocket(currentSlug, true, true);
@@ -225,7 +225,7 @@ async function maybeSyncAccountHistory(): Promise<void> {
     const last = await getLocal<number>(LAST_ACCOUNT_SYNC_KEY);
     if (last && Date.now() - last < ACCOUNT_SYNC_INTERVAL_MS) return;
 
-    const submissions = await fetchSubmissionHistory(settings.accountSyncLimit);
+    const submissions = await fetchSubmissionHistory(settings.accountSyncLimit, currentSlug || undefined);
     if (submissions.length === 0) {
       await setLocal(LAST_ACCOUNT_SYNC_KEY, Date.now());
       return;
@@ -243,7 +243,7 @@ async function maybeSyncAccountHistory(): Promise<void> {
     });
     await setLocal(LAST_ACCOUNT_SYNC_KEY, Date.now());
   } catch (error) {
-    console.warn('[RecallLC] account sync failed:', error);
+    console.debug?.('[RecallLC] account sync skipped:', error);
   }
 }
 
@@ -251,14 +251,24 @@ async function maybeSyncAccountHistory(): Promise<void> {
 
 function onSlugChange(slug: string | null): void {
   currentSlug = slug;
-  hasSuccessfulSubmit = isAcceptedOnPage();
+  hasSuccessfulSubmit = isAcceptedOnPage() || isProblemSolvedBadgeOnPage();
   renderReminder(slug);
-  updateInlineRocket(slug, hasSuccessfulSubmit);
+  updateInlineRocket(slug, hasSuccessfulSubmit, hasSuccessfulSubmit);
 
   if (!slug) {
     stopTracker();
     return;
   }
+
+  // Check if problem is already tracked in RecallLC
+  void callService('get-problem', { slug })
+    .then((res) => {
+      if (res?.problem) {
+        hasSuccessfulSubmit = true;
+        updateInlineRocket(slug, true, true);
+      }
+    })
+    .catch(() => undefined);
 
   // Opening a problem is *not* an attempt — it only refreshes metadata.
   void callService('mark-viewed', { slug, url: window.location.href }).catch(() => undefined);
@@ -271,13 +281,21 @@ function boot(): void {
 
   console.log('[RecallLC] Content script loaded on:', window.location.href);
   currentSlug = currentProblemSlug();
-  hasSuccessfulSubmit = isAcceptedOnPage();
+  hasSuccessfulSubmit = isAcceptedOnPage() || isProblemSolvedBadgeOnPage();
   console.log('[RecallLC] Initial slug:', currentSlug, 'isAcceptedOnPage:', hasSuccessfulSubmit);
   ensureHost();
   void applyTheme();
   renderReminder(currentSlug);
 
   if (currentSlug) {
+    void callService('get-problem', { slug: currentSlug })
+      .then((res) => {
+        if (res?.problem) {
+          hasSuccessfulSubmit = true;
+          updateInlineRocket(currentSlug, true, true);
+        }
+      })
+      .catch(() => undefined);
     void callService('mark-viewed', { slug: currentSlug, url: window.location.href }).catch(() => undefined);
     startTracker();
   }
@@ -291,7 +309,8 @@ function boot(): void {
   setInterval(() => {
     const slug = currentProblemSlug();
     if (slug) {
-      if (isAcceptedOnPage()) {
+      const accepted = isAcceptedOnPage();
+      if (accepted) {
         if (!hasSuccessfulSubmit) {
           hasSuccessfulSubmit = true;
           renderReminder(slug);
@@ -302,7 +321,14 @@ function boot(): void {
             at: Date.now(),
           });
         }
-        updateInlineRocket(slug, true);
+        updateInlineRocket(slug, true, true);
+      } else if (!hasSuccessfulSubmit) {
+        if (isProblemSolvedBadgeOnPage()) {
+          hasSuccessfulSubmit = true;
+          updateInlineRocket(slug, true, true);
+        } else {
+          updateInlineRocket(slug, false);
+        }
       }
       const el = document.getElementById(HOST_ID);
       if (!el || !el.isConnected) {
@@ -312,8 +338,11 @@ function boot(): void {
     }
   }, 500);
 
-  // Start watching for submission result rows to inject inline rocket between Analysis and Solution
-  startInlineRocketObserver(() => currentProblemSlug());
+  // Start watching for submission result rows to inject inline rocket when problem is accepted
+  startInlineRocketObserver(
+    () => currentProblemSlug(),
+    () => hasSuccessfulSubmit || isAcceptedOnPage() || isProblemSolvedBadgeOnPage(),
+  );
 
   void maybeEnrichCatalogue();
   void maybeSyncAccountHistory();

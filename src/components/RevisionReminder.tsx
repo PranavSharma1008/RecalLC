@@ -57,7 +57,7 @@ export function RevisionReminder({
       className="rlc-reminder rlc-reminder-toast"
     >
       <div className="rlc-reminder-header">
-        <span aria-hidden="true" className="text-[13px] leading-none">
+        <span aria-hidden="true" className="rlc-reminder-refresh-icon" style={{ fontSize: '13px', lineHeight: 1 }}>
           ↻
         </span>
         <span className="rlc-reminder-title">Time to revise!</span>

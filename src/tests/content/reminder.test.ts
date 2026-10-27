@@ -172,4 +172,75 @@ describe('isAcceptedOnPage', () => {
     `;
     expect(isAcceptedOnPage()).toBe(false);
   });
+
+  it('returns false when user runs sample testcases in the console (Run Code)', () => {
+    document.body.innerHTML = `
+      <div id="console" class="console-panel">
+        <div class="flex items-center test-result-tabs">
+          <div role="tab" class="tab-item">Testcase</div>
+          <div role="tab" class="tab-item active">Test Result</div>
+        </div>
+        <div class="test-result-content">
+          <div class="flex items-center gap-2">
+            <span class="text-green-500 font-medium">Accepted</span>
+            <span class="text-xs text-gray-400">Runtime: 0 ms</span>
+          </div>
+          <div class="case-tabs flex gap-2">
+            <div class="case-tab">Case 1</div>
+            <div class="case-tab">Case 2</div>
+          </div>
+          <div class="input-details">
+            <p>grid =</p>
+            <pre>[[1,3,1],[1,5,1],[4,2,1]]</pre>
+          </div>
+        </div>
+      </div>
+    `;
+    expect(isAcceptedOnPage()).toBe(false);
+  });
+
+  it('returns false when user runs sample testcases in modern LeetCode split-pane without id console', () => {
+    document.body.innerHTML = `
+      <div class="flex flex-col h-full bg-layer-1">
+        <div class="flex items-center">
+          <div role="tab">Testcase</div>
+          <div role="tab">Test Result</div>
+        </div>
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center gap-2">
+            <div role="alert" class="text-green-500 font-semibold">Accepted</div>
+            <span class="text-xs">Runtime: 1 ms</span>
+          </div>
+          <div class="flex gap-2">
+            <div>Case 1</div>
+            <div>Case 2</div>
+          </div>
+          <div>
+            <p>n = 3</p>
+          </div>
+        </div>
+      </div>
+    `;
+    expect(isAcceptedOnPage()).toBe(false);
+  });
+
+  it('returns false when a submission failed and only partial testcases passed (e.g. 12 / 66 passed)', () => {
+    document.body.innerHTML = `
+      <div class="submission-details">
+        <span class="text-red-500 font-medium">Wrong Answer</span>
+        <span class="text-label-3">12 / 66 testcases passed</span>
+      </div>
+    `;
+    expect(isAcceptedOnPage()).toBe(false);
+  });
+
+  it('returns true when a full submission has all testcases passed (e.g. 66 / 66 testcases passed)', () => {
+    document.body.innerHTML = `
+      <div class="submission-details">
+        <span class="text-green-500 font-medium">Accepted</span>
+        <span class="text-label-3">66 / 66 testcases passed</span>
+      </div>
+    `;
+    expect(isAcceptedOnPage()).toBe(true);
+  });
 });

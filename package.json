@@ -15,7 +15,7 @@
     "verify": "node scripts/verify-extension.mjs dist",
     "verify:content": "node scripts/verify-content-script.mjs dist",
     "screenshot": "node scripts/screenshot.mjs",
-    "package": "npm run build && (cd dist && zip -r -FS ../recalllc-v1.0.2.zip .) && cp recalllc-v1.0.2.zip recalllc-v1.0.1.zip",
+    "package": "npm run build && (cd dist && zip -r -FS ../recalllc-v1.0.2.zip .) && cp recalllc-v1.0.2.zip recalllc-v1.0.1.zip && node scripts/create-final-zip.mjs",
     "server": "node server.js",
     "start": "node server.js",
     "format": "prettier --write .",

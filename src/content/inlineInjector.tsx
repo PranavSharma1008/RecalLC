@@ -11,26 +11,22 @@ let inlineRoot: Root | null = null;
 let observer: MutationObserver | null = null;
 
 function getNavReferenceNode(el: HTMLElement): { container: HTMLElement; referenceNode: HTMLElement } | null {
-  const parent = el.parentElement;
-  if (!parent) return null;
+  if (!el.parentElement) return null;
 
-  // If the parent is just a single-child wrapper around the button/link (like a tooltip wrapper or relative div)
-  // and parent's parent is a flex row / navbar
-  if (
-    parent.children.length === 1 &&
-    parent.parentElement &&
-    !/^(nav|header|body|html)$/i.test(parent.tagName) &&
-    !parent.parentElement.classList.contains('monaco-editor')
+  let refNode: HTMLElement = el;
+  while (
+    refNode.parentElement &&
+    refNode.parentElement.children.length === 1 &&
+    refNode.parentElement.parentElement &&
+    !/^(nav|header|body|html)$/i.test(refNode.parentElement.tagName) &&
+    !refNode.parentElement.classList.contains('monaco-editor')
   ) {
-    return {
-      container: parent.parentElement,
-      referenceNode: parent,
-    };
+    refNode = refNode.parentElement;
   }
 
   return {
-    container: parent,
-    referenceNode: el,
+    container: refNode.parentElement || el.parentElement,
+    referenceNode: refNode,
   };
 }
 
@@ -364,16 +360,23 @@ function ensureInlineHost(): HTMLDivElement {
   element.id = INLINE_HOST_ID;
   element.style.setProperty('display', 'inline-flex', 'important');
   element.style.setProperty('align-items', 'center', 'important');
-  element.style.setProperty('height', '100%', 'important');
+  element.style.setProperty('align-self', 'center', 'important');
+  element.style.setProperty('height', '28px', 'important');
+  element.style.setProperty('max-height', '28px', 'important');
   element.style.setProperty('vertical-align', 'middle', 'important');
+  element.style.setProperty('margin', '0 3px', 'important');
+  element.style.setProperty('padding', '0', 'important');
+  element.style.setProperty('border', 'none', 'important');
+  element.style.setProperty('line-height', '1', 'important');
   element.style.setProperty('z-index', '2147483646', 'important');
   element.style.setProperty('flex-shrink', '0', 'important');
+  element.style.setProperty('box-sizing', 'border-box', 'important');
   inlineHost = element;
   return inlineHost;
 }
 
-export function updateInlineRocket(slug: string | null, _isAccepted?: boolean, autoOpenToast?: boolean): void {
-  if (!slug) {
+export function updateInlineRocket(slug: string | null, isAccepted?: boolean, autoOpenToast?: boolean): void {
+  if (!slug || !isAccepted) {
     removeInlineRocket();
     return;
   }
@@ -427,15 +430,20 @@ export function removeInlineRocket(): void {
   if (inlineHost && inlineHost.parentElement) {
     inlineHost.remove();
   }
+  const el = typeof document !== 'undefined' ? document.getElementById(INLINE_HOST_ID) : null;
+  if (el) {
+    el.remove();
+  }
   inlineHost = null;
   currentHost = null;
 }
 
-export function startInlineRocketObserver(getSlug: () => string | null): () => void {
+export function startInlineRocketObserver(getSlug: () => string | null, getAccepted?: () => boolean): () => void {
   const check = () => {
     const slug = getSlug();
-    if (slug) {
-      updateInlineRocket(slug, isAcceptedOnPage());
+    const accepted = getAccepted ? getAccepted() : isAcceptedOnPage();
+    if (slug && accepted) {
+      updateInlineRocket(slug, true, true);
     } else {
       removeInlineRocket();
     }

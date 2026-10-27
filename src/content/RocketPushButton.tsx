@@ -55,27 +55,6 @@ export function RocketPushButton({ currentSlug }: RocketPushButtonProps) {
         </div>
       ) : null}
 
-      {/* Success Notification Message */}
-      {success ? (
-        <div className="rlc-rocket-toast" role="status" aria-live="polite">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xl">🚀</span>
-            <div>
-              <p className="font-bold text-[12px] text-white">Successfully added to RecallLC!</p>
-              <p className="text-[10px] text-purple-200">Problem & solution tracked for revision</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSuccess(false)}
-              className="ml-1 text-[11px] text-purple-300 hover:text-white"
-              aria-label="Close"
-            >
-              ✕
-            </button>
-          </div>
-        </div>
-      ) : null}
-
       {/* Rocket Button with Tooltip */}
       <div
         className="rlc-rocket-wrapper"
