@@ -249,8 +249,9 @@ try {
     JSON.stringify(parsed.permissions),
   );
   check(
-    'host permissions are limited to leetcode.com',
-    JSON.stringify(parsed.host_permissions) === '["https://leetcode.com/*"]',
+    'host permissions are limited to leetcode and geeksforgeeks',
+    parsed.host_permissions?.includes('https://leetcode.com/*') &&
+      parsed.host_permissions?.includes('https://*.geeksforgeeks.org/*'),
     JSON.stringify(parsed.host_permissions),
   );
   check('background service worker is registered', Boolean(parsed.background?.service_worker));

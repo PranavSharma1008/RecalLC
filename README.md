@@ -142,9 +142,6 @@ npm run preview    # preview the production build
 Open **Dashboard → Import**, drop in a `.json` or `.csv` file, review the
 preview, and confirm. Nothing is written until you press _Import_.
 
-A sample file is included: [`samples/sample-import.json`](samples/sample-import.json)
-(and `public/sample-import.csv`, downloadable from inside the extension).
-
 ### Documented JSON format
 
 Each object is **one attempt**:
@@ -518,11 +515,9 @@ src/
   popup/                    index.html, main.tsx, App.tsx
   dashboard/                index.html, main.tsx, Dashboard.tsx, screens/*
   styles/                   theme.css, palette.css, app.css, content.css
-  dev/                      sampleData.ts, DevPanel.tsx  (development builds only)
-  tests/                    setup.ts + 9 spec files
-public/                     icons, sample-import.json, sample-import.csv
-samples/                    sample-import.json
-scripts/                    generate-icons.mjs
+  tests/                    setup.ts + spec files
+public/                     icons, logo.png
+scripts/                    generate-icons.mjs, verify-extension.mjs
 ```
 
 ---
