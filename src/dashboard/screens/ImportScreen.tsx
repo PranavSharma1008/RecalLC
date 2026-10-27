@@ -6,7 +6,7 @@ import { Card, CardHeader } from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/States';
 import { useAsync } from '../../hooks/useAsync';
 import { callService } from '../../services/messaging';
-import { isSampleAttempt, SAMPLE_SLUGS } from '../../services/repository';
+import { isSampleAttempt } from '../../services/repository';
 import type { ImportPreview as ImportPreviewData, ImportResult } from '../../types';
 import { toCsv } from '../../utils/csv';
 import { formatDateTime } from '../../utils/date';
@@ -44,20 +44,14 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
   const [busyExport, setBusyExport] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
-  const [hasDemoData, setHasDemoData] = useState(false);
 
   const history = useAsync(() => callService('import-history'), []);
   const stats = useAsync(() => callService('stats'), []);
 
-  // Check on mount if any fake sample data is in the database
+  // Silently purge any legacy mock sample data on mount so only genuine solves exist
   useEffect(() => {
-    void callService('export').then((backup) => {
-      const attempts = backup?.attempts ?? [];
-      const problems = backup?.problems ?? [];
-      const foundSample =
-        attempts.some((a) => isSampleAttempt(a)) ||
-        problems.some((p) => SAMPLE_SLUGS.has(p.slug) && (!p.notes || !p.notes.trim()));
-      setHasDemoData(foundSample);
+    void callService('purge-sample-data').then(() => {
+      stats.reload();
     });
   }, []);
 
@@ -153,8 +147,7 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
     setExportError(null);
     setBusyExport(true);
     try {
-      const { items, foundDemoData } = await getRealSolvedProblems();
-      setHasDemoData(foundDemoData);
+      const { items } = await getRealSolvedProblems();
 
       if (items.length === 0) {
         setExportError(
@@ -212,8 +205,7 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
     setExportError(null);
     setBusyExport(true);
     try {
-      const { items, foundDemoData } = await getRealSolvedProblems();
-      setHasDemoData(foundDemoData);
+      const { items } = await getRealSolvedProblems();
 
       if (items.length === 0) {
         setExportError(
@@ -255,25 +247,6 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
     }
   };
 
-  const handlePurgeDemoData = async (): Promise<void> => {
-    setBusyExport(true);
-    setExportError(null);
-    try {
-      const outcome = await callService('purge-sample-data');
-      setHasDemoData(false);
-      setExportMessage(
-        `Cleared ${outcome.deletedProblems} sample problem(s). Only your personal LeetCode data is retained.`,
-      );
-      history.reload();
-      stats.reload();
-      onChanged();
-    } catch (err) {
-      setExportError(err instanceof Error ? err.message : 'Could not clear sample data.');
-    } finally {
-      setBusyExport(false);
-    }
-  };
-
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       {/* Real Solved LeetCode Data Export Card */}
@@ -288,28 +261,6 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
             <div className="flex items-center gap-2 rounded-lg border border-success/40 bg-success-soft px-3.5 py-2.5 text-xs text-success">
               <span>🎉</span>
               <span>{exportMessage}</span>
-            </div>
-          ) : null}
-
-          {hasDemoData ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5 text-xs">
-              <div className="flex items-center gap-2.5">
-                <span className="text-xl">ℹ️</span>
-                <div>
-                  <p className="font-semibold text-fg">Sample Dataset Detected</p>
-                  <p className="text-[11px] text-muted">
-                    Your database currently includes pre-loaded sample problems. You can clear them to retain only your personal solved questions.
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={busyExport}
-                onClick={() => void handlePurgeDemoData()}
-              >
-                Clear Sample Data
-              </Button>
             </div>
           ) : null}
 

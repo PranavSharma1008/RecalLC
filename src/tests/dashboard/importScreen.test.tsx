@@ -162,7 +162,7 @@ describe('ImportScreen Export & Sample Protection', () => {
     expect(container.textContent).toContain('No solved LeetCode problems found in your database yet');
   });
 
-  it('detects sample demo data and allows clearing it', async () => {
+  it('silently purges any legacy demo data on mount', async () => {
     let purged = false;
     vi.spyOn(chrome.runtime, 'sendMessage').mockImplementation(async (message: unknown) => {
       const envelope = message as { method: string };
@@ -181,42 +181,6 @@ describe('ImportScreen Export & Sample Protection', () => {
             streak: 0,
             byTopic: [],
             totalReviews: 0,
-          },
-        };
-      }
-      if (envelope.method === 'export') {
-        return {
-          ok: true,
-          data: {
-            format: 'recalllc-backup',
-            version: 1,
-            exportedAt: Date.now(),
-            problems: [
-              {
-                slug: 'two-sum',
-                title: 'Two Sum',
-                url: 'https://leetcode.com/problems/two-sum/',
-                difficulty: 'Easy',
-                topics: ['hash-map'],
-                notes: '',
-                attemptCount: 1,
-                lastAttemptAt: 1790758800000,
-                accepted: true,
-                lastLanguage: 'python3',
-              },
-            ],
-            attempts: [
-              {
-                id: 'fake-1',
-                slug: 'two-sum',
-                title: 'Two Sum',
-                attemptedAt: 1790758800000,
-                accepted: true,
-                language: 'python3',
-                submissionId: '88012301',
-                source: 'import',
-              },
-            ],
           },
         };
       }
@@ -242,22 +206,10 @@ describe('ImportScreen Export & Sample Protection', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
 
-    // Should detect the sample submission ID 88012301 and show the clear button
-    expect(container.textContent).toContain('Sample Dataset Detected');
-    const purgeBtn = Array.from(container.querySelectorAll('button')).find((b) =>
-      b.textContent?.includes('Clear Sample Data'),
-    );
-    expect(purgeBtn).toBeDefined();
-
-    await act(async () => {
-      purgeBtn?.click();
-    });
-
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    });
-
+    // Should automatically call purge-sample-data silently
     expect(purged).toBe(true);
-    expect(container.textContent).toContain('Cleared 1 sample problem(s)');
+    // Should NOT show any sample dataset warning or button to the user
+    expect(container.textContent).not.toContain('Sample Dataset Detected');
+    expect(container.textContent).not.toContain('Clear Sample Data');
   });
 });
