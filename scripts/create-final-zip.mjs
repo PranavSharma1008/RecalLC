@@ -6,12 +6,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 
 const pythonScript = `
-import zipfile, os
+import zipfile, os, glob
 
 os.chdir(${JSON.stringify(rootDir)})
+
+# Clean up any existing zip files in the project root to ensure only final.zip remains
+for zf in glob.glob('*.zip'):
+    try:
+        os.remove(zf)
+    except OSError:
+        pass
+
 zip_path = 'final.zip'
-if os.path.exists(zip_path):
-    os.remove(zip_path)
 
 files_to_pack = {}
 exclude_dirs = {'node_modules', '.git'}
@@ -20,7 +26,7 @@ exclude_dirs = {'node_modules', '.git'}
 for root, dirs, files in os.walk('.'):
     dirs[:] = [d for d in dirs if d not in exclude_dirs]
     for file in files:
-        if file in ('final.zip', 'recalllc-v1.0.1.zip', 'recalllc-v1.0.2.zip') or file.endswith('.tmp'):
+        if file.endswith('.zip') or file.endswith('.tmp'):
             continue
         full_path = os.path.join(root, file)
         rel_path = os.path.relpath(full_path, '.')
@@ -46,7 +52,7 @@ with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as z:
     for rel_path, full_path in sorted(files_to_pack.items()):
         z.write(full_path, rel_path)
 
-print(f'[create-final-zip] Successfully packaged final.zip ({os.path.getsize(zip_path) // 1024} KB) with {len(files_to_pack)} entries')
+print(f'[create-final-zip] Successfully packaged final.zip ({os.path.getsize(zip_path) // 1024} KB) with {len(files_to_pack)} entries (sole distributable zip)')
 `;
 
 execSync(`python3 -c "${pythonScript.replace(/"/g, '\\"')}"`, { stdio: 'inherit' });
