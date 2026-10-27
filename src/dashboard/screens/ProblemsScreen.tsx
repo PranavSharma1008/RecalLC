@@ -9,6 +9,7 @@ import { callService } from '../../services/messaging';
 import { getPopularProblem } from '../../data/popularProblems';
 import { DIFFICULTIES, type Difficulty, type ProblemSortKey, type ProblemWithSchedule } from '../../types';
 import { addLocalDays } from '../../utils/date';
+import { isGfgSlug } from '../../utils/slug';
 
 export interface ProblemsScreenProps {
   navigate: (path: string) => void;
@@ -54,7 +55,8 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
       const probDifficulty = getEffectiveDifficulty(problem);
       if (needle) {
         const probTopics = problem.topics.length > 0 ? problem.topics : (getPopularProblem(problem.slug)?.topics ?? []);
-        const platformText = problem.url?.includes('geeksforgeeks.org') ? 'gfg geeksforgeeks' : 'leetcode lc';
+        const isGfg = Boolean(problem.url?.includes('geeksforgeeks.org') || isGfgSlug(problem.slug));
+        const platformText = isGfg ? 'gfg geeksforgeeks' : 'leetcode lc';
         const haystack = `${problem.title} ${problem.slug} ${probTopics.join(' ')} ${probDifficulty} ${platformText}`.toLowerCase();
         if (!haystack.includes(needle)) return false;
       }

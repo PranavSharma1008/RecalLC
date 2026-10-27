@@ -50,9 +50,22 @@ export function normalizeSlug(raw: unknown): string | null {
   return value;
 }
 
-/** Canonical problem URL for a slug (LeetCode by default, or GeeksforGeeks if specified). */
+/**
+ * Detects whether a slug belongs to GeeksforGeeks.
+ * GFG problem slugs typically have trailing numeric identifiers
+ * (e.g. `fractional-knapsack-1587115620`, `0-1-knapsack-problem0945`, `checker2744`).
+ */
+export function isGfgSlug(slug: string): boolean {
+  if (!slug || typeof slug !== 'string') return false;
+  return /-\d{4,}$|[a-z]\d{3,}$/i.test(slug);
+}
+
+/** Canonical problem URL for a slug (LeetCode by default, or GeeksforGeeks if specified or detected). */
 export function problemUrl(slug: string, urlOrPlatform?: string): string {
-  if (urlOrPlatform && (urlOrPlatform.includes('geeksforgeeks.org') || urlOrPlatform.toLowerCase() === 'gfg')) {
+  const isGfg =
+    (urlOrPlatform && (urlOrPlatform.includes('geeksforgeeks.org') || urlOrPlatform.toLowerCase() === 'gfg')) ||
+    isGfgSlug(slug);
+  if (isGfg) {
     return `https://www.geeksforgeeks.org/problems/${slug}/1`;
   }
   return `https://leetcode.com/problems/${slug}/`;
@@ -64,7 +77,10 @@ export function problemUrl(slug: string, urlOrPlatform?: string): string {
  * Also cleans trailing numeric IDs common in GeeksforGeeks slugs.
  */
 export function titleFromSlug(slug: string): string {
-  const cleanedSlug = slug.replace(/-\d{6,}$/, '');
+  const cleanedSlug = slug.replace(/-\d{4,}$|[a-z]\d{3,}$/i, (match) => {
+    if (/^[a-z]\d{3,}$/i.test(match)) return match[0] ?? '';
+    return '';
+  });
   return cleanedSlug
     .split('-')
     .filter(Boolean)

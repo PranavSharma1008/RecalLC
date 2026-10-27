@@ -5,7 +5,7 @@ import { isAcceptedOnPage } from '../../content/reminder';
 import { detectDifficultyFromPage, extractTitleFromPage } from '../../content/pushHelper';
 import { findInlineTarget } from '../../content/inlineInjector';
 import { SubmissionTracker } from '../../services/submissionTracker';
-import { extractSlugFromUrl, problemUrl, titleFromSlug } from '../../utils/slug';
+import { extractSlugFromUrl, isGfgSlug, problemUrl, titleFromSlug } from '../../utils/slug';
 import { normalizeRecord } from '../../services/historyNormalizer';
 
 describe('GeeksforGeeks (GFG) full integration support', () => {
@@ -34,6 +34,20 @@ describe('GeeksforGeeks (GFG) full integration support', () => {
         'https://www.geeksforgeeks.org/problems/reverse-an-array/1',
       );
       expect(problemUrl('reverse-an-array')).toBe('https://leetcode.com/problems/reverse-an-array/');
+    });
+
+    it('identifies typical GFG slugs with trailing numeric IDs and defaults to GFG URLs', () => {
+      expect(isGfgSlug('fractional-knapsack-1587115620')).toBe(true);
+      expect(isGfgSlug('0-1-knapsack-problem0945')).toBe(true);
+      expect(isGfgSlug('kadanes-algorithm-1587115620')).toBe(true);
+      expect(isGfgSlug('two-sum')).toBe(false);
+
+      expect(problemUrl('fractional-knapsack-1587115620')).toBe(
+        'https://www.geeksforgeeks.org/problems/fractional-knapsack-1587115620/1',
+      );
+      expect(problemUrl('0-1-knapsack-problem0945')).toBe(
+        'https://www.geeksforgeeks.org/problems/0-1-knapsack-problem0945/1',
+      );
     });
   });
 

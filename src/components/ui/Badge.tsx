@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { Difficulty } from '../../types';
+import { isGfgSlug } from '../../utils/slug';
 
 const DIFFICULTY_CLASS: Record<Difficulty, string> = {
   Easy: 'rlc-badge-easy',
@@ -12,8 +13,8 @@ export function DifficultyBadge({ difficulty }: { difficulty: Difficulty }) {
   return <span className={`rlc-badge ${DIFFICULTY_CLASS[difficulty]}`}>{difficulty}</span>;
 }
 
-export function PlatformBadge({ url }: { url?: string }) {
-  const isGfg = Boolean(url && url.includes('geeksforgeeks.org'));
+export function PlatformBadge({ url, slug }: { url?: string; slug?: string }) {
+  const isGfg = Boolean((url && url.includes('geeksforgeeks.org')) || (slug && isGfgSlug(slug)));
   return (
     <span
       className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded tracking-wide uppercase inline-flex items-center ${

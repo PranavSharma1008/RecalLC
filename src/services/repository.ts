@@ -22,7 +22,7 @@ import type {
   TopicStat,
 } from '../types';
 import { createId, attemptId } from '../utils/id';
-import { normalizeSlug, problemUrl, titleFromSlug } from '../utils/slug';
+import { isGfgSlug, normalizeSlug, problemUrl, titleFromSlug } from '../utils/slug';
 import {
   isOverdue,
   isReminderEligible,
@@ -94,7 +94,11 @@ export function computeStruggleScore(input: {
 
 function emptyProblem(slug: string, now: number, customUrl?: string): Problem {
   const popular = getPopularProblem(slug);
-  const url = customUrl && isSafeUrl(customUrl) ? customUrl : problemUrl(slug);
+  const isGfg = Boolean(
+    (customUrl && customUrl.includes('geeksforgeeks.org')) ||
+    isGfgSlug(slug),
+  );
+  const url = customUrl && isSafeUrl(customUrl) ? customUrl : problemUrl(slug, isGfg ? 'gfg' : undefined);
   return {
     slug,
     title: popular?.title ?? titleFromSlug(slug),
@@ -132,6 +136,14 @@ export async function listProblems(): Promise<Problem[]> {
     return true;
   });
 
+  // Auto-heal any problem records that have GFG slugs but defaulted to LeetCode URL
+  for (const problem of problems) {
+    if (isGfgSlug(problem.slug) && (!problem.url || problem.url.includes('leetcode.com'))) {
+      problem.url = problemUrl(problem.slug, 'gfg');
+      void database.problems.put(problem);
+    }
+  }
+
   if (ghostSlugs.length > 0) {
     void database
       .transaction('rw', [database.problems, database.revisions], async () => {
@@ -163,6 +175,10 @@ export async function listProblems(): Promise<Problem[]> {
         (problem.notes.match(/## Recall checklist/g)?.length ?? 0) > 1)
     ) {
       problem.notes = sanitizeProblemNotes(problem.notes);
+      changed = true;
+    }
+    if (isGfgSlug(problem.slug) && (!problem.url || problem.url.includes('leetcode.com'))) {
+      problem.url = problemUrl(problem.slug, 'gfg');
       changed = true;
     }
     if (changed) {
@@ -205,6 +221,10 @@ export async function getProblem(slug: string): Promise<Problem | undefined> {
         (problem.notes.match(/## Recall checklist/g)?.length ?? 0) > 1)
     ) {
       problem.notes = sanitizeProblemNotes(problem.notes);
+      changed = true;
+    }
+    if (isGfgSlug(problem.slug) && (!problem.url || problem.url.includes('leetcode.com'))) {
+      problem.url = problemUrl(problem.slug, 'gfg');
       changed = true;
     }
     if (changed) {
@@ -301,11 +321,17 @@ export async function recordAttempt(input: AttemptInput, now: number = Date.now(
     createdAt: now,
   };
 
+  const isGfg = Boolean(
+    (input.url && input.url.includes('geeksforgeeks.org')) ||
+    isGfgSlug(slug),
+  );
   const previous = await database.problems.get(slug);
   const catalogEntry = await database.catalog.get(slug);
   const problem: Problem = previous ?? emptyProblem(slug, now, input.url ?? undefined);
   if (input.url && isSafeUrl(input.url)) {
     problem.url = input.url;
+  } else if (isGfg && (!problem.url || problem.url.includes('leetcode.com'))) {
+    problem.url = problemUrl(slug, 'gfg');
   }
 
   const firstAttemptAt =
@@ -378,9 +404,19 @@ export async function saveProblem(input: ManualSaveInput, now: number = Date.now
   const slug = normalizeSlug(input.slug);
   if (!slug) throw new Error(`Invalid problem slug: ${String(input.slug)}`);
 
+  const isGfg = Boolean(
+    (input.url && input.url.includes('geeksforgeeks.org')) ||
+    isGfgSlug(slug),
+  );
   const database = db();
   const existing = await database.problems.get(slug);
-  const problem: Problem = existing ?? emptyProblem(slug, now);
+  const problem: Problem = existing ?? emptyProblem(slug, now, input.url ?? undefined);
+
+  if (input.url && isSafeUrl(input.url)) {
+    problem.url = input.url;
+  } else if (isGfg && (!problem.url || problem.url.includes('leetcode.com'))) {
+    problem.url = problemUrl(slug, 'gfg');
+  }
 
   if (input.title) problem.title = input.title;
   if (input.difficulty) problem.difficulty = input.difficulty;

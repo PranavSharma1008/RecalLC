@@ -9,6 +9,7 @@ import { useTheme } from '../hooks/useTheme';
 import { callService } from '../services/messaging';
 import type { ReminderCandidate } from '../types';
 import { isSessionExpired, isSessionUnlocked, setSessionUnlocked } from '../utils/security';
+import { isGfgSlug, problemUrl } from '../utils/slug';
 
 export function App() {
   const { settings, update } = useSettings();
@@ -67,7 +68,15 @@ export function App() {
   };
 
   const openProblem = async (candidate: ReminderCandidate) => {
-    await callService('open-problem', { url: candidate.url });
+    const isGfg = Boolean(
+      (candidate.url && candidate.url.includes('geeksforgeeks.org')) ||
+      isGfgSlug(candidate.slug),
+    );
+    const targetUrl =
+      candidate.url && candidate.url.includes(isGfg ? 'geeksforgeeks.org' : 'leetcode.com')
+        ? candidate.url
+        : problemUrl(candidate.slug, isGfg ? 'gfg' : undefined);
+    await callService('open-problem', { url: targetUrl });
     window.close();
   };
 
@@ -242,7 +251,9 @@ function PopupDueItem({ candidate, onOpen }: { candidate: ReminderCandidate; onO
         ) : null}
       </div>
       <p className="mt-1 truncate text-[11px] text-subtle">
-        <span className="font-medium text-fg/80">{candidate.url?.includes('geeksforgeeks.org') ? 'GFG' : 'LC'}</span>
+        <span className="font-medium text-fg/80">
+          {(candidate.url && candidate.url.includes('geeksforgeeks.org')) || isGfgSlug(candidate.slug) ? 'GFG' : 'LC'}
+        </span>
         {' · '}
         {candidate.difficulty}
         {candidate.topics[0] ? ` · ${candidate.topics[0]}` : ''} · {candidate.attemptCount} attempt

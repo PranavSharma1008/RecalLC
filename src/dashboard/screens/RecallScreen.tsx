@@ -10,6 +10,7 @@ import { callService } from '../../services/messaging';
 import { addLocalDays, formatDate, formatRelativeTime } from '../../utils/date';
 import { getPopularProblem } from '../../data/popularProblems';
 import { parseProblemNotes, upsertChecklist } from '../../utils/notes';
+import { isGfgSlug, problemUrl } from '../../utils/slug';
 import type { RecallRating as RecallRatingValue } from '../../types';
 
 export interface RecallScreenProps {
@@ -160,7 +161,7 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
           </button>
           <h1 className="mt-1 text-xl font-semibold tracking-tight">{tracked.title}</h1>
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <PlatformBadge url={tracked.url} />
+            <PlatformBadge url={tracked.url} slug={tracked.slug} />
             <DifficultyBadge
               difficulty={
                 tracked.difficulty !== 'Unknown'
@@ -181,21 +182,27 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
             ) : null}
           </div>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => {
-            void callService('open-problem', {
-              url:
-                tracked.url ||
-                (tracked.slug.includes('-') && tracked.url?.includes('geeksforgeeks.org')
-                  ? `https://www.geeksforgeeks.org/problems/${tracked.slug}/1`
-                  : `https://leetcode.com/problems/${tracked.slug}/`),
-            });
-          }}
-        >
-          🌐 Open on {tracked.url?.includes('geeksforgeeks.org') ? 'GeeksforGeeks' : 'LeetCode'}
-        </Button>
+        {(() => {
+          const isGfg = Boolean(
+            (tracked.url && tracked.url.includes('geeksforgeeks.org')) ||
+            isGfgSlug(tracked.slug),
+          );
+          const targetUrl =
+            tracked.url && tracked.url.includes(isGfg ? 'geeksforgeeks.org' : 'leetcode.com')
+              ? tracked.url
+              : problemUrl(tracked.slug, isGfg ? 'gfg' : undefined);
+          return (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                void callService('open-problem', { url: targetUrl });
+              }}
+            >
+              🌐 Open on {isGfg ? 'GeeksforGeeks' : 'LeetCode'}
+            </Button>
+          );
+        })()}
       </div>
 
       {savedAt !== null ? (
