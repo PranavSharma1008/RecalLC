@@ -51,7 +51,7 @@ const VERDICTS: VerdictSpec[] = [
   { label: 'Time Limit Exceeded', pattern: /time limit exceeded/i, accepted: false },
   { label: 'Memory Limit Exceeded', pattern: /memory limit exceeded/i, accepted: false },
   { label: 'Output Limit Exceeded', pattern: /output limit exceeded/i, accepted: false },
-  { label: 'Compilation Error', pattern: /compilation error/i, accepted: false },
+  { label: 'Compilation Error', pattern: /compil(?:e|ation)\s+error/i, accepted: false },
   { label: 'Answer Too Long', pattern: /answer too long/i, accepted: false },
   { label: 'Accepted', pattern: /\b(?:accepted|problem solved successfully|correct answer)\b/i, accepted: true },
 ];
@@ -138,6 +138,7 @@ export class SubmissionTracker {
   /** True while a submission has been fired and its verdict is awaited. */
   private awaitingVerdict = false;
   private awaitingSince = 0;
+  private sawExecution = false;
   /** The verdict text observed before the submit click. */
   private baseline: string | null = null;
   /** Guards against recording the same verdict twice. */
@@ -164,12 +165,7 @@ export class SubmissionTracker {
 
     this.keyListener = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-        this.awaitingVerdict = true;
-        this.awaitingSince = this.options.now();
-        this.baseline = this.readVerdictText();
-        this.options.onSubmit?.();
-        if (this.checkTimer) clearTimeout(this.checkTimer);
-        this.checkTimer = setTimeout(() => this.checkForVerdict(), 600);
+        this.triggerSubmit();
       }
     };
     document.addEventListener('keydown', this.keyListener, true);
@@ -224,14 +220,35 @@ export class SubmissionTracker {
     const button = target.closest('button, [role="button"], a, div[class*="btn" i], div[class*="button" i]');
     if (!button || !isSubmitButton(button)) return;
 
+    this.triggerSubmit();
+  }
+
+  private triggerSubmit(): void {
     this.awaitingVerdict = true;
     this.awaitingSince = this.options.now();
-    this.baseline = null;
+    this.sawExecution = false;
+    this.baseline = this.readVerdictText();
     this.options.onSubmit?.();
 
-    // Give the editor a moment, then start looking for the verdict.
     if (this.checkTimer) clearTimeout(this.checkTimer);
-    this.checkTimer = setTimeout(() => this.checkForVerdict(), 600);
+    this.checkTimer = setTimeout(() => this.checkForVerdict(), 800);
+  }
+
+  private isExecuting(): boolean {
+    if (typeof document === 'undefined') return false;
+    const bodyText = ((document.body?.innerText || '') + ' ' + (document.body?.textContent || '')).slice(0, 100000);
+    if (/\b(?:judging|evaluating|pending|running|compiling)\b/i.test(bodyText)) return true;
+    const submitBtn = document.querySelector(
+      '[data-e2e-locator="console-submit-button"], [data-cypress="submit-code-btn"], [data-cy="submit-code-btn"]',
+    );
+    if (submitBtn && (submitBtn.hasAttribute('disabled') || submitBtn.getAttribute('aria-disabled') === 'true')) {
+      return true;
+    }
+    const activeSpinner = document.querySelector(
+      '[data-e2e-locator*="submission" i] [class*="spin" i], [data-e2e-locator*="console" i] [class*="spin" i], [class*="submission" i] [class*="load" i], [class*="submission" i] svg.animate-spin, button[disabled] [class*="spin" i], [aria-busy="true"]',
+    );
+    if (activeSpinner && !activeSpinner.closest('.monaco-editor, header, nav')) return true;
+    return false;
   }
 
   /**
@@ -241,15 +258,15 @@ export class SubmissionTracker {
   private readVerdictText(): string | null {
     if (typeof document === 'undefined') return null;
 
-    // 1. First check if the page as a whole reports an accepted verdict
-    if (isAcceptedOnPage()) {
-      return 'Accepted';
-    }
-
     for (const selector of VERDICT_SELECTORS) {
       const nodes = Array.from(document.querySelectorAll(selector));
       for (const node of nodes) {
-        // Skip any elements located inside the testcase runner / console panel
+        if (
+          node.closest(
+            '.monaco-editor, .ace_editor, header, nav, [class*="description" i], [class*="editorial" i], [class*="discussion" i], [class*="solutions" i]',
+          )
+        )
+          continue;
         if (isInsideConsole(node)) continue;
 
         const text = (node.textContent ?? '').trim();
@@ -293,15 +310,12 @@ export class SubmissionTracker {
       }
     }
 
-    // Fall back to checking visible body text for any standard verdicts
-    const bodyText = document.body?.innerText ?? '';
-    if (!bodyText) return null;
-    const tail = bodyText.slice(-900);
-    const match = matchVerdict(tail) || matchVerdict(bodyText);
-    if (match && match.label === 'Accepted' && !isAcceptedOnPage()) {
-      return null;
+    // Direct check if page reports accepted submission
+    if (isAcceptedOnPage()) {
+      return 'Accepted';
     }
-    return match ? match.label : null;
+
+    return null;
   }
 
   private checkForVerdict(): void {
@@ -313,9 +327,15 @@ export class SubmissionTracker {
       return;
     }
 
+    // While LeetCode is judging or pending testcases, wait until judging completes!
+    if (this.isExecuting()) {
+      this.sawExecution = true;
+      return;
+    }
+
     const current = this.readVerdictText();
     if (!current) return;
-    if (current === this.baseline) return;
+    if (!this.sawExecution && current === this.baseline) return;
     if (this.lastRecorded && this.lastRecorded.label === current && this.options.now() - this.lastRecorded.at < 5000) {
       return;
     }

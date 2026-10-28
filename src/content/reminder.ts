@@ -75,21 +75,6 @@ export function isProblemPage(): boolean {
 export function isInsideConsole(el: Element | null): boolean {
   if (!el) return false;
 
-  // Genuine submission results are NEVER sample console runs:
-  const elText = (el.textContent || '').trim();
-  if (
-    (/\baccepted\b/i.test(elText) &&
-      (/\b(?:runtime|beats|memory)\b/i.test(elText) ||
-        /\b\d+\s*ms\b/i.test(elText) ||
-        /\b\d+\.?\d*%\b/i.test(elText) ||
-        /\b\d+\s*\/\s*\d+\s*(?:test\s*cases?|testcases)\s+passed\b/i.test(elText))) ||
-    /\bproblem solved successfully\b/i.test(elText) ||
-    /\bcorrect answer\b/i.test(elText) ||
-    /\bbeats\b/i.test(elText)
-  ) {
-    return false;
-  }
-
   // If inside a submission result panel or submission details container, it is NOT inside console
   if (
     el.closest(
@@ -149,26 +134,45 @@ export function isProblemSolvedBadgeOnPage(): boolean {
 }
 
 /**
+ * Detects if a submission is currently compiling, running, or being judged.
+ */
+export function isSubmissionExecuting(): boolean {
+  if (typeof document === 'undefined') return false;
+  const text = ((document.body?.innerText || '') + ' ' + (document.body?.textContent || '')).slice(0, 100000);
+  if (/\b(?:compiling|running|evaluating|judging|pending)\b/i.test(text)) {
+    return true;
+  }
+  const submitBtn = document.querySelector(
+    '[data-e2e-locator="console-submit-button"], [data-cypress="submit-code-btn"], [data-cy="submit-code-btn"]',
+  );
+  if (submitBtn && (submitBtn.hasAttribute('disabled') || submitBtn.getAttribute('aria-disabled') === 'true')) {
+    return true;
+  }
+  const activeSpinner = document.querySelector(
+    '[data-e2e-locator*="submission" i] [class*="spin" i], [data-e2e-locator*="console" i] [class*="spin" i], [class*="submission" i] [class*="load" i], [class*="submission" i] svg.animate-spin, button[disabled] [class*="spin" i], [aria-busy="true"]',
+  );
+  if (activeSpinner && !activeSpinner.closest('.monaco-editor, header, nav')) {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Detects if the current page is currently displaying an "Accepted" / "Problem Solved Successfully" submission verdict.
  * Only returns true when ALL testcases pass on a real submission — NEVER on sample testcase runs (Run Code / Compile & Run)
- * or while code is actively running/compiling.
+ * or while code is actively running/compiling or on a plain page view.
  */
 export function isAcceptedOnPage(): boolean {
   if (typeof document === 'undefined') return false;
 
+  // 0. Active compilation or test running check (code is currently executing/judging, NOT finished/accepted!)
+  if (isSubmissionExecuting()) {
+    return false;
+  }
+
   const textContent = document.body ? document.body.textContent || '' : '';
   const innerText = document.body ? document.body.innerText || '' : '';
   const body = `${innerText} ${textContent}`;
-
-  // 0. Active compilation or test running check (code is currently executing, NOT finished/accepted!)
-  const isExecuting =
-    /\b(?:compiling|running|evaluating|judging|pending)\.{1,3}\b/i.test(body) ||
-    Boolean(
-      document.querySelector('[class*="spinner" i], [class*="loading" i], [class*="loader" i], [aria-busy="true"]'),
-    );
-  if (isExecuting) {
-    return false;
-  }
 
   // 1. Direct URL check: if on a specific submission page
   if (
@@ -184,16 +188,7 @@ export function isAcceptedOnPage(): boolean {
     return true;
   }
 
-  // 3. Modern LeetCode accepted submission with beats metric (e.g. "Beats 84.5%"):
-  // Sample test runs NEVER show "Beats" or percentile comparisons!
-  const hasBeatsMetric =
-    /\bbeats\b/i.test(body) &&
-    (/\b\d+(\.\d+)?\s*%/i.test(body) || /\b(?:faster\s*than|memory\s*distribution|runtime\s*distribution)\b/i.test(body));
-  if (/\baccepted\b/i.test(body) && hasBeatsMetric) {
-    return true;
-  }
-
-  // 4. All hidden testcases passed in full submission (e.g. "66 / 66 testcases passed", "1046 / 1046 testcases passed")
+  // 3. Full testcases passed: (e.g. "66 / 66 testcases passed", "1112 / 1112 test cases passed")
   const testcasesMatch = body.match(/\b(\d+)\s*\/\s*(\d+)\s*(?:test\s*cases?|testcases)\s+passed\b/i);
   if (testcasesMatch) {
     const passed = Number(testcasesMatch[1]);
@@ -201,25 +196,57 @@ export function isAcceptedOnPage(): boolean {
     if (passed > 0 && passed === total) {
       return true;
     }
-    return false;
   }
 
-  // 5. Submission result elements on page
-  const submissionResult = document.querySelector(
-    '.submission-details, [class*="submission-result" i], [data-e2e-locator*="submission-result" i], [class*="submission-status" i]',
+  // 4. Check submission verdict / result elements (strictly excluding community solutions, editorial, description, code editor)
+  const candidateElements = Array.from(
+    document.querySelectorAll(
+      '[data-e2e-locator*="submission" i], [data-cypress*="submission" i], .submission-details, [class*="submission" i], [class*="result" i], [role="alert"]',
+    ),
   );
-  if (submissionResult) {
-    const resText = (submissionResult.textContent || '').trim();
-    if (/\baccepted\b/i.test(resText) && !/\bwrong\b/i.test(resText)) {
+
+  for (const el of candidateElements) {
+    if (
+      el.closest(
+        '.monaco-editor, .ace_editor, header, nav, [class*="description" i], [class*="editorial" i], [class*="discussion" i], [class*="solutions" i]',
+      )
+    ) {
+      continue;
+    }
+    if (isInsideConsole(el)) continue;
+
+    const elText = (el.textContent || '').trim();
+    if (!elText || elText.length > 500) continue;
+
+    // Must be accepted, not wrong answer or error
+    if (/\b(?:wrong answer|runtime error|time limit|memory limit|compilation error|compile error)\b/i.test(elText)) {
+      continue;
+    }
+
+    // Must not be a submission history row (e.g. "Accepted 2 months ago")
+    if (/\b(?:ago|yesterday|submitted at|\d{4}-\d{2}-\d{2})\b/i.test(elText)) {
+      continue;
+    }
+
+    const hasAcceptedChild = Array.from(el.children).some((c) =>
+      /^\s*accepted(?:\s|$|[✕×✔✓]|[^a-z0-9])/i.test(c.textContent || ''),
+    );
+
+    if (
+      (/\baccepted\b/i.test(elText) || /^accepted/i.test(elText) || hasAcceptedChild) &&
+      !/^accepted\s*[:\s]*[\d.]+[km]/i.test(elText) &&
+      !/\b(?:acceptance|submissions:)\b/i.test(elText)
+    ) {
       return true;
     }
   }
 
-  // 6. Active "Accepted" tab with close button in a tablist (LeetCode submission tab: "Accepted ✕")
+  // 5. Active "Accepted" tab with close button in a tablist (LeetCode submission tab: "Accepted ✕")
   const tabs = Array.from(document.querySelectorAll('[role="tab"], [role="tablist"] [role="tab"]'));
   for (const tab of tabs) {
     if (isInsideConsole(tab)) continue;
-    if (tab.closest('.monaco-editor, .view-lines, header, nav, [class*="description" i]')) continue;
+    if (tab.closest('.monaco-editor, .view-lines, header, nav, [class*="description" i], [class*="editorial" i]'))
+      continue;
     const text = (tab.textContent || '').trim();
     const hasCloseBtn = /[✕×✖]/.test(text) || Boolean(tab.querySelector('svg, button, [aria-label*="close" i]'));
     if (/^accepted/i.test(text) && hasCloseBtn && !/\d{2,}/.test(text)) {
@@ -227,7 +254,7 @@ export function isAcceptedOnPage(): boolean {
     }
   }
 
-  // 7. Both Analysis AND Solution buttons together (LeetCode submission details header)
+  // 6. Both Analysis AND Solution buttons together (LeetCode submission details header)
   const actionButtons = Array.from(document.querySelectorAll('button, [role="button"]'));
   let hasAnalysis = false;
   let hasSolution = false;
@@ -250,32 +277,6 @@ export function isAcceptedOnPage(): boolean {
   }
   if (hasAnalysis && hasSolution) {
     return true;
-  }
-
-  // 8. Explicit submission result panel or alert outside the console (never matching sample test runners)
-  const panels = Array.from(
-    document.querySelectorAll(
-      '[role="alert"], [class*="submission-result" i], [data-e2e-locator*="submission-result" i]',
-    ),
-  );
-  for (const panel of panels) {
-    if (isInsideConsole(panel)) continue;
-    if (panel.closest('.monaco-editor, .view-lines, header, nav, [class*="description" i]')) continue;
-    const text = (panel.textContent || '').trim();
-    const hasAcceptedChild = Array.from(panel.children).some((c) =>
-      /^\s*accepted(?:\s|$|[✕×✔✓])/i.test(c.textContent || ''),
-    );
-    if (
-      (/^\s*accepted(?:\s|$|[✕×✔✓]|[^a-z0-9])/i.test(text) || hasAcceptedChild) &&
-      !/^accepted\s*[\d.]+[km]/i.test(text)
-    ) {
-      return true;
-    }
-  }
-
-  // 9. Guard against initial problem state: "You must run your code first"
-  if (/\byou must run your code first\b/i.test(body)) {
-    return false;
   }
 
   return false;

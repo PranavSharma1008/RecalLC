@@ -1,7 +1,6 @@
 import { createRoot, type Root } from 'react-dom/client';
 
 import { InlineRocketButton, triggerFlyingRocketAnimation } from './InlineRocketButton';
-import { isAcceptedOnPage } from './reminder';
 
 const INLINE_HOST_ID = 'recalllc-inline-rocket';
 
@@ -511,17 +510,14 @@ export function startInlineRocketObserver(
       return;
     }
 
-    const accepted = getAccepted ? getAccepted() : isAcceptedOnPage();
+    const accepted = getAccepted ? getAccepted() : false;
     const alreadyAdded = isAlreadyAdded ? isAlreadyAdded() : false;
 
-    if (accepted) {
-      // When all testcases pass on a submission: launch rocket from ground to top through animation, then turn to Added!
-      updateInlineRocket(slug, true, true, true, onPushed);
-    } else if (alreadyAdded) {
-      // If already added/submitted in this session, maintain Added state permanently — NEVER remove automatically!
+    if (alreadyAdded || accepted) {
+      // Maintain Added state permanently in this session — NEVER launch animation on observer ticks!
       updateInlineRocket(slug, true, true, false, onPushed);
     } else {
-      // Problem page open before submission: render clean ready rocket button (NOT added)
+      // Problem page open before submission: render clean ready rocket button (NOT added, NO animation!)
       updateInlineRocket(slug, false, false, false, onPushed);
     }
   };

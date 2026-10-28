@@ -21,11 +21,11 @@ import { triggerFlyingRocketAnimation } from './InlineRocketButton';
 import { ReminderRoot } from './ReminderRoot';
 import { removeInlineRocket, resetLaunchState, startInlineRocketObserver, updateInlineRocket } from './inlineInjector';
 import { detectDifficultyFromPage, extractTitleFromPage } from './pushHelper';
-import { currentProblemSlug, isAcceptedOnPage, observeUrlChanges } from './reminder';
+import { currentProblemSlug, observeUrlChanges } from './reminder';
 import { callService } from '../services/messaging';
 import { readSettings } from '../services/storage';
 import { fetchCatalogViaGraphQL, fetchSubmissionHistory, statusToAccepted } from '../services/leetcodeApi';
-import { detectLanguage, SubmissionTracker } from '../services/submissionTracker';
+import { SubmissionTracker } from '../services/submissionTracker';
 import type { ThemePreference } from '../types';
 import '../styles/content.css';
 
@@ -295,36 +295,22 @@ function boot(): void {
     onSlugChange(slug);
   });
 
-  // Periodic safeguard: check for accepted submission state (only when all testcases pass)
+  // Ensure island container stays attached
   setInterval(() => {
     const slug = currentProblemSlug();
     if (slug) {
-      const accepted = isAcceptedOnPage();
-      if (accepted && !hasSuccessfulSubmit) {
-        hasSuccessfulSubmit = true;
-        triggerFlyingRocketAnimation();
-        renderReminder(slug);
-        void handleAttempt({
-          accepted: true,
-          language: detectLanguage(),
-          verdict: 'Accepted',
-          at: Date.now(),
-        });
-        // When all testcases pass on a submission: launch rocket from ground to top through animation, then turn to Added!
-        updateInlineRocket(slug, true, true, true);
-      }
       const el = document.getElementById(HOST_ID);
       if (!el || !el.isConnected) {
         ensureHost();
         renderReminder(slug);
       }
     }
-  }, 500);
+  }, 1000);
 
-  // Start watching for submission result rows to inject inline rocket when all cases pass
+  // Start watching for submission result rows to inject inline rocket
   startInlineRocketObserver(
     () => currentProblemSlug(),
-    () => isAcceptedOnPage(),
+    () => false, // Never auto-launch animation on page open or observer ticks
     () => hasSuccessfulSubmit,
     () => {
       hasSuccessfulSubmit = true;
