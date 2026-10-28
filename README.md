@@ -10,25 +10,12 @@
 [![Razorpay](https://img.shields.io/badge/Donate-Razorpay-0c2340?logo=razorpay&logoColor=white)](https://razorpay.me/@recallc)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-RecallLC is a Chrome extension (Manifest V3) that helps you revise the LeetCode
+RecallLC is a Chrome extension (Manifest V3) that helps you revise the LeetCode and GeeksforGeeks
 problems you have already solved — at the exact moment you open a new one.
 
-Open _Number of Islands_ and RecallLC notices that _Climbing Stairs_ was
-attempted three days ago and is due for revision. A small card appears in the
-bottom-right corner:
+Open _Number of Islands_ and RecallLC notices that _Climbing Stairs_ was attempted three days ago and is due for revision. A small, non-intrusive reminder card appears in the bottom-right corner offering **Revise Now**, **Remind Tomorrow**, and **Dismiss**.
 
-```
-┌────────────────────────────────────┐
-│ ↻  TIME TO REVISE!   2 days late  │
-├────────────────────────────────────┤
-│ Climbing Stairs                    │
-│ [Medium] [Dynamic Programming]     │
-│ Last attempted: 3 days ago · 2 attempts │
-│ [ Revise Now ] [ Remind Tomorrow ] [ Dismiss ] │
-└────────────────────────────────────┘
-```
-
-Everything runs **locally**. No account, no server, no telemetry.
+Everything runs **locally** on your device. No account, no external server, and zero telemetry.
 
 ---
 
@@ -38,9 +25,8 @@ Everything runs **locally**. No account, no server, no telemetry.
 - [Install from Chrome Web Store](#install-from-chrome-web-store)
 - [Features](#features)
 - [Manual Rocket Push Flow (LeetCode & GeeksforGeeks)](#manual-rocket-push-flow-leetcode--geeksforgeeks)
-- [Loading the Extension Locally on Your Monitor](#loading-the-extension-locally-on-your-monitor)
-- [Packaging & Sole Distributable final.zip](#packaging--sole-distributable-finalzip)
-- [Build it yourself](#build-it-yourself)
+- [Loading the Extension Locally & Building](#loading-the-extension-locally--building)
+- [Packaging final.zip](#packaging-finalzip)
 - [Complete Backup, Transfer & Importing](#complete-backup-transfer--importing)
 - [How the revision schedule works](#how-the-revision-schedule-works)
 - [The recall-first workflow](#the-recall-first-workflow)
@@ -67,8 +53,6 @@ RecalLC is 100% free, private, and open-source. Two official payment and sponsor
 
 - **GitHub Sponsors Dashboard**: Manage or review sponsorships at `https://github.com/sponsors/PranavSharma1008/dashboard`.
 - **Developer**: Pranav Sharma ([pranav2410991479@gmail.com](mailto:pranav2410991479@gmail.com)) • [LinkedIn](https://www.linkedin.com/in/pranavsharma1008/).
-
----
 
 ---
 
@@ -109,7 +93,7 @@ Direct store link:
 
 To prevent unwanted sample testcase submissions or half-finished code from accidentally cluttering your revision schedule, RecallLC puts you in total control with a **100% manual rocket push button**:
 
-1. **2-Second In-Page Prompt**:
+1. **In-Page Banner Prompt**:
    - Whenever you navigate to any problem page on [LeetCode](https://leetcode.com/problems/) or [GeeksforGeeks](https://practice.geeksforgeeks.org/), a clean floating banner appears for 5-6 seconds:
      > `🚀 Click rocket to push question to RecallLC`
    - It automatically fades away without disrupting your coding or layout.
@@ -128,110 +112,59 @@ To prevent unwanted sample testcase submissions or half-finished code from accid
 
 ---
 
-## Loading the Extension Locally on Your Monitor
+## Loading the Extension Locally & Building
 
-You can load and run RecalLC directly on your local monitor in any Chromium-based browser (Google Chrome, Microsoft Edge, Brave, Arc, Opera, Vivaldi) without relying on the web store.
+You can load and run RecalLC directly in any Chromium-based browser (Google Chrome, Microsoft Edge, Brave, Arc, Opera, Vivaldi).
 
 ### Method 1: Instant Load via `final.zip` (No Node.js Required)
 
 1. **Extract `final.zip`**: Unzip `final.zip` into a local directory on your machine.
-2. **Open Extensions Page**: In your browser address bar, navigate to:
-   - Chrome: `chrome://extensions`
-   - Edge: `edge://extensions`
-   - Brave: `brave://extensions`
-3. **Turn on Developer Mode**: Toggle the **"Developer mode"** switch located at the top-right corner of the window.
-4. **Load Unpacked**: Click the **"Load unpacked"** button in the top-left toolbar.
-5. **Select Folder**: Choose the folder where you extracted `final.zip` (it contains `manifest.json` right at its root).
-6. **Pin to Toolbar**: Click the extensions puzzle icon (🧩) on your browser toolbar and pin 📌 **RecalLC**.
+2. **Open Extensions Page**: In your browser address bar, navigate to `chrome://extensions` (or `edge://extensions` / `brave://extensions`).
+3. **Turn on Developer Mode**: Toggle the **"Developer mode"** switch located at the top-right corner.
+4. **Load Unpacked**: Click the **"Load unpacked"** button and select the extracted folder (contains `manifest.json` right at its root).
+5. **Pin to Toolbar**: Click the extensions puzzle icon (🧩) on your browser toolbar and pin 📌 **RecalLC**.
+
+### Method 2: Build From Source & Develop
+
+**Requirements:** Node.js 20.19+ and Chrome 116+.
+
+```bash
+npm install        # install dependencies
+npm run build      # type-check + production build into dist/
+npm run dev        # development server with hot module replacement (HMR)
+```
+
+- In `chrome://extensions` with **Developer mode** enabled, click **"Load unpacked"** and select the `dist/` directory.
+
+### NPM Scripts Reference
+
+| Script                   | What it does                                                                                 |
+| ------------------------ | -------------------------------------------------------------------------------------------- |
+| `npm run dev`            | Vite dev server with CRXJS HMR (content scripts reload too).                                 |
+| `npm run build`          | Strict typecheck (`tsc --noEmit`) + production build into `dist/`.                           |
+| `npm test`               | Vitest test suite (343 unit, integration & penetration tests across 33 test suites).         |
+| `npm run test:watch`     | Vitest in interactive watch mode.                                                            |
+| `npm run typecheck`      | Strict TypeScript check (`tsc --noEmit`).                                                    |
+| `npm run verify`         | Real-Chrome E2E verification of manifest, SW restart, IndexedDB, and UI pages via CDP.       |
+| `npm run verify:content` | Real-Chrome E2E verification of in-page banner, rocket button, and reminder island.          |
+| `npm run package`        | Builds production extension and creates sole distributable `final.zip`.                      |
+| `npm run format`         | Formats codebase using Prettier.                                                             |
+
+**Stack:** React 19 · TypeScript 5.9 (strict) · Tailwind CSS 4 · Vite 8 + `@crxjs/vite-plugin` 3 · Dexie 4 (IndexedDB) · Vitest 5.
 
 ---
 
-### Method 2: Build From Source with Live Monitor & HMR
+## Packaging final.zip
 
-1. **Install dependencies and build**:
-   ```bash
-   npm install
-   npm run build
-   ```
-2. **Load the extension**:
-   - Go to `chrome://extensions` and enable **Developer mode**.
-   - Click **"Load unpacked"** and select the `dist/` directory (or the project root).
-3. **Live HMR Development Mode**:
-   - Run `npm run dev` to start Vite with CRXJS hot-module-replacement.
-   - Edit any component or script in `src/` — changes immediately reload in your browser!
-
----
-
-### How to Inspect & Monitor RecalLC via DevTools on Your Monitor
-
-When running locally, you can monitor and debug every context of the extension in real time using Chrome DevTools:
-
-1. **Inspect Background Service Worker**:
-   - Go to `chrome://extensions`.
-   - Find the **RecalLC** card and click the blue link: `service worker` (or `Inspect views: background page`).
-   - A dedicated DevTools window opens to view service worker logs, indexedDB queries, and lifecycle events.
-2. **Inspect the Extension Popup**:
-   - Right-click the RecalLC icon in your browser toolbar and select **"Inspect popup"**.
-   - DevTools opens docked to the popup, allowing you to debug UI states, local storage, and styles.
-3. **Inspect the Full Dashboard**:
-   - Open the Dashboard (`chrome-extension://<id>/src/dashboard/index.html` or click Dashboard in popup).
-   - Right-click anywhere and select **Inspect** (`Cmd+Option+I` on Mac, `Ctrl+Shift+I` on Windows/Linux).
-   - Under the **Application** tab → **Storage** → **IndexedDB**, view the `recallc_db` database containing your problems, attempts, and revisions.
-4. **Inspect In-Page Content Scripts on LeetCode / GeeksforGeeks**:
-   - Navigate to any problem on `leetcode.com/problems/<slug>/` or `geeksforgeeks.org/problems/<slug>/`.
-   - Open DevTools (`F12`), switch to the **Console** tab, and filter by `[RecallLC]` to monitor in-page verdict detection, submission captures, and floating reminder cards.
-5. **Reloading after edits**:
-   - Whenever you re-run `npm run build`, simply click the circular **⟳ (Reload)** icon on the RecalLC card in `chrome://extensions`.
-
----
-
-## Packaging & Sole Distributable final.zip
-
-The project distributes code strictly via a single, self-contained zip file: `final.zip`.
+The project packages the extension into `final.zip` for direct Chrome Web Store distribution:
 
 ```bash
 npm run package
 ```
 
-**Packaging guarantees**:
-
-- **Sole Distributable Archive**: Before and after packaging, the script actively purges any temporary or secondary `.zip` files (such as `final(1).zip` or competing archives) to guarantee `final.zip` is the sole distributable file.
-- **Dual Entrypoint Structure**: `final.zip` overlays compiled production assets (`manifest.json`, `service-worker-loader.js`, and compiled bundles) directly at the root level for instant **"Load unpacked"** loading, while also preserving the complete source code and `dist/` directory.
-- **Exclusion of Junk**: Automatically excludes `node_modules`, `.git`, `.DS_Store`, build caches, and test artifacts.
-
----
-
-## Build it yourself
-
-**Requirements:** Node.js 20.19+ (developed on Node 24) and Chrome 116+.
-
-```bash
-npm install        # install dependencies
-npm run dev        # development server with hot reload (chrome-extension://…/src/popup/index.html)
-npm run build      # type-check + production build into dist/
-npm test           # run the unit tests
-npm run typecheck  # TypeScript only
-npm run preview    # preview the production build
-```
-
-| Script                   | What it does                                                                                 |
-| ------------------------ | -------------------------------------------------------------------------------------------- |
-| `npm run dev`            | Vite dev server with CRXJS HMR (content scripts reload too).                                 |
-| `npm run build`          | `tsc --noEmit` then `vite build` → `dist/`.                                                  |
-| `npm run server`         | Starts the local backend server (port 3000) for Razorpay checkout & landing page.            |
-| `npm test`               | Vitest, single run (307 unit, integration & penetration tests across 32 test suites).        |
-| `npm run test:watch`     | Vitest in watch mode.                                                                        |
-| `npm run typecheck`      | Strict TypeScript check (`tsc --noEmit`).                                                    |
-| `npm run verify`         | Real-Chrome E2E verification of manifest, SW restart, IndexedDB, and UI pages via CDP.       |
-| `npm run verify:content` | Real-Chrome E2E verification of the in-page reminder island and verdict submission tracking. |
-| `npm run package`        | Builds production extension and creates distributable `final.zip`.                           |
-| `npm run screenshot`     | Captures popup and dashboard screenshots via headless Chrome.                                |
-| `npm run format`         | Formats codebase using Prettier.                                                             |
-| `npm run format:check`   | Verifies code formatting against Prettier rules.                                             |
-| `npm run icons`          | Regenerates the PNG icons from `scripts/generate-icons.mjs`.                                 |
-
-**Stack:** React 19 · TypeScript 5.9 (strict) · Tailwind CSS 4 · Vite 8 +
-`@crxjs/vite-plugin` 3 · Dexie 4 (IndexedDB) · Vitest 5.
+- **Sole Distributable Archive**: Cleans any competing archives and guarantees `final.zip` is ready for Chrome Web Store upload.
+- **Root Manifest Entrypoint**: `final.zip` contains `manifest.json` directly at its root for instant **"Load unpacked"** loading and developer dashboard submission.
+- **Exclusion of Junk**: Excludes `node_modules`, `.git`, `.DS_Store`, and temporary caches.
 
 ---
 
@@ -599,7 +532,7 @@ npm run verify
 npm run verify:content
 ```
 
-317 unit, integration, and penetration tests across 33 test suites plus full Chrome E2E automation suites, covering:
+343 unit, integration, and penetration tests across 33 test suites plus full Chrome E2E automation suites, covering:
 
 - **Packaging & Monitor Load Verification** — verifies strict creation of sole distributable `final.zip`, exclusion of duplicate archives, and presence of unpacked entry points for direct monitor loading.
 - **Payment & Sponsorship Verification** — verifies Option 1 (Razorpay for India) and Option 2 (GitHub Sponsors for Outside India) external URL safety, protocol validation, and tab-nabbing defenses.

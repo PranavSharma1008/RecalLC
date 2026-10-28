@@ -261,14 +261,6 @@ export function ProblemsScreen({ navigate, onChanged, dataVersion }: ProblemsScr
                 <option value="title">Title</option>
                 <option value="topic">Topic</option>
               </select>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setDirection((value) => (value === 'asc' ? 'desc' : 'asc'))}
-                aria-label={`Sort ${direction === 'asc' ? 'descending' : 'ascending'}`}
-              >
-                {direction === 'desc' ? '🔽 Desc' : '🔼 Asc'}
-              </Button>
             </div>
             {(search || topic || difficulty || attemptedWithin !== 'all') && (
               <Button

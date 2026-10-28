@@ -124,30 +124,6 @@ export function Dashboard() {
     return value + overdue;
   }, [stats.data]);
 
-  const isOnboarding = route.path === 'onboarding' || route.path === '/onboarding';
-
-  if (settings === null) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-bg text-fg">
-        <Spinner label="Loading RecallLC…" />
-      </div>
-    );
-  }
-
-  // Master Lock Screen guard — prevents unauthorized access to all LeetCode data
-  if (settings.securityAuthEnabled && isLocked) {
-    return (
-      <LockScreen
-        passcodeHash={settings.securityPasscodeHash}
-        passcodeSalt={settings.securityPasscodeSalt}
-        onUnlock={() => {
-          setIsLocked(false);
-          refreshStats();
-        }}
-      />
-    );
-  }
-
   const [dataVersion, setDataVersion] = useState(Date.now());
 
   const refreshStats = useCallback((): void => {
@@ -200,6 +176,30 @@ export function Dashboard() {
     };
   }, [refreshStats, isLocked]);
 
+  const isOnboarding = route.path === 'onboarding' || route.path === '/onboarding';
+
+  if (settings === null) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-bg text-fg">
+        <Spinner label="Loading RecallLC…" />
+      </div>
+    );
+  }
+
+  // Master Lock Screen guard — prevents unauthorized access to all LeetCode data
+  if (settings.securityAuthEnabled && isLocked) {
+    return (
+      <LockScreen
+        passcodeHash={settings.securityPasscodeHash}
+        passcodeSalt={settings.securityPasscodeSalt}
+        onUnlock={() => {
+          setIsLocked(false);
+          refreshStats();
+        }}
+      />
+    );
+  }
+
   const screen = renderScreen(route.segments, navigate, refreshStats, dataVersion);
 
   return (
@@ -209,16 +209,16 @@ export function Dashboard() {
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="flex items-center gap-2.5 text-left group cursor-pointer"
+            className="flex items-center gap-2.5 text-left group cursor-pointer shrink-0"
           >
             <img
               src="/icons/icon48.png"
               alt="RecalLC Logo"
               className="h-7 w-7 rounded-lg object-contain drop-shadow-sm transition-transform group-hover:scale-105"
             />
-            <span>
+            <span className="shrink-0">
               <span className="block text-sm font-semibold tracking-tight">RecalLC</span>
-              <span className="hidden text-[11px] text-subtle sm:block">Solve it. Remember it. Master it.</span>
+              <span className="hidden text-[11px] text-subtle sm:block whitespace-nowrap">Solve it. Remember it. Master it.</span>
             </span>
           </button>
 

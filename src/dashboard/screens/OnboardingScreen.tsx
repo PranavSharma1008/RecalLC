@@ -40,7 +40,7 @@ export function OnboardingScreen({ navigate, onDone }: OnboardingScreenProps) {
         <img src="/icons/icon48.png" alt="RecallLC Logo" className="h-8 w-8 rounded-lg object-contain drop-shadow-sm" />
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Welcome to RecallLC</h1>
-          <p className="text-[11px] text-subtle">Solve it. Remember it. Master it.</p>
+          <p className="text-[11px] text-subtle whitespace-nowrap">Solve it. Remember it. Master it.</p>
         </div>
       </div>
 

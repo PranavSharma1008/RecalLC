@@ -119,13 +119,13 @@ export function App() {
 
   return (
     <div className="flex h-full min-h-[520px] w-[380px] flex-col bg-bg text-fg">
-      <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
+      <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <img src="/icons/icon32.png" alt="RecallLC Logo" className="h-6 w-6 rounded-md object-contain" />
             <h1 className="text-sm font-semibold tracking-tight">RecallLC</h1>
           </div>
-          <p className="mt-1 text-[11px] text-subtle">Solve it. Remember it. Master it.</p>
+          <p className="mt-0.5 text-[11px] text-subtle whitespace-nowrap">Solve it. Remember it. Master it.</p>
         </div>
         <button
           type="button"
