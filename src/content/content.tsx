@@ -273,6 +273,56 @@ async function maybeSyncAccountHistory(): Promise<void> {
 
 /* ----------------------------------------------------------------- startup */
 
+let toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+function showProblemOpenToast(): void {
+  if (typeof document === 'undefined') return;
+  const existing = document.getElementById('rlc-problem-open-toast');
+  if (existing) existing.remove();
+  if (toastTimer) clearTimeout(toastTimer);
+
+  const toast = document.createElement('div');
+  toast.id = 'rlc-problem-open-toast';
+  toast.style.cssText = `
+    position: fixed !important;
+    top: 24px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    background: rgba(18, 14, 30, 0.96) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+    border: 1.5px solid rgba(168, 85, 247, 0.85) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 16px rgba(168, 85, 247, 0.4) !important;
+    border-radius: 9999px !important;
+    padding: 8px 18px !important;
+    color: #ffffff !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    z-index: 2147483647 !important;
+    pointer-events: none !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    opacity: 1 !important;
+    transition: opacity 0.3s ease, transform 0.3s ease !important;
+    letter-spacing: -0.01em !important;
+  `;
+  toast.innerHTML = `
+    <span style="font-size:16px;line-height:1;">🚀</span>
+    <span>Click rocket to push question to RecallLC</span>
+  `;
+  (document.body ?? document.documentElement).appendChild(toast);
+
+  toastTimer = setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(-50%) translateY(-10px)';
+    setTimeout(() => {
+      if (toast.isConnected) toast.remove();
+    }, 350);
+  }, 2000);
+}
+
 function onSlugChange(slug: string | null): void {
   if (!isExtensionContextValid()) return;
 
@@ -293,6 +343,9 @@ function onSlugChange(slug: string | null): void {
     stopTracker();
     return;
   }
+
+  // Show 2-second in-page prompt to remind user they can push with the rocket
+  showProblemOpenToast();
 
   // Opening a problem is *not* an attempt — it only refreshes metadata.
   void callService('mark-viewed', { slug, url: window.location.href }).catch(() => undefined);
@@ -315,6 +368,7 @@ function boot(): void {
   removeInlineRocket();
 
   if (currentSlug) {
+    showProblemOpenToast();
     void callService('mark-viewed', { slug: currentSlug, url: window.location.href }).catch(() => undefined);
     startTracker();
   }
