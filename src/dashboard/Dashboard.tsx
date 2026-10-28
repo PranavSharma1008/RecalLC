@@ -238,10 +238,10 @@ export function Dashboard() {
               onClick={() => void update({ theme: resolved === 'dark' ? 'light' : 'dark' })}
               aria-label={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} theme`}
               title={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} theme`}
-              className="ml-2 inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-semibold text-fg shadow-sm transition-all hover:border-accent hover:bg-surface-3 hover:text-accent cursor-pointer"
+              className="ml-2 inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface-2 px-3 py-1.5 text-xs font-semibold text-fg shadow-sm transition-all hover:border-accent hover:bg-surface-3 hover:text-accent cursor-pointer"
             >
               <span className="text-sm">{resolved === 'dark' ? '☀' : '☾'}</span>
-              <span className="hidden sm:inline">{resolved === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+              <span>{resolved === 'dark' ? 'Light mode' : 'Dark mode'}</span>
             </button>
 
             {settings.securityAuthEnabled ? (
@@ -255,29 +255,6 @@ export function Dashboard() {
                 <span className="hidden sm:inline">Lock</span>
               </button>
             ) : null}
-
-            <button
-              type="button"
-              onClick={() => setShowGuideModal(true)}
-              title="Open Manual & Guide"
-              className="ml-1 inline-flex items-center gap-1.5 rounded-lg border border-purple-500/40 bg-purple-500/15 px-2.5 py-1.5 text-xs font-semibold text-purple-300 shadow-sm transition-all hover:border-purple-400 hover:bg-purple-500/25 hover:text-white cursor-pointer"
-            >
-              <span>📖</span>
-              <span className="hidden sm:inline">Manual</span>
-            </button>
-
-            <a
-              href="https://youtu.be/K-BiR7K2tPo"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Watch RecallLC Video Guide on YouTube"
-              className="ml-1 inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 bg-red-500/15 px-2.5 py-1.5 text-xs font-semibold text-red-300 shadow-sm transition-all hover:border-red-400 hover:bg-red-500/25 hover:text-white cursor-pointer"
-            >
-              <svg className="w-3.5 h-3.5 fill-current text-red-400 shrink-0" viewBox="0 0 24 24">
-                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-              </svg>
-              <span className="hidden sm:inline">YouTube</span>
-            </a>
           </nav>
         </div>
       </header>
