@@ -1,5 +1,6 @@
 import { createRoot, type Root } from 'react-dom/client';
 
+import { isExtensionContextValid } from '../services/messaging';
 import { InlineRocketButton, triggerFlyingRocketAnimation } from './InlineRocketButton';
 
 const INLINE_HOST_ID = 'recalllc-inline-rocket';
@@ -420,7 +421,8 @@ export function updateInlineRocket(
   }
 
   // Determine if this is the first launch for this submission
-  const shouldLaunch = autoLaunch && (!hasLaunchedForCurrentSubmission || lastLaunchedSlug !== slug);
+  // Only launch animation if it's a real full submission acceptance
+  const shouldLaunch = autoLaunch && isAccepted && (!hasLaunchedForCurrentSubmission || lastLaunchedSlug !== slug);
   if (shouldLaunch) {
     hasLaunchedForCurrentSubmission = true;
     lastLaunchedSlug = slug;
@@ -499,25 +501,31 @@ export function removeInlineRocket(): void {
 
 export function startInlineRocketObserver(
   getSlug: () => string | null,
-  getAccepted?: () => boolean,
   isAlreadyAdded?: () => boolean,
   onPushed?: () => void,
 ): () => void {
   const check = () => {
+    if (!isExtensionContextValid()) {
+      observer?.disconnect();
+      observer = null;
+      clearInterval(timer);
+      removeInlineRocket();
+      return;
+    }
+
     const slug = getSlug();
     if (!slug) {
       removeInlineRocket();
       return;
     }
 
-    const accepted = getAccepted ? getAccepted() : false;
     const alreadyAdded = isAlreadyAdded ? isAlreadyAdded() : false;
 
-    if (alreadyAdded || accepted) {
-      // Maintain Added state permanently in this session — NEVER launch animation on observer ticks!
+    if (alreadyAdded) {
+      // Maintain Added state if user clicked and pushed in this session
       updateInlineRocket(slug, true, true, false, onPushed);
     } else {
-      // Problem page open before submission: render clean ready rocket button (NOT added, NO animation!)
+      // Problem page open: render clean, manual rocket button (NOT added, NO animation, ready to click!)
       updateInlineRocket(slug, false, false, false, onPushed);
     }
   };

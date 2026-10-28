@@ -144,12 +144,63 @@ export interface CallOptions {
   bypassCache?: boolean;
 }
 
+let isKnownInvalidated = false;
+
+export function resetExtensionContextValidityForTest(): void {
+  isKnownInvalidated = false;
+  contextInvalidatedNotified = false;
+}
+
+export function isExtensionContextValid(): boolean {
+  if (isKnownInvalidated) return false;
+  try {
+    const valid = Boolean(typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id);
+    if (!valid) isKnownInvalidated = true;
+    return valid;
+  } catch {
+    isKnownInvalidated = true;
+    return false;
+  }
+}
+
+let contextInvalidatedNotified = false;
+
+export function notifyContextInvalidated(): void {
+  isKnownInvalidated = true;
+  if (contextInvalidatedNotified) return;
+  contextInvalidatedNotified = true;
+
+  if (typeof document === 'undefined' || !document.body) return;
+  const existing = document.getElementById('recalllc-reload-banner');
+  if (existing) return;
+
+  const banner = document.createElement('div');
+  banner.id = 'recalllc-reload-banner';
+  banner.style.cssText =
+    'position:fixed;top:16px;right:20px;z-index:2147483647;background:rgba(24,20,36,0.96);' +
+    'backdrop-filter:blur(10px);border:1px solid rgba(168,85,247,0.6);border-radius:8px;' +
+    'padding:10px 16px;color:#fff;font-family:system-ui,-apple-system,sans-serif;font-size:13px;' +
+    'display:flex;align-items:center;gap:12px;box-shadow:0 8px 32px rgba(0,0,0,0.4);';
+  banner.innerHTML = `
+    <span>🚀 RecallLC was reloaded. Please <strong>refresh this tab</strong> to reconnect.</span>
+    <button style="background:rgba(168,85,247,0.3);border:1px solid rgba(168,85,247,0.8);color:#fff;border-radius:4px;padding:4px 10px;cursor:pointer;font-weight:600;font-size:12px;">Refresh</button>
+  `;
+  const btn = banner.querySelector('button');
+  if (btn) btn.onclick = () => window.location.reload();
+  document.body.appendChild(banner);
+}
+
 /** Call a service method on the background worker with ultra-fast caching and coalescing. */
 export async function callService<K extends ServiceMethod>(
   method: K,
   payload?: ServiceMap[K]['payload'],
   options?: CallOptions,
 ): Promise<ServiceMap[K]['response']> {
+  if (!isExtensionContextValid()) {
+    notifyContextInvalidated();
+    throw new Error('Extension context invalidated.');
+  }
+
   const isCachable = CACHABLE_READ_METHODS.has(method);
   const cacheKey = `${method}:${payload ? JSON.stringify(payload) : ''}`;
 
@@ -175,8 +226,21 @@ export async function callService<K extends ServiceMethod>(
 
   const execute = async (): Promise<ServiceMap[K]['response']> => {
     try {
-      const response = (await chrome.runtime.sendMessage(envelope)) as
-        ServiceEnvelope | ServiceErrorEnvelope | undefined;
+      if (!isExtensionContextValid()) {
+        notifyContextInvalidated();
+        throw new Error('Extension context invalidated.');
+      }
+
+      let response: ServiceEnvelope | ServiceErrorEnvelope | undefined;
+      try {
+        response = (await chrome.runtime.sendMessage(envelope)) as
+          ServiceEnvelope | ServiceErrorEnvelope | undefined;
+      } catch (err: unknown) {
+        if (err instanceof Error && err.message.includes('Extension context invalidated')) {
+          notifyContextInvalidated();
+        }
+        throw err;
+      }
 
       if (!response) {
         throw new Error('The RecallLC background worker did not respond.');

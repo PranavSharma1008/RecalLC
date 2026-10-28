@@ -84,6 +84,11 @@ export function isInsideConsole(el: Element | null): boolean {
     return false;
   }
 
+  const elText = (el.textContent || '').trim();
+  if (/\b(?:testcases?\s+passed|beats\s+[\d.]+%)\b/i.test(elText)) {
+    return false;
+  }
+
   // 1. Selector match on self or ancestors (covers LeetCode and GeeksforGeeks console/compiler/runner)
   if (
     el.closest(
@@ -95,11 +100,11 @@ export function isInsideConsole(el: Element | null): boolean {
   // 2. DOM tree ancestor check: walk up to closest pane container (not the entire document)
   let parent = el.parentElement;
   let depth = 0;
-  while (parent && parent !== document.body && parent !== document.documentElement && depth < 6) {
+  while (parent && parent !== document.body && parent !== document.documentElement && depth < 20) {
     depth++;
     const txt = parent.textContent || '';
     if (
-      /\b(?:Case\s*[123]|Custom\s*Testcase|Run\s*Code|Expected\s*Result|Compilation\s*Completed|Compilation\s*Results|Compile\s*&\s*Run|Sample\s*Test\s*Cases?|Your\s*Output|Expected\s*Output)\b/i.test(
+      /\b(?:Case\s*[1234]|Custom\s*Testcase|Run\s*Code|Expected\s*Result|Compilation\s*Completed|Compilation\s*Results|Compile\s*&\s*Run|Sample\s*Test\s*Cases?|Your\s*Output|Expected\s*Output|Test\s*Result)\b/i.test(
         txt,
       ) &&
       !/\bproblem solved successfully\b/i.test(txt) &&
@@ -107,6 +112,7 @@ export function isInsideConsole(el: Element | null): boolean {
       !/analysis/i.test(txt) &&
       !/all\s*submissions/i.test(txt) &&
       !/\bbeats\b/i.test(txt) &&
+      !/\btest\s*cases?\s+passed\b/i.test(txt) &&
       !/\bsubmission\b/i.test(txt)
     ) {
       return true;
@@ -138,22 +144,37 @@ export function isProblemSolvedBadgeOnPage(): boolean {
  */
 export function isSubmissionExecuting(): boolean {
   if (typeof document === 'undefined') return false;
-  const text = ((document.body?.innerText || '') + ' ' + (document.body?.textContent || '')).slice(0, 100000);
-  if (/\b(?:compiling|running|evaluating|judging|pending)\b/i.test(text)) {
-    return true;
-  }
-  const submitBtn = document.querySelector(
-    '[data-e2e-locator="console-submit-button"], [data-cypress="submit-code-btn"], [data-cy="submit-code-btn"]',
-  );
-  if (submitBtn && (submitBtn.hasAttribute('disabled') || submitBtn.getAttribute('aria-disabled') === 'true')) {
-    return true;
-  }
+
+  // 1. Active spinner inside submission or execution container
   const activeSpinner = document.querySelector(
-    '[data-e2e-locator*="submission" i] [class*="spin" i], [data-e2e-locator*="console" i] [class*="spin" i], [class*="submission" i] [class*="load" i], [class*="submission" i] svg.animate-spin, button[disabled] [class*="spin" i], [aria-busy="true"]',
+    '[data-e2e-locator*="submission" i] [class*="spin" i], ' +
+      '[data-e2e-locator*="console" i] [class*="spin" i], ' +
+      '[class*="submission" i] [class*="load" i], ' +
+      '[class*="submission" i] svg.animate-spin, ' +
+      '[class*="result" i] svg.animate-spin, ' +
+      'button[disabled] [class*="spin" i], ' +
+      '[data-e2e-locator*="submission" i][aria-busy="true"], ' +
+      '[data-e2e-locator*="console" i][aria-busy="true"], ' +
+      '[class*="submission" i][aria-busy="true"]',
   );
   if (activeSpinner && !activeSpinner.closest('.monaco-editor, header, nav')) {
     return true;
   }
+
+  // 2. Specific status elements showing active judging/compiling state (never full page search)
+  const statusEls = Array.from(
+    document.querySelectorAll(
+      '[data-e2e-locator*="result" i], [data-e2e-locator*="status" i], [class*="submission-status" i], [class*="result-state" i]',
+    ),
+  );
+  for (const el of statusEls) {
+    if (el.closest('.monaco-editor, header, nav')) continue;
+    const txt = (el.textContent || '').trim().toLowerCase();
+    if (/^(?:judging|pending|evaluating|compiling)\b/.test(txt) && !txt.includes('accepted')) {
+      return true;
+    }
+  }
+
   return false;
 }
 
@@ -174,6 +195,39 @@ export function isAcceptedOnPage(): boolean {
   const innerText = document.body ? document.body.innerText || '' : '';
   const body = `${innerText} ${textContent}`;
 
+  // If the page has sample runner indicators (Case 1, Case 2, Test Result)
+  // It is a sample run ("Run Code") — NEVER accept sample runs!
+  // Only full submissions (Submit button clicked) should count.
+  const hasSampleRunner = Boolean(
+    document.querySelector('.case-tabs, [class*="case-tab" i], [class*="test-result" i], #console, [class*="console"], [class*="ide-console" i]') ||
+      /\b(?:Case\s*[1234]|Test\s*Result|Your\s*Output|Expected\s*Output|Sample\s*Test)\b/i.test(innerText),
+  );
+  const hasFullSubmissionProof = Boolean(
+    /\bbeats\s+[\d.]+%/i.test(body) ||
+      /\b(\d+)\s*\/\s*(\d+)\s*(?:test\s*cases?|testcases)\s+passed\b/i.test(body) ||
+      /\ball\s*submissions\b/i.test(body) ||
+      /problem solved successfully/i.test(body) ||
+      /\bcorrect answer\b/i.test(body) ||
+      (typeof window !== 'undefined' && /\/submissions\/\d+/i.test(window.location.href)) ||
+      document.querySelector('[data-e2e-locator*="submission-result" i], .submission-details, [class*="submission-result" i], [class*="submission-status" i]'),
+  );
+  // If it's clearly in sample runner/console area, it's a Run Code - reject UNLESS it's a full submission page with strong proof
+  if (hasSampleRunner) {
+    // Even if testcases passed text exists, if it's in console/sample area without beats% or submission result panel, it's likely sample run
+    const inConsole = Boolean(document.querySelector('#console, [data-e2e-locator*="console" i], [class*="console" i]'));
+    if (
+      inConsole &&
+      !(/\bbeats\s+[\d.]+%/i.test(body)) &&
+      !(/\b(\d+)\s*\/\s*(\d+)\s*(?:test\s*cases?|testcases)\s+passed\b/i.test(body)) &&
+      !document.querySelector('.submission-details, [data-e2e-locator*="submission-result" i], [class*="submission" i]')
+    ) {
+      return false;
+    }
+    if (!hasFullSubmissionProof) {
+      return false;
+    }
+  }
+
   // 1. Direct URL check: if on a specific submission page
   if (
     typeof window !== 'undefined' &&
@@ -188,7 +242,12 @@ export function isAcceptedOnPage(): boolean {
     return true;
   }
 
-  // 3. Full testcases passed: (e.g. "66 / 66 testcases passed", "1112 / 1112 test cases passed")
+  // 3. Modern LeetCode submission stats: "Beats XX.X%" combined with "Accepted"
+  if (/\bbeats\s+[\d.]+%/i.test(body) && /\baccepted\b/i.test(body)) {
+    return true;
+  }
+
+  // 4. Full testcases passed: (e.g. "26 / 26 testcases passed", "66 / 66 testcases passed", "1112 / 1112 test cases passed")
   const testcasesMatch = body.match(/\b(\d+)\s*\/\s*(\d+)\s*(?:test\s*cases?|testcases)\s+passed\b/i);
   if (testcasesMatch) {
     const passed = Number(testcasesMatch[1]);
@@ -198,10 +257,10 @@ export function isAcceptedOnPage(): boolean {
     }
   }
 
-  // 4. Check submission verdict / result elements (strictly excluding community solutions, editorial, description, code editor)
+  // 5. Check targeted submission verdict / result elements (strictly excluding sample testcase runner, editor, and description)
   const candidateElements = Array.from(
     document.querySelectorAll(
-      '[data-e2e-locator*="submission" i], [data-cypress*="submission" i], .submission-details, [class*="submission" i], [class*="result" i], [role="alert"]',
+      '[data-e2e-locator*="submission-result" i], [data-cypress*="submission-result" i], .submission-details, [class*="submission-status" i], [class*="submission-result" i], [class*="submission-panel" i], [class*="submission_detail" i], [class*="problem-solved" i], [role="alert"]',
     ),
   );
 
@@ -218,13 +277,18 @@ export function isAcceptedOnPage(): boolean {
     const elText = (el.textContent || '').trim();
     if (!elText || elText.length > 500) continue;
 
+    // Never match sample testcases
+    if (/\b(?:Case\s*[1234]|Test\s*Result|Expected\s*Result|Your\s*Output)\b/i.test(elText)) {
+      continue;
+    }
+
     // Must be accepted, not wrong answer or error
     if (/\b(?:wrong answer|runtime error|time limit|memory limit|compilation error|compile error)\b/i.test(elText)) {
       continue;
     }
 
-    // Must not be a submission history row (e.g. "Accepted 2 months ago")
-    if (/\b(?:ago|yesterday|submitted at|\d{4}-\d{2}-\d{2})\b/i.test(elText)) {
+    // Must not be an old submission history row from days/months ago
+    if (/\b(?:\d+\s+(?:days?|months?|years?)\s+ago|yesterday)\b/i.test(elText)) {
       continue;
     }
 
@@ -241,21 +305,21 @@ export function isAcceptedOnPage(): boolean {
     }
   }
 
-  // 5. Active "Accepted" tab with close button in a tablist (LeetCode submission tab: "Accepted ✕")
-  const tabs = Array.from(document.querySelectorAll('[role="tab"], [role="tablist"] [role="tab"]'));
+  // 6. Active "Accepted" tab in tablist (LeetCode submission tab: "Accepted ✕" or "[🕒 Accepted]")
+  const tabs = Array.from(document.querySelectorAll('[role="tab"], [role="tablist"] [role="tab"], [class*="tab" i]'));
   for (const tab of tabs) {
     if (isInsideConsole(tab)) continue;
     if (tab.closest('.monaco-editor, .view-lines, header, nav, [class*="description" i], [class*="editorial" i]'))
       continue;
     const text = (tab.textContent || '').trim();
-    const hasCloseBtn = /[✕×✖]/.test(text) || Boolean(tab.querySelector('svg, button, [aria-label*="close" i]'));
-    if (/^accepted/i.test(text) && hasCloseBtn && !/\d{2,}/.test(text)) {
+    if (/test\s*result|testcase|sample/i.test(text)) continue;
+    if (/\baccepted\b/i.test(text) && !/\d{2,}/.test(text) && !/solutions/i.test(text)) {
       return true;
     }
   }
 
-  // 6. Both Analysis AND Solution buttons together (LeetCode submission details header)
-  const actionButtons = Array.from(document.querySelectorAll('button, [role="button"]'));
+  // 7. Both Analysis AND Solution buttons together (LeetCode submission details header)
+  const actionButtons = Array.from(document.querySelectorAll('button, a, [role="button"]'));
   let hasAnalysis = false;
   let hasSolution = false;
   for (const b of actionButtons) {
@@ -274,6 +338,9 @@ export function isAcceptedOnPage(): boolean {
     if (/^solution$/i.test(txt) || (/solution/i.test(txt) && !/solutions/i.test(txt) && !/approach/i.test(txt))) {
       hasSolution = true;
     }
+  }
+  if (hasAnalysis && hasSolution) {
+    return true;
   }
   if (hasAnalysis && hasSolution) {
     return true;

@@ -8,6 +8,7 @@ import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../hooks/useTheme';
 import { callService } from '../services/messaging';
 import { LockScreen } from '../components/LockScreen';
+import { UserGuideModal } from '../components/UserGuideModal';
 import { isSessionExpired, isSessionUnlocked, setSessionUnlocked, touchSessionActivity } from '../utils/security';
 import { EnquiryScreen } from './screens/EnquiryScreen';
 import { ImportScreen } from './screens/ImportScreen';
@@ -61,6 +62,7 @@ export function Dashboard() {
   const { resolved } = useTheme(settings?.theme);
   const [dueCount, setDueCount] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
+  const [showGuideModal, setShowGuideModal] = useState(false);
 
   const stats = useAsync(() => callService('stats'), []);
 
@@ -253,6 +255,16 @@ export function Dashboard() {
                 <span className="hidden sm:inline">Lock</span>
               </button>
             ) : null}
+
+            <button
+              type="button"
+              onClick={() => setShowGuideModal(true)}
+              title="Open Manual & Guide"
+              className="ml-1 inline-flex items-center gap-1.5 rounded-lg border border-purple-500/40 bg-purple-500/15 px-2.5 py-1.5 text-xs font-semibold text-purple-300 shadow-sm transition-all hover:border-purple-400 hover:bg-purple-500/25 hover:text-white cursor-pointer"
+            >
+              <span>📖</span>
+              <span className="hidden sm:inline">Manual</span>
+            </button>
           </nav>
         </div>
       </header>
@@ -287,6 +299,16 @@ export function Dashboard() {
 
           {/* Quick Actions & Status Badges */}
           <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 text-[11px]">
+            {/* User Manual & Project Guide Button */}
+            <button
+              type="button"
+              onClick={() => setShowGuideModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-purple-500/40 bg-purple-500/15 px-3 py-1 font-semibold text-purple-400 hover:border-purple-400 hover:bg-purple-500/25 hover:text-purple-300 transition-all cursor-pointer shadow-sm"
+              title="Open full guide on how to push problems and use RecallLC"
+            >
+              📖 Manual & Guide
+            </button>
+
             {/* Direct 1-Click Gmail Enquiry Button */}
             <a
               href={GMAIL_ENQUIRY_URL}
@@ -357,6 +379,8 @@ export function Dashboard() {
           </div>
         </div>
       </footer>
+
+      <UserGuideModal isOpen={showGuideModal} onClose={() => setShowGuideModal(false)} />
     </div>
   );
 }

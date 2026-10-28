@@ -37,10 +37,10 @@ import {
   summarizeDue,
 } from './revisionEngine';
 import { getDb, type ImportBatch, type RecallDatabase } from './db';
-import { readSettings } from './storage';
+import { readSettings, writeSettings } from './storage';
 import { getPopularProblem } from '../data/popularProblems';
 import { isSafeUrl } from '../utils/security';
-import { localDayDiff, startOfLocalDay } from '../utils/date';
+import { getNextWeeklyDay, localDayDiff, startOfLocalDay } from '../utils/date';
 import { sanitizeProblemNotes } from '../utils/notes';
 
 /* ------------------------------------------------------------------ helpers */
@@ -60,6 +60,7 @@ export interface AttemptInput {
   topics?: string[] | null;
   submissionId?: string | null;
   source: AttemptSource;
+  notes?: string | null;
 }
 
 export interface ManualSaveInput {
@@ -279,7 +280,7 @@ export async function listCatalog(): Promise<CatalogEntry[]> {
 export async function computeInitialDue(anchor: number): Promise<number> {
   const settings = await readSettings();
   return settings.initialScheduleMode === 'weekly_sunday'
-    ? initialDueDate(anchor, 'weekly_sunday')
+    ? getNextWeeklyDay(anchor, settings.weeklyRevisionDay ?? 0)
     : initialDueDate(anchor, settings.initialIntervalDays);
 }
 
@@ -306,6 +307,10 @@ export async function recordAttempt(input: AttemptInput, now: number = Date.now(
     const existing = await database.attempts.where('submissionId').equals(submissionId).first();
     if (existing) {
       const problem = (await database.problems.get(slug)) ?? emptyProblem(slug, now);
+      if (input.notes && typeof input.notes === 'string' && input.notes.trim() && (!problem.notes || !problem.notes.trim())) {
+        problem.notes = sanitizeProblemNotes(input.notes);
+        await database.problems.put(problem);
+      }
       const revision =
         (await database.revisions.get(slug)) ??
         createRevision(slug, await computeInitialDue(problem.lastAttemptAt ?? now), now);
@@ -317,6 +322,29 @@ export async function recordAttempt(input: AttemptInput, now: number = Date.now(
   const existingById = await database.attempts.get(id);
   if (existingById) {
     const problem = (await database.problems.get(slug)) ?? emptyProblem(slug, now);
+    if (input.notes && typeof input.notes === 'string' && input.notes.trim() && (!problem.notes || !problem.notes.trim())) {
+      problem.notes = sanitizeProblemNotes(input.notes);
+      await database.problems.put(problem);
+    }
+    const revision =
+      (await database.revisions.get(slug)) ??
+      createRevision(slug, await computeInitialDue(problem.lastAttemptAt ?? now), now);
+    return { created: false, duplicate: true, problem, revision };
+  }
+
+  // De-duplicate rapid concurrent submissions within 2.5s for the same slug & verdict
+  const recentAttempts = await database.attempts.where('slug').equals(slug).toArray();
+  const recentDup = recentAttempts.find(
+    (a) =>
+      Math.abs((input.attemptedAt || now) - a.attemptedAt) < 2500 &&
+      Boolean(a.accepted) === Boolean(input.accepted),
+  );
+  if (recentDup) {
+    const problem = (await database.problems.get(slug)) ?? emptyProblem(slug, now);
+    if (input.notes && typeof input.notes === 'string' && input.notes.trim() && (!problem.notes || !problem.notes.trim())) {
+      problem.notes = sanitizeProblemNotes(input.notes);
+      await database.problems.put(problem);
+    }
     const revision =
       (await database.revisions.get(slug)) ??
       createRevision(slug, await computeInitialDue(problem.lastAttemptAt ?? now), now);
@@ -380,6 +408,15 @@ export async function recordAttempt(input: AttemptInput, now: number = Date.now(
     problem.topics = [...new Set([...problem.topics, ...input.topics])];
   } else if (problem.topics.length === 0 && catalogEntry?.topics && catalogEntry.topics.length > 0) {
     problem.topics = [...catalogEntry.topics];
+  }
+
+  if (input.notes && typeof input.notes === 'string' && input.notes.trim()) {
+    const cleanNotes = sanitizeProblemNotes(input.notes);
+    if (!problem.notes || !problem.notes.trim()) {
+      problem.notes = cleanNotes;
+    } else if (!problem.notes.includes(cleanNotes)) {
+      problem.notes = `${problem.notes}\n\n${cleanNotes}`;
+    }
   }
 
   problem.updatedAt = now;
@@ -814,7 +851,7 @@ export async function syncUnscheduledWithSettings(now: number = Date.now()): Pro
       const anchor = problem?.lastAttemptAt ?? revision.createdAt;
       const newDue =
         settings.initialScheduleMode === 'weekly_sunday'
-          ? initialDueDate(anchor, 'weekly_sunday')
+          ? getNextWeeklyDay(anchor, settings.weeklyRevisionDay ?? 0)
           : initialDueDate(anchor, settings.initialIntervalDays);
       if (newDue !== revision.dueAt) {
         revision.dueAt = newDue;
@@ -984,16 +1021,27 @@ export async function restoreBackup(backup: BackupFile): Promise<{ problems: num
     cleanedProblems.push({
       slug: item.slug.trim(),
       title: typeof item.title === 'string' && item.title.trim() ? item.title.trim() : titleFromSlug(item.slug),
-      url: problemUrl(item.slug),
+      url:
+        typeof item.url === 'string' && item.url.trim()
+          ? item.url.trim()
+          : isGfgSlug(item.slug)
+            ? problemUrl(item.slug, 'gfg')
+            : problemUrl(item.slug),
       difficulty: diff ?? 'Easy',
       topics,
       notes: sanitizeProblemNotes(typeof item.notes === 'string' ? item.notes : ''),
       firstAttemptAt:
         typeof item.firstAttemptAt === 'number' && Number.isFinite(item.firstAttemptAt)
           ? item.firstAttemptAt
-          : Date.now(),
+          : typeof item.lastAttemptAt === 'number' && Number.isFinite(item.lastAttemptAt)
+            ? item.lastAttemptAt
+            : Date.now(),
       lastAttemptAt:
-        typeof item.lastAttemptAt === 'number' && Number.isFinite(item.lastAttemptAt) ? item.lastAttemptAt : Date.now(),
+        typeof item.lastAttemptAt === 'number' && Number.isFinite(item.lastAttemptAt)
+          ? item.lastAttemptAt
+          : typeof item.firstAttemptAt === 'number' && Number.isFinite(item.firstAttemptAt)
+            ? item.firstAttemptAt
+            : Date.now(),
       lastViewedAt:
         typeof item.lastViewedAt === 'number' && Number.isFinite(item.lastViewedAt) ? item.lastViewedAt : null,
       attemptCount:
@@ -1106,6 +1154,15 @@ export async function restoreBackup(backup: BackupFile): Promise<{ problems: num
       if (cleanedEvents.length > 0) await database.events.bulkPut(cleanedEvents);
     },
   );
+
+  if (backup.settings && typeof backup.settings === 'object') {
+    try {
+      await writeSettings(backup.settings);
+    } catch {
+      // ignore
+    }
+  }
+
   return {
     problems: cleanedProblems.length,
     attempts: cleanedAttempts.length,

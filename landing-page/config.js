@@ -26,7 +26,7 @@ const RECALLC_CONFIG = {
   githubSponsorsDashboardUrl: 'https://github.com/sponsors/PranavSharma1008/dashboard',
 
   // Version
-  currentVersion: 'v1.0.2',
+  currentVersion: 'v1.0.3',
   manifestVersion: 'MV3',
   minChromeVersion: '116+',
 

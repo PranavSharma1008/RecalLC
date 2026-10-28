@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { isExtensionContextValid, notifyContextInvalidated } from '../services/messaging';
 import { pushProblemToRecallLC } from './pushHelper';
 
 export interface RocketPushButtonProps {
@@ -25,7 +26,11 @@ export function RocketPushButton({ currentSlug }: RocketPushButtonProps) {
     setLaunching(true);
 
     try {
-      await pushProblemToRecallLC(currentSlug);
+      const pushed = await pushProblemToRecallLC(currentSlug);
+      if (!pushed) {
+        setLaunching(false);
+        return;
+      }
 
       // Wait for the rocket to reach the top
       await new Promise((r) => setTimeout(r, 1100));
@@ -36,8 +41,16 @@ export function RocketPushButton({ currentSlug }: RocketPushButtonProps) {
       setTimeout(() => {
         setSuccess(false);
       }, 2000);
-    } catch (err) {
-      console.warn('[RecallLC] Could not push problem:', err);
+    } catch (err: unknown) {
+      if (
+        !isExtensionContextValid() ||
+        (err instanceof Error && err.message.includes('Extension context invalidated')) ||
+        (typeof chrome !== 'undefined' && !chrome.runtime?.id)
+      ) {
+        notifyContextInvalidated();
+      } else {
+        console.debug?.('[RecallLC] Could not push problem:', err);
+      }
       setLaunching(false);
     }
   }

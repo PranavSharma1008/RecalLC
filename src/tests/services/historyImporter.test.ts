@@ -196,4 +196,44 @@ describe('buildPreview', () => {
     expect(preview.problems[0]?.slug).toBe('trapping-rain-water');
     expect(preview.warnings.join(' ')).toContain('Sample / demo problem "two-sum" was ignored');
   });
+
+  it('correctly reads records and attaches problem notes from a RecallLC backup JSON', () => {
+    const backupJson = JSON.stringify({
+      format: 'recalllc-backup',
+      version: 1,
+      exportedAt: 1792454400000,
+      problems: [
+        {
+          slug: 'coin-change',
+          title: 'Coin Change',
+          difficulty: 'Medium',
+          topics: ['Dynamic Programming'],
+          notes: 'dp[i] = min(dp[i], dp[i - coin] + 1)',
+        },
+      ],
+      attempts: [
+        {
+          id: 'att-1',
+          slug: 'coin-change',
+          attemptedAt: 1792454400000,
+          accepted: true,
+          language: 'python3',
+          submissionId: 'user-sub-1',
+          source: 'manual',
+        },
+      ],
+    });
+
+    const parsed = parseImportFile('recalllc-backup.json', backupJson);
+    expect(parsed.records).toHaveLength(1);
+    expect(parsed.records[0]?.slug).toBe('coin-change');
+    expect(parsed.records[0]?.notes).toBe('dp[i] = min(dp[i], dp[i - coin] + 1)');
+    expect(parsed.records[0]?.difficulty).toBe('Medium');
+
+    const preview = previewImport('recalllc-backup.json', backupJson);
+    expect(preview.valid).toHaveLength(1);
+    expect(preview.valid[0]?.slug).toBe('coin-change');
+    expect(preview.valid[0]?.notes).toContain('dp[i]');
+    expect(preview.valid[0]?.difficulty).toBe('Medium');
+  });
 });

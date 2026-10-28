@@ -142,6 +142,8 @@ export interface UserSettings {
    * - 'fixed_days': Review becomes due `initialIntervalDays` after the attempt.
    */
   initialScheduleMode: 'weekly_sunday' | 'fixed_days';
+  /** Target day of week for weekly revision: 0 = Sunday, 1 = Monday, ..., 6 = Saturday (default 0). */
+  weeklyRevisionDay?: number;
   /** Days after a first attempt before a never-reviewed problem becomes due (when mode is fixed_days). */
   initialIntervalDays: number;
   remindersEnabled: boolean;
@@ -229,6 +231,7 @@ export interface NormalizedAttempt {
   submissionId: string | null;
   source: AttemptSource;
   warnings: string[];
+  notes?: string | null;
 }
 
 /* ----------------------------------------------------------------- derived */

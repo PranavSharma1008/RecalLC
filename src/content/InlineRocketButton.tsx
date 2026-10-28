@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { isExtensionContextValid, notifyContextInvalidated } from '../services/messaging';
 import { pushProblemToRecallLC } from './pushHelper';
 
 export interface InlineRocketButtonProps {
@@ -68,10 +69,25 @@ export function InlineRocketButton({
   onPushed,
 }: InlineRocketButtonProps) {
   const [busy, setBusy] = useState(false);
-  const [, setLaunching] = useState(autoLaunch);
+  const [launching, setLaunching] = useState(autoLaunch);
   const [success, setSuccess] = useState(!autoLaunch && autoOpen);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showPromptBadge, setShowPromptBadge] = useState(false);
   const isGfg = typeof window !== 'undefined' && window.location.hostname.includes('geeksforgeeks.org');
+
+  // Derive isAdded: true if success state was set, or if autoOpen is passed and rocket is not currently in mid-flight
+  const isAdded = success || (autoOpen && !launching);
+
+  useEffect(() => {
+    // Show prompt message for 2 seconds on problem open (only if not already added)
+    if (!autoOpen && !isAdded && currentSlug) {
+      setShowPromptBadge(true);
+      const timer = setTimeout(() => {
+        setShowPromptBadge(false);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentSlug, autoOpen, isAdded]);
 
   useEffect(() => {
     if (autoLaunch) {
@@ -92,13 +108,18 @@ export function InlineRocketButton({
   async function handlePush(event: React.MouseEvent): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
-    if (busy || !currentSlug) return;
+    if (busy || isAdded || !currentSlug) return;
     setBusy(true);
     setLaunching(true);
     triggerFlyingRocketAnimation();
 
     try {
-      await pushProblemToRecallLC(currentSlug);
+      const pushed = await pushProblemToRecallLC(currentSlug, 'manual');
+      if (!pushed) {
+        setLaunching(false);
+        setBusy(false);
+        return;
+      }
 
       // Rocket flight animation from ground to top (1.1s)
       await new Promise((r) => setTimeout(r, 1100));
@@ -107,8 +128,16 @@ export function InlineRocketButton({
       setBusy(false);
       setSuccess(true);
       onPushed?.();
-    } catch (err) {
-      console.warn('[RecallLC] Could not push problem:', err);
+    } catch (err: unknown) {
+      if (
+        !isExtensionContextValid() ||
+        (err instanceof Error && err.message.includes('Extension context invalidated')) ||
+        (typeof chrome !== 'undefined' && !chrome.runtime?.id)
+      ) {
+        notifyContextInvalidated();
+      } else {
+        console.warn('[RecallLC] Could not push problem:', err);
+      }
       setLaunching(false);
       setBusy(false);
     }
@@ -141,7 +170,7 @@ export function InlineRocketButton({
           onMouseEnter={() => setShowTooltip(true)}
           onMouseLeave={() => setShowTooltip(false)}
         >
-          {showTooltip && !busy && !success ? (
+          {showTooltip && !busy && !isAdded && !showPromptBadge ? (
             <div
               className="rlc-inline-rocket-tooltip"
               role="tooltip"
@@ -157,27 +186,60 @@ export function InlineRocketButton({
             </div>
           ) : null}
 
+          {/* 2-second notification on problem open: Click rocket to push the question */}
+          {showPromptBadge && !busy && !isAdded ? (
+            <div
+              className="rlc-rocket-prompt-banner"
+              style={{
+                position: 'absolute',
+                top: isGfg ? 'auto' : 'calc(100% + 7px)',
+                bottom: isGfg ? 'calc(100% + 8px)' : 'auto',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                background: 'rgba(20, 16, 32, 0.96)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(168, 85, 247, 0.8)',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.45), 0 0 12px rgba(168, 85, 247, 0.35)',
+                borderRadius: '8px',
+                padding: '4px 10px',
+                color: '#fff',
+                fontSize: '11px',
+                fontWeight: 600,
+                fontFamily: 'system-ui, -apple-system, sans-serif',
+                whiteSpace: 'nowrap',
+                zIndex: 2147483647,
+                pointerEvents: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <span style={{ fontSize: '12px' }}>🚀</span>
+              <span>Click rocket to push question to RecallLC</span>
+            </div>
+          ) : null}
+
           <button
             type="button"
             onClick={(e) => void handlePush(e)}
             disabled={busy}
-            className={`rlc-inline-rocket-btn ${success ? 'rlc-inline-rocket-btn-success' : ''}`}
+            className={`rlc-inline-rocket-btn ${isAdded ? 'rlc-inline-rocket-btn-success' : ''}`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               height: '28px',
-              width: success ? 'auto' : '28px',
+              width: isAdded ? 'auto' : '28px',
               minWidth: '28px',
-              padding: success ? '0 8px' : '0',
+              padding: isAdded ? '0 8px' : '0',
               borderRadius: '6px',
-              background: success ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.06)',
-              border: success ? '1px solid rgba(52, 211, 153, 0.55)' : '1px solid rgba(255, 255, 255, 0.08)',
-              boxShadow: success ? '0 0 8px rgba(16, 185, 129, 0.25)' : 'none',
+              background: isAdded ? 'rgba(16, 185, 129, 0.18)' : 'rgba(255, 255, 255, 0.06)',
+              border: isAdded ? '1px solid rgba(52, 211, 153, 0.55)' : '1px solid rgba(255, 255, 255, 0.08)',
+              boxShadow: isAdded ? '0 0 8px rgba(16, 185, 129, 0.25)' : 'none',
               color: '#fff',
               fontSize: '13px',
               fontWeight: 500,
-              cursor: busy ? 'wait' : 'pointer',
+              cursor: busy ? 'wait' : isAdded ? 'default' : 'pointer',
               userSelect: 'none',
               whiteSpace: 'nowrap',
               boxSizing: 'border-box',
@@ -185,8 +247,8 @@ export function InlineRocketButton({
               margin: 0,
               transition: 'all 0.15s ease-in-out',
             }}
-            title={success ? 'Added to RecallLC' : 'Push to RecallLC 🚀'}
-            aria-label={success ? 'Added to RecallLC' : 'Push to RecallLC 🚀'}
+            title={isAdded ? 'Added to RecallLC' : 'Push to RecallLC 🚀'}
+            aria-label={isAdded ? 'Added to RecallLC' : 'Push to RecallLC 🚀'}
           >
             {busy ? (
               <span
@@ -200,18 +262,18 @@ export function InlineRocketButton({
               >
                 ⏳
               </span>
-            ) : success ? (
+            ) : isAdded ? (
               <span
                 className="rlc-inline-success-label"
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', lineHeight: 1 }}
               >
                 <span
                   className="rlc-inline-check"
-                  style={{ fontSize: '12px', fontWeight: 700, color: '#34d399', lineHeight: 1 }}
+                  style={{ fontSize: '13px', fontWeight: 700, color: '#10b981', lineHeight: 1 }}
                 >
                   ✓
                 </span>
-                <span style={{ fontSize: '11px', fontWeight: 600, color: '#a7f3d0', lineHeight: 1 }}>Added</span>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: '#10b981', lineHeight: 1 }}>Added</span>
               </span>
             ) : (
               <span

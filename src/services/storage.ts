@@ -16,9 +16,10 @@ export const DEFAULT_SETTINGS: UserSettings = {
   theme: 'dark',
   intervals: { ...DEFAULT_INTERVALS },
   initialScheduleMode: 'weekly_sunday',
+  weeklyRevisionDay: 0,
   initialIntervalDays: DEFAULT_INITIAL_INTERVAL_DAYS,
   remindersEnabled: true,
-  reminderDelayMs: 1500,
+  reminderDelayMs: 800,
   maxRemindersPerSession: 5,
   autoTrackSubmissions: true,
   accountSyncEnabled: true,
@@ -61,6 +62,10 @@ export function mergeSettings(stored: unknown): UserSettings {
     theme,
     intervals,
     initialScheduleMode,
+    weeklyRevisionDay:
+      typeof stored.weeklyRevisionDay === 'number' && stored.weeklyRevisionDay >= 0 && stored.weeklyRevisionDay <= 6
+        ? Math.floor(stored.weeklyRevisionDay)
+        : 0,
     initialIntervalDays:
       typeof stored.initialIntervalDays === 'number' && stored.initialIntervalDays >= 0
         ? Math.floor(stored.initialIntervalDays)

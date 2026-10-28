@@ -174,6 +174,10 @@ function startMockLeetCodeServer() {
   </style>
 </head>
 <body>
+  <header style="display:flex;gap:12px;margin-bottom:16px;">
+    <a href="/problemset/all/">Problem List</a>
+    <a href="/problems/random-one-question/">Random</a>
+  </header>
   <h1>1. Two Sum</h1>
   <p>Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.</p>
   <div>
@@ -218,8 +222,10 @@ try {
 
   const localPattern = 'http://127.0.0.1/*';
   manifest.host_permissions = [...(manifest.host_permissions ?? []), localPattern];
-  if (manifest.content_scripts?.[0]) {
-    manifest.content_scripts[0].matches = [...(manifest.content_scripts[0].matches ?? []), localPattern];
+  if (manifest.content_scripts) {
+    for (const cs of manifest.content_scripts) {
+      cs.matches = [...(cs.matches ?? []), localPattern];
+    }
   }
   if (manifest.web_accessible_resources?.[0]) {
     manifest.web_accessible_resources[0].matches = ['<all_urls>'];
@@ -334,8 +340,8 @@ try {
   check('reminder card displays due problem — "Coin Change"', reminderHtml.includes('Coin Change'));
   check('reminder card excludes current problem — "Two Sum"', !reminderHtml.includes('Two Sum'));
 
-  // 6. Test submission tracking on page
-  console.log('\n3) Submission tracking on page');
+  // 6. Test manual push via Rocket button on page
+  console.log('\n3) Manual push via Rocket button on page');
   await pageCdp.evaluate(`
     (() => {
       const btn = document.getElementById('submit-btn');
@@ -343,7 +349,38 @@ try {
     })()
   `);
 
-  // Wait for verdict to appear and for the tracker to record it
+  // Wait for submission verdict
+  await sleep(500);
+
+  // Verify problem is NOT automatically pushed before user clicks the rocket button
+  const probBeforePush = JSON.parse(
+    await dashCdp.evaluate(`
+      (async () => {
+        const send = async (method, payload) => {
+          const response = await chrome.runtime.sendMessage({ channel: 'recalllc', method, payload });
+          return response?.data;
+        };
+        const prob = await send('get-problem', { slug: 'two-sum' });
+        return JSON.stringify(prob);
+      })()
+    `),
+  );
+  check('problem is not automatically pushed before clicking rocket', !probBeforePush.problem);
+
+  // Now, user clicks the rocket button in the top navbar to push the problem
+  const clickedRocket = await pageCdp.evaluate(`
+    (() => {
+      const rocketBtn = document.querySelector('.rlc-inline-rocket-btn');
+      if (rocketBtn) {
+        rocketBtn.click();
+        return true;
+      }
+      return false;
+    })()
+  `);
+  check('rocket button is present in navbar and clickable', clickedRocket);
+
+  // Wait for manual push and flight animation (1.1s)
   await sleep(1500);
 
   const trackerResult = JSON.parse(
@@ -359,7 +396,7 @@ try {
     `),
   );
 
-  check('submission on page creates a problem record for two-sum', Boolean(trackerResult.problem));
+  check('clicking rocket manually creates a problem record for two-sum', Boolean(trackerResult.problem));
   check('problem title is Two Sum', trackerResult.problem?.title === 'Two Sum');
   check('attempt count is 1', trackerResult.problem?.attemptCount === 1);
   check('verdict is recorded as accepted', trackerResult.problem?.accepted === true);
@@ -410,8 +447,16 @@ try {
       /* ignore */
     }
   }
-  rmSync(tempDist, { recursive: true, force: true });
-  rmSync(profile, { recursive: true, force: true });
+  try {
+    rmSync(tempDist, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
+  } catch {
+    /* ignore */
+  }
+  try {
+    rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
+  } catch {
+    /* ignore */
+  }
 }
 
 if (failures.length > 0) {

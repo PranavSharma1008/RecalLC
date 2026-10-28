@@ -8,6 +8,7 @@
  */
 
 import type { AttemptSource, Difficulty, NormalizedAttempt } from '../types';
+import { sanitizeProblemNotes } from '../utils/notes';
 import { normalizeSlug, problemUrl, titleFromSlug } from '../utils/slug';
 import { describeAmbiguity, normalizeTimestamp } from '../utils/time';
 
@@ -65,6 +66,7 @@ const FIELD_ALIASES = {
   submissionId: ['submissionid', 'submission_id', 'subid', 'sub_id', 'id', 'submission'],
   difficulty: ['difficulty', 'level'],
   topics: ['topics', 'tags', 'topictags', 'topic_tags', 'category'],
+  notes: ['notes', 'note', 'solution', 'code', 'solutioncode', 'solution_code', 'notescontent', 'notes_content'],
 } as const;
 
 type FieldKey = keyof typeof FIELD_ALIASES;
@@ -267,6 +269,9 @@ export function normalizeRecord(raw: unknown, options: { source?: AttemptSource 
     if (parsedTopics.length > 0) topics = parsedTopics;
   }
 
+  const rawNotes = pickField(record, 'notes');
+  const notes = typeof rawNotes === 'string' && rawNotes.trim() ? sanitizeProblemNotes(rawNotes.trim()) : null;
+
   return {
     ok: true,
     value: {
@@ -281,6 +286,7 @@ export function normalizeRecord(raw: unknown, options: { source?: AttemptSource 
       submissionId,
       source: options.source ?? 'import',
       warnings,
+      notes,
     },
   };
 }

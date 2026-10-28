@@ -39,15 +39,23 @@ export function addLocalDays(ts: number, days: number): number {
 }
 
 /**
+ * Calculates the next occurrence of a target day of the week (0 = Sunday, 1 = Monday, ..., 6 = Saturday).
+ * If `ts` is on the target day, returns the occurrence 7 days later.
+ */
+export function getNextWeeklyDay(ts: number = Date.now(), targetDay = 0): number {
+  const d = new Date(startOfLocalDay(ts));
+  const currentDay = d.getDay();
+  const daysUntil = (targetDay - currentDay + 7) % 7 || 7;
+  return addLocalDays(ts, daysUntil);
+}
+
+/**
  * Calculates the next Sunday (the standard weekly revision day).
  * If `ts` is Monday-Saturday, returns the upcoming Sunday of this week.
  * If `ts` is Sunday, returns the following Sunday (7 days later).
  */
 export function getNextSunday(ts: number = Date.now()): number {
-  const d = new Date(startOfLocalDay(ts));
-  const day = d.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
-  const daysUntilSunday = (7 - day) % 7 || 7;
-  return addLocalDays(ts, daysUntilSunday);
+  return getNextWeeklyDay(ts, 0);
 }
 
 /** Number of days until the upcoming/next Sunday revision day. */

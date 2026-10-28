@@ -15,7 +15,7 @@ export default defineManifest({
   manifest_version: 3,
   name: 'RecalLC — Smart LeetCode Revision',
   short_name: 'RecalLC',
-  version: '1.0.2',
+  version: '1.0.3',
   description:
     'Revise the LeetCode problems you already solved — RecalLC nudges you to review an older problem, at the moment you open a new one.',
   minimum_chrome_version: '116',
@@ -44,6 +44,17 @@ export default defineManifest({
   },
 
   content_scripts: [
+    {
+      matches: [
+        'https://leetcode.com/problems/*',
+        'https://*.geeksforgeeks.org/problems/*',
+        'https://geeksforgeeks.org/problems/*',
+      ],
+      js: ['src/content/interceptor.iife.ts'],
+      run_at: 'document_start',
+      world: 'MAIN',
+      all_frames: false,
+    },
     {
       matches: [
         'https://leetcode.com/problems/*',

@@ -6,28 +6,10 @@ import { Card, CardHeader } from '../../components/ui/Card';
 import { ErrorState } from '../../components/ui/States';
 import { useAsync } from '../../hooks/useAsync';
 import { callService } from '../../services/messaging';
-import { isSampleAttempt } from '../../services/repository';
-import type { ImportPreview as ImportPreviewData, ImportResult } from '../../types';
-import { toCsv } from '../../utils/csv';
-import { formatDateTime } from '../../utils/date';
-import { titleFromSlug } from '../../utils/slug';
+import type { BackupFile, ImportPreview as ImportPreviewData, ImportResult } from '../../types';
 
 export interface ImportScreenProps {
   onChanged: () => void;
-}
-
-interface RealSolvedExportItem {
-  slug: string;
-  title: string;
-  url: string;
-  difficulty: string;
-  topics: string;
-  topicsArray: string[];
-  attemptedAt: number;
-  accepted: boolean;
-  language: string;
-  submissionId: string;
-  notes: string;
 }
 
 export function ImportScreen({ onChanged }: ImportScreenProps) {
@@ -35,6 +17,8 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
   const [fileName, setFileName] = useState('');
   const [fileContent, setFileContent] = useState('');
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [backupPreview, setBackupPreview] = useState<BackupFile | null>(null);
+  const [restoredResult, setRestoredResult] = useState<{ problems: number; attempts: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -45,7 +29,6 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
   const [exportError, setExportError] = useState<string | null>(null);
   const [exportMessage, setExportMessage] = useState<string | null>(null);
 
-  const history = useAsync(() => callService('import-history'), []);
   const stats = useAsync(() => callService('stats'), []);
 
   // Silently purge any legacy mock sample data on mount so only genuine solves exist
@@ -59,10 +42,29 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
     setError(null);
     setResult(null);
     setPreview(null);
+    setBackupPreview(null);
+    setRestoredResult(null);
     try {
       const content = await file.text();
       setFileName(file.name);
       setFileContent(content);
+
+      // Check if this file is a RecallLC Complete Backup JSON
+      try {
+        const parsed = JSON.parse(content);
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          parsed.format === 'recalllc-backup' &&
+          (Array.isArray(parsed.problems) || Array.isArray(parsed.attempts))
+        ) {
+          setBackupPreview(parsed as BackupFile);
+          return;
+        }
+      } catch {
+        // Not a JSON backup, proceed to preview
+      }
+
       const data = await callService('import-preview', { fileName: file.name, content });
       setPreview(data);
       if (data.invalid.length === 0 && data.valid.length === 0) {
@@ -73,6 +75,25 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
     }
   }, []);
 
+  const runRestoreBackup = async (): Promise<void> => {
+    if (!backupPreview) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const outcome = await callService('restore', { backup: backupPreview });
+      setRestoredResult(outcome);
+      setBackupPreview(null);
+      setFileName('');
+      setFileContent('');
+      stats.reload();
+      onChanged();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'The restore failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const runImport = async (): Promise<void> => {
     setBusy(true);
     setError(null);
@@ -80,7 +101,6 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
       const outcome = await callService('import-commit', { fileName, content: fileContent });
       setResult(outcome);
       setPreview(null);
-      history.reload();
       stats.reload();
       onChanged();
     } catch (cause) {
@@ -90,158 +110,38 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
     }
   };
 
-  /**
-   * Retrieves real solved LeetCode problems from the database,
-   * strictly filtering out any fake mock / sample-import data.
-   */
-  async function getRealSolvedProblems(): Promise<{
-    items: RealSolvedExportItem[];
-    foundDemoData: boolean;
-  }> {
-    const backup = await callService('export');
-    const problems = backup.problems ?? [];
-    const attempts = backup.attempts ?? [];
-
-    const problemBySlug = new Map(problems.map((p) => [p.slug, p]));
-    let foundDemo = false;
-
-    // Filter out mock / fake sample attempts
-    const realAttempts = attempts.filter((attempt) => {
-      if (isSampleAttempt(attempt)) {
-        foundDemo = true;
-        return false;
-      }
-      return true;
-    });
-
-    const items: RealSolvedExportItem[] = [];
-    const slugsHandled = new Set<string>();
-
-    for (const attempt of realAttempts) {
-      if (slugsHandled.has(attempt.slug)) continue;
-      const problem = problemBySlug.get(attempt.slug);
-      slugsHandled.add(attempt.slug);
-      items.push({
-        slug: attempt.slug,
-        title: attempt.title || problem?.title || titleFromSlug(attempt.slug),
-        url: problem?.url || `https://leetcode.com/problems/${attempt.slug}/`,
-        difficulty: problem?.difficulty || 'Unknown',
-        topics: (problem?.topics ?? []).join(', '),
-        topicsArray: problem?.topics ?? [],
-        attemptedAt: attempt.attemptedAt,
-        accepted: attempt.accepted ?? true,
-        language: attempt.language || problem?.lastLanguage || '',
-        submissionId: attempt.submissionId || '',
-        notes: problem?.notes || '',
-      });
-    }
-
-    // Sort by latest attempt first
-    items.sort((a, b) => b.attemptedAt - a.attemptedAt);
-
-    return { items, foundDemoData: foundDemo };
-  }
-
-  const handleDownloadCsv = async (): Promise<void> => {
+  const handleDownloadBackup = async (): Promise<void> => {
     setExportMessage(null);
     setExportError(null);
     setBusyExport(true);
     try {
-      const { items } = await getRealSolvedProblems();
+      const backup = await callService('export');
+      const problemCount = backup.problems?.length ?? 0;
+      const attemptCount = backup.attempts?.length ?? 0;
 
-      if (items.length === 0) {
+      if (problemCount === 0 && attemptCount === 0) {
         setExportError(
-          'No solved LeetCode problems found in your database yet. Solve problems on LeetCode while logged in (or visit leetcode.com with Account Sync active), then download your CSV here.',
+          'No solved LeetCode problems found in your database yet. Solve problems on LeetCode while logged in (or visit leetcode.com with Account Sync active), then download your backup.',
         );
         return;
       }
 
-      const headers = [
-        'slug',
-        'title',
-        'url',
-        'difficulty',
-        'topics',
-        'attemptedAt',
-        'accepted',
-        'language',
-        'submissionId',
-        'notes',
-      ];
-      const rows = items.map((item) => [
-        item.slug,
-        item.title,
-        item.url,
-        item.difficulty,
-        item.topics,
-        String(item.attemptedAt),
-        String(item.accepted),
-        item.language,
-        item.submissionId,
-        item.notes,
-      ]);
-
-      const csvContent = toCsv(headers, rows);
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `leetcode-solved-problems-${new Date().toISOString().slice(0, 10)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-
-      setExportMessage(`Successfully exported ${items.length} solved LeetCode problem(s) to CSV!`);
-    } catch (err) {
-      setExportError(err instanceof Error ? err.message : 'Could not export your solved problems.');
-    } finally {
-      setBusyExport(false);
-    }
-  };
-
-  const handleDownloadJson = async (): Promise<void> => {
-    setExportMessage(null);
-    setExportError(null);
-    setBusyExport(true);
-    try {
-      const { items } = await getRealSolvedProblems();
-
-      if (items.length === 0) {
-        setExportError(
-          'No solved LeetCode problems found in your database yet. Solve problems on LeetCode while logged in (or visit leetcode.com with Account Sync active), then download your JSON here.',
-        );
-        return;
-      }
-
-      const exportList = items.map((item) => ({
-        slug: item.slug,
-        title: item.title,
-        url: item.url,
-        difficulty: item.difficulty,
-        topics: item.topicsArray,
-        attemptedAt: item.attemptedAt,
-        attemptedDate: new Date(item.attemptedAt).toISOString(),
-        accepted: item.accepted,
-        language: item.language || null,
-        submissionId: item.submissionId || null,
-        notes: item.notes || null,
-      }));
-
-      const jsonContent = JSON.stringify(exportList, null, 2);
+      const jsonContent = JSON.stringify(backup, null, 2);
       const blob = new Blob([jsonContent], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `leetcode-solved-problems-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `recalllc-backup-${new Date().toISOString().slice(0, 10)}.json`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
 
-      setExportMessage(`Successfully exported ${items.length} solved LeetCode problem(s) to JSON!`);
+      setExportMessage(
+        `Successfully downloaded complete RecallLC backup (${problemCount} problem${problemCount === 1 ? '' : 's'}, ${attemptCount} submission${attemptCount === 1 ? '' : 's'})! Transfer this file to any device or browser to restore all data & schedules.`,
+      );
     } catch (err) {
-      setExportError(err instanceof Error ? err.message : 'Could not export your solved problems.');
+      setExportError(err instanceof Error ? err.message : 'Could not export backup.');
     } finally {
       setBusyExport(false);
     }
@@ -249,11 +149,11 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      {/* Real Solved LeetCode Data Export Card */}
+      {/* Complete Backup Export Card */}
       <Card>
         <CardHeader
-          title="Download your solved LeetCode data"
-          subtitle="Export the actual questions you have solved on LeetCode as CSV or JSON."
+          title="Download Complete Backup"
+          subtitle="Export all your solved problems, notes, solution code, and revision schedules into a complete JSON backup."
         />
         <div className="space-y-4 p-4">
           {exportError ? <ErrorState message={exportError} /> : null}
@@ -274,26 +174,23 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="primary" size="sm" disabled={busyExport} onClick={() => void handleDownloadCsv()}>
-                📄 Download Solved Problems (CSV)
-              </Button>
-              <Button variant="primary" size="sm" disabled={busyExport} onClick={() => void handleDownloadJson()}>
-                💾 Download Solved Problems (JSON)
+              <Button variant="primary" size="sm" disabled={busyExport} onClick={() => void handleDownloadBackup()}>
+                📦 Download Complete Backup (JSON)
               </Button>
             </div>
           </div>
 
           <div className="rounded-xl border border-line/60 bg-surface-2/60 p-3 text-[11px] leading-relaxed text-muted">
-            <p className="font-medium text-fg mb-1">💡 How RecallLC gets your real LeetCode data:</p>
+            <p className="font-medium text-fg mb-1">🔄 How to transfer data to another device or browser:</p>
             <ul className="list-disc pl-4 space-y-0.5 text-subtle">
               <li>
-                When you submit code and receive an <strong className="text-fg">&quot;Accepted&quot;</strong> verdict on
-                LeetCode, RecallLC automatically tracks it.
+                Click <strong className="text-fg">&quot;Download Complete Backup (JSON)&quot;</strong> to export all your problems, notes, solution code, and revision schedules.
               </li>
-              <li>You can click the 🚀 rocket button directly on any LeetCode problem page to record it.</li>
               <li>
-                LeetCode Account Sync automatically syncs your recent solved submissions whenever you browse
-                leetcode.com.
+                Open RecallLC on your other device or browser, navigate to this <strong className="text-fg">Import</strong> tab, and drop the downloaded file.
+              </li>
+              <li>
+                All your tracked problems, solution code, and spaced repetition revision schedules will be automatically restored!
               </li>
             </ul>
           </div>
@@ -346,6 +243,76 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
           </div>
 
           {error ? <ErrorState message={error} /> : null}
+
+          {backupPreview ? (
+            <div className="rounded-xl border border-accent/40 bg-accent-soft/30 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-accent">📦 RecallLC Complete Backup Detected</p>
+                  <p className="text-[11px] text-subtle mt-0.5">
+                    File: <span className="font-mono text-fg">{fileName}</span> · Exported on{' '}
+                    {new Date(backupPreview.exportedAt).toLocaleDateString()}
+                  </p>
+                </div>
+                <span className="rounded-full bg-accent/20 px-2.5 py-0.5 text-[10px] font-semibold text-accent">
+                  Full Backup
+                </span>
+              </div>
+
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-[11px] sm:grid-cols-3 rounded-lg bg-surface-2 p-3">
+                <div>
+                  <dt className="text-subtle">Problems</dt>
+                  <dd className="text-base font-semibold tabular-nums text-fg">
+                    {backupPreview.problems?.length ?? 0}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-subtle">Submissions</dt>
+                  <dd className="text-base font-semibold tabular-nums text-fg">
+                    {backupPreview.attempts?.length ?? 0}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-subtle">Revision Schedules</dt>
+                  <dd className="text-base font-semibold tabular-nums text-fg">
+                    {backupPreview.revisions?.length ?? 0}
+                  </dd>
+                </div>
+              </dl>
+
+              <p className="text-[11px] text-muted leading-relaxed">
+                Restoring this file will import all your problems, notes, solution code, and spaced repetition revision schedules into this browser.
+              </p>
+
+              <div className="flex items-center gap-2 pt-1">
+                <Button variant="primary" size="sm" disabled={busy} onClick={() => void runRestoreBackup()}>
+                  {busy ? 'Restoring data…' : '🚀 Restore All Data & Schedules'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy}
+                  onClick={() => {
+                    setBackupPreview(null);
+                    setFileName('');
+                    setFileContent('');
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : null}
+
+          {restoredResult ? (
+            <div className="rounded-xl border border-success/40 bg-success-soft p-4">
+              <p className="text-xs font-semibold text-success">🎉 Data Restored Successfully</p>
+              <p className="mt-1 text-[11px] text-fg">
+                Restored <strong className="font-semibold">{restoredResult.problems}</strong> problem(s) and{' '}
+                <strong className="font-semibold">{restoredResult.attempts}</strong> submission(s). All your spaced repetition schedules and notes are now active!
+              </p>
+            </div>
+          ) : null}
 
           {preview ? (
             <ImportPreview
@@ -434,28 +401,6 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
               </p>
             </div>
           </div>
-        </div>
-      </Card>
-
-      <Card>
-        <CardHeader title="Import history" subtitle="Every import run on this device." />
-        <div className="p-4">
-          {history.loading ? (
-            <p className="text-xs text-muted">Loading…</p>
-          ) : (history.data ?? []).length === 0 ? (
-            <p className="text-xs text-muted">You have not imported anything yet.</p>
-          ) : (
-            <ul className="space-y-2">
-              {(history.data ?? []).map((batch) => (
-                <li key={batch.id} className="flex items-baseline justify-between gap-3 text-[11px]">
-                  <span className="truncate text-fg">{batch.fileName}</span>
-                  <span className="shrink-0 text-subtle">
-                    {formatDateTime(batch.importedAt)} · {batch.result.imported} imported
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       </Card>
     </div>

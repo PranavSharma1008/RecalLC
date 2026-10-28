@@ -104,8 +104,8 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
     }
 
     // Enable or Change
-    if (!newPasscode || newPasscode.length < 4) {
-      setSecurityError('Passcode must be at least 4 characters long.');
+    if (!newPasscode || newPasscode.length < 1) {
+      setSecurityError('Please enter a passcode.');
       return;
     }
     if (newPasscode !== confirmPasscode) {
@@ -237,11 +237,29 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
                   checked={settings.initialScheduleMode === 'weekly_sunday'}
                   onChange={() => void update({ initialScheduleMode: 'weekly_sunday' })}
                 />
-                <div>
-                  <p className="font-medium text-fg">🗓️ Weekly Sunday Revision (Recommended)</p>
+                <div className="flex-1">
+                  <p className="font-medium text-fg">🗓️ Weekly Dedicated Revision Day (Recommended)</p>
                   <p className="text-[11px] text-subtle mt-0.5">
-                    Solve questions Mon–Sat, Sunday is dedicated revision day.
+                    Solve questions during the week, dedicated revision day for reviewing all solved problems.
                   </p>
+                  {settings.initialScheduleMode === 'weekly_sunday' ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-[11px] text-subtle">Dedicated revision day:</span>
+                      <select
+                        className="rlc-input text-xs py-1 px-2.5 rounded-md border border-line bg-surface-2 text-fg"
+                        value={settings.weeklyRevisionDay ?? 0}
+                        onChange={(e) => void update({ weeklyRevisionDay: Number(e.target.value) })}
+                      >
+                        <option value={0}>Sunday (Recommended)</option>
+                        <option value={1}>Monday</option>
+                        <option value={2}>Tuesday</option>
+                        <option value={3}>Wednesday</option>
+                        <option value={4}>Thursday</option>
+                        <option value={5}>Friday</option>
+                        <option value={6}>Saturday</option>
+                      </select>
+                    </div>
+                  ) : null}
                 </div>
               </label>
 
@@ -254,7 +272,7 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
                   onChange={() => void update({ initialScheduleMode: 'fixed_days' })}
                 />
                 <div className="flex-1">
-                  <p className="font-medium text-fg">⏳ Fixed interval</p>
+                  <p className="font-medium text-fg">⏳ Fixed interval (Custom manual days)</p>
                   <p className="text-[11px] text-subtle mt-0.5">
                     Every question becomes due a set number of days after you solve it. Individual problem schedules
                     manually set take priority over global defaults.
@@ -265,7 +283,7 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
                         type="number"
                         min={1}
                         max={365}
-                        className="rlc-input w-20 text-center text-xs py-1"
+                        className="rlc-input w-20 text-center text-xs py-1 rounded-md border border-line bg-surface-2 text-fg"
                         value={settings.initialIntervalDays}
                         onChange={(event) => void update({ initialIntervalDays: Number(event.target.value) })}
                         aria-label="Days until the first review"
@@ -460,29 +478,35 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
               )}
 
               {securityMode !== 'disable' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-muted mb-1">New Passcode (min 4 characters)</label>
-                    <input
-                      type="password"
-                      value={newPasscode}
-                      onChange={(e) => setNewPasscode(e.target.value)}
-                      placeholder="Enter new passcode…"
-                      className="rlc-input w-full text-xs font-mono"
-                      autoFocus={securityMode === 'enable'}
-                    />
+                <>
+                  <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 text-[11px] text-amber-200 leading-relaxed">
+                    ⚠️ <strong>Important Note:</strong> There is no way to recover or reset this passcode if forgotten, except by downloading your data backup (<strong>📦 Download Complete Backup (JSON)</strong>) from the Import tab. Please choose a passcode that you will easily remember!
                   </div>
-                  <div>
-                    <label className="block text-xs font-medium text-muted mb-1">Confirm New Passcode</label>
-                    <input
-                      type="password"
-                      value={confirmPasscode}
-                      onChange={(e) => setConfirmPasscode(e.target.value)}
-                      placeholder="Re-enter new passcode…"
-                      className="rlc-input w-full text-xs font-mono"
-                    />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-muted mb-1">New Passcode (any length - numbers or text)</label>
+                      <input
+                        type="password"
+                        value={newPasscode}
+                        onChange={(e) => setNewPasscode(e.target.value)}
+                        placeholder="Enter new passcode…"
+                        className="rlc-input w-full text-xs font-mono"
+                        autoFocus={securityMode === 'enable'}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-muted mb-1">Confirm New Passcode</label>
+                      <input
+                        type="password"
+                        value={confirmPasscode}
+                        onChange={(e) => setConfirmPasscode(e.target.value)}
+                        placeholder="Re-enter new passcode…"
+                        className="rlc-input w-full text-xs font-mono"
+                      />
+                    </div>
                   </div>
-                </div>
+                </>
               )}
 
               <div className="flex justify-end gap-2 pt-2">
@@ -597,11 +621,11 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
             <strong className="text-fg">storage</strong> — remembers your settings and revision schedule on this device.
           </p>
           <p>
-            <strong className="text-fg">leetcode.com</strong> — lets the extension read the problem page you are already
+            <strong className="text-fg">leetcode.com & geeksforgeeks.org</strong> — lets the extension read the problem page you are already
             on, and (only if you opt in) fetch the public problem catalogue. It cannot read any other site.
           </p>
           <p>
-            RecallLC contains no analytics, no telemetry and no remote code. It never asks for your LeetCode password,
+            RecallLC contains no analytics, no telemetry and no remote code. It never asks for your LeetCode or GeeksforGeeks password,
             never reads or forwards your session cookies, and never sends your revision history anywhere.
           </p>
         </div>
@@ -661,40 +685,6 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
             >
               💖 Support & Donate Options
             </a>
-          </div>
-        </div>
-      </Card>
-
-      {/* Local Monitor & Extension Diagnostics Card */}
-      <Card>
-        <CardHeader
-          title="Local Monitor & Extension Environment"
-          subtitle="Diagnostics for this browser monitor session and local unpacked installation."
-        />
-        <div className="space-y-3 p-4 text-xs text-muted">
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-fg">Running Environment</span>
-            <span className="font-mono text-fg bg-surface-2 px-2 py-0.5 rounded border border-line">
-              {typeof chrome !== 'undefined' && chrome.runtime?.id ? 'Chrome Extension (Local / Unpacked)' : 'Web Mode'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-fg">Extension Version</span>
-            <span className="font-mono text-fg">v1.0.2</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-fg">Extension Runtime ID</span>
-            <span className="font-mono text-[11px] text-fg bg-surface-2 px-2 py-0.5 rounded border border-line truncate max-w-[220px]">
-              {typeof chrome !== 'undefined' && chrome.runtime?.id ? chrome.runtime.id : 'recal-local-dev'}
-            </span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-fg">Local Storage Engine</span>
-            <span className="text-emerald-400 font-semibold">IndexedDB (100% Private & Offline)</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="font-medium text-fg">Security Sandbox</span>
-            <span className="text-emerald-400 font-semibold">MV3 Isolated World & Strict CSP</span>
           </div>
         </div>
       </Card>

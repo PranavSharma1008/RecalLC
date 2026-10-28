@@ -160,6 +160,37 @@ function extractJsonRecords(parsed: unknown, errors: ImportErrorEntry[], warning
 
   if (parsed && typeof parsed === 'object') {
     const container = parsed as Record<string, unknown>;
+
+    // Special handling for RecallLC Complete Backup JSON
+    if (container.format === 'recalllc-backup') {
+      const problems = Array.isArray(container.problems) ? (container.problems as RawRecord[]) : [];
+      const problemBySlug = new Map<string, RawRecord>();
+      for (const p of problems) {
+        if (p && typeof p.slug === 'string') problemBySlug.set(p.slug, p);
+      }
+      const attempts = Array.isArray(container.attempts) ? (container.attempts as RawRecord[]) : [];
+      if (attempts.length > 0) {
+        warnings.push('Records were read from the RecallLC backup.');
+        return attempts.map((att) => {
+          const prob = typeof att.slug === 'string' ? problemBySlug.get(att.slug) : undefined;
+          return {
+            ...att,
+            title: att.title || prob?.title,
+            difficulty: att.difficulty || prob?.difficulty,
+            topics: att.topics || prob?.topics,
+            notes: att.notes || prob?.notes,
+            url: att.url || prob?.url,
+          };
+        });
+      } else if (problems.length > 0) {
+        warnings.push('Records were read from the RecallLC backup problems.');
+        return problems.map((p) => ({
+          ...p,
+          attemptedAt: p.lastAttemptAt || p.createdAt || Date.now(),
+        }));
+      }
+    }
+
     for (const key of JSON_CONTAINER_KEYS) {
       const value = container[key];
       if (Array.isArray(value)) {
@@ -310,6 +341,7 @@ export async function commitImport(preview: ImportPreview, now: number = Date.no
           topics: attempt.topics,
           submissionId: attempt.submissionId,
           source: 'import',
+          notes: attempt.notes,
         },
         now,
       );

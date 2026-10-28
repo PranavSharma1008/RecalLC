@@ -225,7 +225,7 @@ export function App() {
               <span className="text-pink-400">💖</span> Support
             </button>
           </div>
-          <span className="text-[11px] font-mono text-subtle">v1.0.2</span>
+          <span className="text-[11px] font-mono text-subtle">v1.0.3</span>
         </div>
       </footer>
     </div>

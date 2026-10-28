@@ -1,5 +1,5 @@
 import { getPopularProblem } from '../data/popularProblems';
-import { callService } from '../services/messaging';
+import { callService, isExtensionContextValid, notifyContextInvalidated } from '../services/messaging';
 import { detectLanguage } from '../services/submissionTracker';
 import { cleanExtractedCode, upsertSolutionCode } from '../utils/notes';
 import { titleFromSlug } from '../utils/slug';
@@ -198,40 +198,75 @@ export function extractEditorCode(): string {
   return '';
 }
 
-export async function pushProblemToRecallLC(currentSlug: string): Promise<boolean> {
-  if (!currentSlug) return false;
+let lastInterceptedCode: string | undefined;
+let lastInterceptedLang: string | undefined;
 
-  const lang = detectLanguage();
+export function setInterceptedSubmission(code?: string, lang?: string): void {
+  if (code) lastInterceptedCode = code;
+  if (lang) lastInterceptedLang = lang;
+}
+
+export function clearInterceptedSubmission(): void {
+  lastInterceptedCode = undefined;
+  lastInterceptedLang = undefined;
+}
+
+export async function pushProblemToRecallLC(
+  currentSlug: string,
+  source: 'manual' | 'auto' = 'manual',
+  providedCode?: string,
+  providedLang?: string,
+): Promise<boolean> {
+  if (!currentSlug) return false;
+  if (!isExtensionContextValid()) {
+    notifyContextInvalidated();
+    return false;
+  }
+
+  const lang = providedLang || lastInterceptedLang || detectLanguage();
   const pageTitle = extractTitleFromPage();
   const title = pageTitle || titleFromSlug(currentSlug);
   const detectedDiff = detectDifficultyFromPage();
   const difficulty =
     detectedDiff !== 'Unknown' ? detectedDiff : currentSlug.toLowerCase() === 'two-sum' ? 'Easy' : undefined;
-  const rawCode = extractEditorCode();
+  const rawCode = providedCode || lastInterceptedCode || extractEditorCode();
   const code = cleanExtractedCode(rawCode);
   const currentUrl = typeof window !== 'undefined' ? window.location.href : undefined;
 
   // 1. Record the attempt in RecallLC with difficulty and current platform URL
-  await callService('record-attempt', {
-    slug: currentSlug,
-    title,
-    url: currentUrl,
-    difficulty,
-    attemptedAt: Date.now(),
-    accepted: true,
-    language: lang,
-    source: 'manual',
-  });
+  try {
+    await callService('record-attempt', {
+      slug: currentSlug,
+      title,
+      url: currentUrl,
+      difficulty,
+      attemptedAt: Date.now(),
+      accepted: true,
+      language: lang,
+      source,
+    });
+  } catch (err) {
+    if (!isExtensionContextValid()) {
+      notifyContextInvalidated();
+      return false;
+    }
+    throw err;
+  }
 
   // 2. If code was extracted, save to problem notes (ensuring code is only added ONCE, never duplicated)
-  if (code.trim()) {
-    const existing = await callService('get-problem', { slug: currentSlug });
-    const currentNotes = existing?.problem?.notes || '';
-    const notesToSave = upsertSolutionCode(currentNotes, code, lang || 'code');
-    await callService('update-notes', {
-      slug: currentSlug,
-      notes: notesToSave,
-    });
+  try {
+    if (code.trim() && isExtensionContextValid()) {
+      const existing = await callService('get-problem', { slug: currentSlug });
+      const currentNotes = existing?.problem?.notes || '';
+      const notesToSave = upsertSolutionCode(currentNotes, code, lang || 'code');
+      await callService('update-notes', {
+        slug: currentSlug,
+        notes: notesToSave,
+      });
+    }
+  } catch (err) {
+    if (!isExtensionContextValid()) return false;
+    console.debug?.('[RecallLC] Problem notes update skipped:', err);
   }
 
   return true;

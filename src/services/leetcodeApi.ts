@@ -45,10 +45,15 @@ export interface LeetCodeSubmission {
 }
 
 const CATALOG_QUERY = `
-  query recalllcCatalog {
-    problemsetQuestionList {
+  query recalllcCatalog($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {
+    problemsetQuestionList(
+      categorySlug: $categorySlug
+      limit: $limit
+      skip: $skip
+      filters: $filters
+    ) {
       total: totalNum
-      questions {
+      questions: questions {
         title
         titleSlug
         difficulty
@@ -218,7 +223,7 @@ export async function fetchCatalogViaGraphQL(bypassCache: boolean = false): Prom
         paidOnly?: boolean;
       }>;
     };
-  }>(CATALOG_QUERY);
+  }>(CATALOG_QUERY, { categorySlug: '', limit: 100, skip: 0, filters: {} });
 
   const questions = data?.problemsetQuestionList?.questions ?? [];
   const result = questions.map((question) => ({

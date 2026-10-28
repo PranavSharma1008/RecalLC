@@ -17,14 +17,24 @@
 
 import { createRoot, type Root } from 'react-dom/client';
 
-import { triggerFlyingRocketAnimation } from './InlineRocketButton';
 import { ReminderRoot } from './ReminderRoot';
-import { removeInlineRocket, resetLaunchState, startInlineRocketObserver, updateInlineRocket } from './inlineInjector';
-import { detectDifficultyFromPage, extractTitleFromPage } from './pushHelper';
+import { removeInlineRocket, resetLaunchState, startInlineRocketObserver } from './inlineInjector';
+import {
+  clearInterceptedSubmission,
+  detectDifficultyFromPage,
+  extractTitleFromPage,
+  setInterceptedSubmission,
+} from './pushHelper';
 import { currentProblemSlug, observeUrlChanges } from './reminder';
-import { callService } from '../services/messaging';
+import { callService, isExtensionContextValid } from '../services/messaging';
 import { readSettings } from '../services/storage';
-import { fetchCatalogViaGraphQL, fetchSubmissionHistory, statusToAccepted } from '../services/leetcodeApi';
+import {
+  fetchCatalogViaGraphQL,
+  fetchCatalogViaLegacyApi,
+  fetchSubmissionHistory,
+  statusToAccepted,
+  type LeetCodeProblemMeta,
+} from '../services/leetcodeApi';
 import { SubmissionTracker } from '../services/submissionTracker';
 import type { ThemePreference } from '../types';
 import '../styles/content.css';
@@ -129,6 +139,7 @@ function startTracker(): void {
   tracker = new SubmissionTracker({
     onSubmit: () => {
       resetLaunchState();
+      hasSuccessfulSubmit = false;
     },
     onAttempt: (attempt) => {
       void handleAttempt(attempt);
@@ -148,16 +159,12 @@ async function handleAttempt(attempt: {
   verdict: string;
   at: number;
 }): Promise<void> {
-  const settings = await readSettings();
-  if (settings.autoTrackSubmissions) {
-    void recordAttempt(attempt);
-  }
+  if (!isExtensionContextValid()) return;
 
-  // When a solution is submitted and accepted, update the inline rocket button and launch animation
-  if (attempt.accepted) {
-    hasSuccessfulSubmit = true;
-    triggerFlyingRocketAnimation();
-    updateInlineRocket(currentSlug, true, true, true);
+  // History tracking if enabled — NEVER auto-pushes problem to RecallLC!
+  const settings = await readSettings().catch(() => null);
+  if (settings?.autoTrackSubmissions !== false && !attempt.accepted) {
+    void recordAttempt(attempt);
   }
 }
 
@@ -167,6 +174,8 @@ async function recordAttempt(attempt: {
   verdict: string;
   at: number;
 }): Promise<void> {
+  if (!isExtensionContextValid()) return;
+
   const slug = currentProblemSlug();
   if (!slug) return;
   try {
@@ -186,7 +195,9 @@ async function recordAttempt(attempt: {
       source: 'auto',
     });
   } catch (error) {
-    console.warn('[RecallLC] could not record the attempt:', error);
+    if (isExtensionContextValid()) {
+      console.debug?.('[RecallLC] could not record the attempt:', error);
+    }
   }
 }
 
@@ -194,6 +205,8 @@ async function recordAttempt(attempt: {
 
 async function maybeEnrichCatalogue(): Promise<void> {
   if (!window.location.hostname.includes('leetcode.com')) return;
+  if (!isExtensionContextValid()) return;
+
   try {
     const last = await getLocal<number>(LAST_CATALOG_SYNC_KEY);
     if (last && Date.now() - last < CATALOG_REFRESH_INTERVAL_MS) return;
@@ -204,7 +217,13 @@ async function maybeEnrichCatalogue(): Promise<void> {
       return;
     }
 
-    const catalogue = await fetchCatalogViaGraphQL();
+    let catalogue: LeetCodeProblemMeta[];
+    try {
+      catalogue = await fetchCatalogViaGraphQL();
+    } catch {
+      catalogue = await fetchCatalogViaLegacyApi().catch(() => []);
+    }
+
     const wanted = new Set(slugs);
     const entries = catalogue
       .filter((entry) => wanted.has(entry.slug))
@@ -214,15 +233,15 @@ async function maybeEnrichCatalogue(): Promise<void> {
       await callService('catalog-merge', { entries });
     }
     await setLocal(LAST_CATALOG_SYNC_KEY, Date.now());
-  } catch (error) {
-    // Metadata enrichment is optional — the catalogue endpoint may be
-    // unreachable or the schema may have changed.
-    console.warn('[RecallLC] catalogue refresh skipped:', error);
+  } catch {
+    // Metadata enrichment is optional — silent fallback to avoid console noise
   }
 }
 
 async function maybeSyncAccountHistory(): Promise<void> {
   if (!window.location.hostname.includes('leetcode.com')) return;
+  if (!isExtensionContextValid()) return;
+
   try {
     const settings = await readSettings();
     if (!settings.accountSyncEnabled) return;
@@ -247,17 +266,26 @@ async function maybeSyncAccountHistory(): Promise<void> {
       })),
     });
     await setLocal(LAST_ACCOUNT_SYNC_KEY, Date.now());
-  } catch (error) {
-    console.debug?.('[RecallLC] account sync skipped:', error);
+  } catch {
+    // Account sync is optional — silent fallback
   }
 }
 
 /* ----------------------------------------------------------------- startup */
 
 function onSlugChange(slug: string | null): void {
+  if (!isExtensionContextValid()) return;
+
+  // If navigating within the same problem (e.g. from problem description to submission details /submissions/123)
+  if (slug && currentSlug === slug) {
+    renderReminder(slug);
+    return;
+  }
+
   currentSlug = slug;
-  // Always reset on slug change: rocket only shows after all testcases pass in this session!
+  // Always reset on slug change: rocket starts fresh ready for manual click!
   hasSuccessfulSubmit = false;
+  clearInterceptedSubmission();
   renderReminder(slug);
   removeInlineRocket();
 
@@ -277,8 +305,9 @@ function boot(): void {
 
   console.log('[RecallLC] Content script loaded on:', window.location.href);
   currentSlug = currentProblemSlug();
-  // Start session fresh — do NOT show rocket or Added before running testcases!
+  // Start session fresh — rocket is clean and ready for user to click!
   hasSuccessfulSubmit = false;
+  clearInterceptedSubmission();
   console.log('[RecallLC] Initial slug:', currentSlug);
   ensureHost();
   void applyTheme();
@@ -296,7 +325,11 @@ function boot(): void {
   });
 
   // Ensure island container stays attached
-  setInterval(() => {
+  const islandTimer = setInterval(() => {
+    if (!isExtensionContextValid()) {
+      clearInterval(islandTimer);
+      return;
+    }
     const slug = currentProblemSlug();
     if (slug) {
       const el = document.getElementById(HOST_ID);
@@ -307,10 +340,52 @@ function boot(): void {
     }
   }, 1000);
 
+  // Listen for verified network interception events from MAIN world interceptor
+  window.addEventListener('recalllc:submit-started', (event: Event) => {
+    const customEvt = event as CustomEvent<{ slug: string; code?: string; lang?: string; submissionId?: string }>;
+    if (customEvt.detail?.code) {
+      setInterceptedSubmission(customEvt.detail.code, customEvt.detail.lang);
+    }
+  });
+
+  window.addEventListener('recalllc:submission-accepted', (event: Event) => {
+    const customEvt = event as CustomEvent<{
+      slug: string;
+      code?: string;
+      lang?: string;
+      submissionId?: string;
+    }>;
+    const detail = customEvt.detail;
+    if (detail?.code) {
+      setInterceptedSubmission(detail.code, detail.lang);
+    }
+    console.log('[RecallLC] Submission verified accepted. User can click rocket button to push to RecallLC:', detail?.slug);
+  });
+
+  window.addEventListener('recalllc:submission-rejected', (event: Event) => {
+    const customEvt = event as CustomEvent<{ slug: string; verdict: string; submissionId?: string }>;
+    const detail = customEvt.detail;
+    const slug = detail?.slug || currentSlug || currentProblemSlug();
+    if (!slug || !isExtensionContextValid()) return;
+
+    console.log('[RecallLC] Intercepted submission rejected (' + detail.verdict + ') for:', slug);
+
+    void readSettings().then((s) => {
+      if (s?.autoTrackSubmissions !== false) {
+        void recordAttempt({
+          accepted: false,
+          language: null,
+          verdict: detail.verdict,
+          at: Date.now(),
+        });
+      }
+    }).catch(() => undefined);
+  });
+
   // Start watching for submission result rows to inject inline rocket
+  // STRICTLY MANUAL: Rocket only turns into Added when the user clicks the button!
   startInlineRocketObserver(
     () => currentProblemSlug(),
-    () => false, // Never auto-launch animation on page open or observer ticks
     () => hasSuccessfulSubmit,
     () => {
       hasSuccessfulSubmit = true;

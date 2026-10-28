@@ -16,7 +16,7 @@
  * it normally does.
  */
 
-import { isAcceptedOnPage, isInsideConsole } from '../content/reminder';
+import { isAcceptedOnPage, isInsideConsole, isSubmissionExecuting } from '../content/reminder';
 
 export interface DetectedAttempt {
   /** Human-readable verdict, e.g. "Accepted" or "Wrong Answer". */
@@ -96,7 +96,36 @@ const VERDICT_SELECTORS = [
   'div[class*="text-red" i]',
 ];
 
+function isRunCodeButton(element: Element): boolean {
+  const e2e = element.getAttribute('data-e2e-locator') || element.getAttribute('data-cy') || '';
+  const aria = element.getAttribute('aria-label') || element.getAttribute('title') || '';
+  const text = (element.textContent ?? '').trim();
+
+  // If it mentions submit anywhere, it is a SUBMIT button, never a run button
+  if (/submit/i.test(e2e) || /submit/i.test(aria) || /submit/i.test(text)) {
+    return false;
+  }
+
+  if (e2e && /run/i.test(e2e)) return true;
+  if (aria && RUN_BUTTON_PATTERN.test(aria)) return true;
+  if (text && RUN_BUTTON_PATTERN.test(text)) return true;
+
+  // Check SVG icons (e.g. play triangle icon in the run button)
+  const svg = element.tagName.toLowerCase() === 'svg' ? element : element.querySelector('svg');
+  if (svg) {
+    const dataIcon = (svg.getAttribute('data-icon') || '').toLowerCase();
+    const svgAria = (svg.getAttribute('aria-label') || '').toLowerCase();
+    if (dataIcon.includes('play') || dataIcon.includes('run') || svgAria.includes('play') || svgAria.includes('run')) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function isSubmitButton(element: Element): boolean {
+  if (isRunCodeButton(element)) return false;
+
   const tag = element.tagName?.toLowerCase();
   const role = element.getAttribute('role')?.toLowerCase();
   const isButtonLike =
@@ -164,8 +193,19 @@ export class SubmissionTracker {
     document.addEventListener('click', this.clickListener, true);
 
     this.keyListener = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      // In LeetCode:
+      // Cmd/Ctrl + Enter is "Run Code" (sample testcases) -> NOT submit!
+      // Cmd/Ctrl + ' is "Submit"
+      // Cmd/Ctrl + Shift/Alt + Enter is "Submit"
+      if ((event.metaKey || event.ctrlKey) && event.key === "'") {
         this.triggerSubmit();
+      } else if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+        if (event.shiftKey || event.altKey) {
+          this.triggerSubmit();
+        } else {
+          // Plain Cmd+Enter is Run Code: do not trigger submit, cancel any pending verdict
+          this.awaitingVerdict = false;
+        }
       }
     };
     document.addEventListener('keydown', this.keyListener, true);
@@ -217,7 +257,19 @@ export class SubmissionTracker {
     const target = event.target;
     if (!(target instanceof Element)) return;
 
-    const button = target.closest('button, [role="button"], a, div[class*="btn" i], div[class*="button" i]');
+    // Check if user clicked RUN button (sample testcases)
+    const runBtn = target.closest(
+      'button, [role="button"], a, div[class*="btn" i], div[class*="button" i], [data-e2e-locator*="run" i], [data-cypress*="run" i]',
+    );
+    if (runBtn && isRunCodeButton(runBtn)) {
+      // User clicked RUN CODE (sample testcases) — never trigger submission tracking
+      this.awaitingVerdict = false;
+      return;
+    }
+
+    const button = target.closest(
+      'button, [role="button"], a, div[class*="btn" i], div[class*="button" i], [data-e2e-locator*="submit" i], [data-cypress*="submit" i], [data-cy*="submit" i]',
+    );
     if (!button || !isSubmitButton(button)) return;
 
     this.triggerSubmit();
@@ -235,20 +287,7 @@ export class SubmissionTracker {
   }
 
   private isExecuting(): boolean {
-    if (typeof document === 'undefined') return false;
-    const bodyText = ((document.body?.innerText || '') + ' ' + (document.body?.textContent || '')).slice(0, 100000);
-    if (/\b(?:judging|evaluating|pending|running|compiling)\b/i.test(bodyText)) return true;
-    const submitBtn = document.querySelector(
-      '[data-e2e-locator="console-submit-button"], [data-cypress="submit-code-btn"], [data-cy="submit-code-btn"]',
-    );
-    if (submitBtn && (submitBtn.hasAttribute('disabled') || submitBtn.getAttribute('aria-disabled') === 'true')) {
-      return true;
-    }
-    const activeSpinner = document.querySelector(
-      '[data-e2e-locator*="submission" i] [class*="spin" i], [data-e2e-locator*="console" i] [class*="spin" i], [class*="submission" i] [class*="load" i], [class*="submission" i] svg.animate-spin, button[disabled] [class*="spin" i], [aria-busy="true"]',
-    );
-    if (activeSpinner && !activeSpinner.closest('.monaco-editor, header, nav')) return true;
-    return false;
+    return isSubmissionExecuting();
   }
 
   /**

@@ -1,18 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { callService, invalidateServiceCache } from '../../services/messaging';
+import { callService, invalidateServiceCache, resetExtensionContextValidityForTest } from '../../services/messaging';
 import { clearCatalogCache, fetchCatalogViaGraphQL, fetchCatalogViaLegacyApi } from '../../services/leetcodeApi';
 import { clearSettingsCache, readSettings, writeSettings } from '../../services/storage';
 
 describe('Fast Fetching, Request Coalescing & Response Acceleration', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
+    resetExtensionContextValidityForTest();
     invalidateServiceCache();
     clearCatalogCache();
     clearSettingsCache();
   });
 
   afterEach(() => {
+    resetExtensionContextValidityForTest();
     invalidateServiceCache();
     clearCatalogCache();
     clearSettingsCache();
@@ -33,6 +35,7 @@ describe('Fast Fetching, Request Coalescing & Response Acceleration', () => {
 
       globalThis.chrome = {
         runtime: {
+          id: 'recalllc-test',
           sendMessage: mockSendMessage,
         },
       } as unknown as typeof chrome;
@@ -64,6 +67,7 @@ describe('Fast Fetching, Request Coalescing & Response Acceleration', () => {
 
       globalThis.chrome = {
         runtime: {
+          id: 'recalllc-test',
           sendMessage: mockSendMessage,
         },
       } as unknown as typeof chrome;
@@ -89,6 +93,7 @@ describe('Fast Fetching, Request Coalescing & Response Acceleration', () => {
 
       globalThis.chrome = {
         runtime: {
+          id: 'recalllc-test',
           sendMessage: mockSendMessage,
         },
       } as unknown as typeof chrome;

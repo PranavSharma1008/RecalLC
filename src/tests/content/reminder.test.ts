@@ -244,6 +244,60 @@ describe('isAcceptedOnPage', () => {
     expect(isAcceptedOnPage()).toBe(true);
   });
 
+  it('returns true on modern LeetCode submission page with Beats and timestamp (e.g. submitted at Oct 28, 2026)', () => {
+    document.body.innerHTML = `
+      <div>
+        <div class="flex items-center">
+          <span class="text-green-500 font-semibold text-xl">Accepted</span>
+          <span>26 / 26 testcases passed</span>
+        </div>
+        <p>submitted at Oct 28, 2026 17:18</p>
+        <div>
+          <span>Runtime 2 ms | Beats 97.22%</span>
+          <span>Memory 48.08 MB | Beats 85.88%</span>
+        </div>
+        <button>Analysis</button>
+        <button>Solution</button>
+      </div>
+    `;
+    expect(isAcceptedOnPage()).toBe(true);
+  });
+
+  it('returns false when user only runs sample testcases (Screenshot 1: Play/Run button)', () => {
+    document.body.innerHTML = `
+      <div class="flex flex-col h-full bg-layer-1">
+        <div class="flex items-center">
+          <div role="tab">Testcase</div>
+          <div role="tab">Test Result</div>
+        </div>
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center gap-2">
+            <span class="text-green-500 font-semibold">Accepted</span>
+            <span class="text-xs">Runtime: 0 ms</span>
+          </div>
+          <div class="case-tabs flex gap-2">
+            <div class="case-tab">Case 1</div>
+            <div class="case-tab">Case 2</div>
+          </div>
+        </div>
+      </div>
+    `;
+    expect(isAcceptedOnPage()).toBe(false);
+  });
+
+  it('returns true when user clicks Submit and full submission stats interface appears (Screenshot 3)', () => {
+    document.body.innerHTML = `
+      <div class="submission-details">
+        <div class="flex items-center">
+          <span class="text-green-500 font-semibold">Accepted</span>
+          <span>Runtime: 39 ms | Beats 35.80%</span>
+          <span>Memory: 46.67 MB | Beats 85.67%</span>
+        </div>
+      </div>
+    `;
+    expect(isAcceptedOnPage()).toBe(true);
+  });
+
   it('returns false on problem description page load with Editorial Complexity Analysis and Solution', () => {
     document.body.innerHTML = `
       <div class="description-tab">
@@ -312,6 +366,89 @@ describe('isAcceptedOnPage', () => {
           <div class="text-green-500">Accepted</div>
           <div>66 / 66 testcases passed</div>
         </div>
+      </div>
+    `;
+    expect(isAcceptedOnPage()).toBe(true);
+  });
+
+  it('returns true for accepted submission even if page has words like "running sum" or "pending" in problem text', () => {
+    document.body.innerHTML = `
+      <div class="problem-content">
+        <p>Given a running sum of an array and pending queries.</p>
+        <button>Run Code</button>
+      </div>
+      <div class="submission-details">
+        <span class="text-green-500">Accepted</span>
+        <span>66 / 66 testcases passed</span>
+      </div>
+    `;
+    expect(isAcceptedOnPage()).toBe(true);
+  });
+
+  it('returns true when window location pathname is a submission details URL', () => {
+    const originalLocation = window.location;
+    // @ts-expect-error test override
+    delete window.location;
+    // @ts-expect-error test override
+    window.location = {
+      pathname: '/problems/two-sum-ii-input-array-is-sorted/submissions/2183862881/',
+      href: 'https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/submissions/2183862881/',
+      hostname: 'leetcode.com',
+    };
+
+    expect(isAcceptedOnPage()).toBe(true);
+
+    // @ts-expect-error test restore
+    window.location = originalLocation;
+  });
+
+  it('returns false for sample testcase run (Screenshot 1: Roman to Integer with Case 1, 2, 3 and Accepted Runtime 0ms)', () => {
+    document.body.innerHTML = `
+      <div class="problem-description">
+        <h1>13. Roman to Integer</h1>
+        <span class="badge">Solved ✔</span>
+        <span class="difficulty">Easy</span>
+      </div>
+      <div class="monaco-editor">
+        int res = 0;
+      </div>
+      <div class="console-testcase-container">
+        <div class="tabs">
+          <span>Testcase</span>
+          <span class="active">Test Result</span>
+        </div>
+        <div class="text-green-500 font-semibold">Accepted</div>
+        <span>Runtime: 0 ms</span>
+        <div class="case-tabs">
+          <button>Case 1</button>
+          <button>Case 2</button>
+          <button>Case 3</button>
+        </div>
+        <div>Input: s = "III"</div>
+        <div>Output: 3</div>
+        <div>Expected: 3</div>
+      </div>
+    `;
+    expect(isAcceptedOnPage()).toBe(false);
+  });
+
+  it('returns true when full submission passes (Screenshot 2: 3999 / 3999 testcases passed, Beats 11.51%, Beats 91.66%)', () => {
+    document.body.innerHTML = `
+      <div class="submission-view">
+        <a href="/problems/roman-to-integer/submissions/">← All Submissions</a>
+        <div class="status text-green-500 font-bold text-2xl">Accepted</div>
+        <div>3999 / 3999 testcases passed</div>
+        <div>submitted at Oct 28, 2026 18:03</div>
+        <div>Runtime: 7 ms | Beats 11.51%</div>
+        <div>Memory: 45.92 MB | Beats 91.66%</div>
+      </div>
+      <div class="console-testcase-container">
+        <div class="tabs">
+          <span>Testcase</span>
+          <span class="active">Test Result</span>
+        </div>
+        <div>Accepted Runtime: 0 ms</div>
+        <div>Case 1</div>
       </div>
     `;
     expect(isAcceptedOnPage()).toBe(true);

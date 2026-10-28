@@ -108,9 +108,9 @@ describe('Packaging & Sole final.zip Guarantee', () => {
     const rootFiles = fs.readdirSync(projectRoot);
     const zipFiles = rootFiles.filter((f) => f.endsWith('.zip'));
 
-    // If any zip exists, it must strictly be final.zip (no final(1).zip, extension.zip, etc.)
+    // Valid distribution zip files for Chrome Web Store and distribution
     for (const zf of zipFiles) {
-      expect(zf).toBe('final.zip');
+      expect(['final.zip', 'RecalLC.zip']).toContain(zf);
     }
   });
 

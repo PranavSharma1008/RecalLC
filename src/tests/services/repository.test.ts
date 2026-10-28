@@ -582,4 +582,35 @@ describe('persistence', () => {
     const clearedEntry = dueListAfter.find((d) => d.slug === 'edit-distance');
     expect(clearedEntry?.overdue ?? false).toBe(false);
   });
+
+  it('recordAttempt saves notes directly and preserves them on duplicate or fresh attempt', async () => {
+    await clearAll();
+    await recordAttempt(
+      {
+        slug: 'merge-intervals',
+        title: 'Merge Intervals',
+        attemptedAt: NOW,
+        source: 'import',
+        notes: 'Sort intervals by start time.',
+      },
+      NOW,
+    );
+
+    const problem = await getProblem('merge-intervals');
+    expect(problem?.notes).toBe('Sort intervals by start time.');
+
+    // Duplicate attempt with notes
+    await recordAttempt(
+      {
+        slug: 'merge-intervals',
+        title: 'Merge Intervals',
+        attemptedAt: NOW,
+        source: 'import',
+        notes: 'Sort intervals by start time.',
+      },
+      NOW,
+    );
+    const problemAfter = await getProblem('merge-intervals');
+    expect(problemAfter?.notes).toBe('Sort intervals by start time.');
+  });
 });

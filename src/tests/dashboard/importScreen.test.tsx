@@ -93,9 +93,10 @@ describe('ImportScreen Export & Sample Protection', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
 
-    expect(container.textContent).toContain('Download your solved LeetCode data');
-    expect(container.textContent).toContain('Download Solved Problems (CSV)');
-    expect(container.textContent).toContain('Download Solved Problems (JSON)');
+    expect(container.textContent).toContain('Download Complete Backup');
+    expect(container.textContent).toContain('Download Complete Backup (JSON)');
+    expect(container.textContent).not.toContain('Download Solved Problems (CSV)');
+    expect(container.textContent).not.toContain('Download Solved Problems (JSON)');
     expect(container.textContent).not.toContain('Blank format templates');
     expect(container.textContent).not.toContain('Blank CSV Template');
   });
@@ -145,13 +146,13 @@ describe('ImportScreen Export & Sample Protection', () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
 
-    // Find and click the Download CSV button
+    // Find and click the Download Complete Backup button
     const buttons = Array.from(container.querySelectorAll('button'));
-    const downloadCsvBtn = buttons.find((b) => b.textContent?.includes('Download Solved Problems (CSV)'));
-    expect(downloadCsvBtn).toBeDefined();
+    const downloadBackupBtn = buttons.find((b) => b.textContent?.includes('Download Complete Backup (JSON)'));
+    expect(downloadBackupBtn).toBeDefined();
 
     await act(async () => {
-      downloadCsvBtn?.click();
+      downloadBackupBtn?.click();
     });
 
     await act(async () => {
@@ -211,5 +212,85 @@ describe('ImportScreen Export & Sample Protection', () => {
     // Should NOT show any sample dataset warning or button to the user
     expect(container.textContent).not.toContain('Sample Dataset Detected');
     expect(container.textContent).not.toContain('Clear Sample Data');
+  });
+
+  it('detects RecallLC backup file on file select and restores all data and schedules', async () => {
+    let restored = false;
+    vi.spyOn(chrome.runtime, 'sendMessage').mockImplementation(async (message: unknown) => {
+      const envelope = message as { method: string };
+      if (envelope.method === 'import-history') return { ok: true, data: [] };
+      if (envelope.method === 'stats') {
+        return {
+          ok: true,
+          data: {
+            totalProblems: 0,
+            totalAttempts: 0,
+            dueToday: 0,
+            overdue: 0,
+            revisedThisWeek: 0,
+            streak: 0,
+            byTopic: [],
+            totalReviews: 0,
+          },
+        };
+      }
+      if (envelope.method === 'restore') {
+        restored = true;
+        return { ok: true, data: { problems: 5, attempts: 10 } };
+      }
+      return { ok: true, data: null };
+    });
+
+    const root = createRoot(container);
+    await act(async () => {
+      root.render(<ImportScreen onChanged={() => undefined} />);
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    // Simulate selecting a backup file
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    expect(fileInput).not.toBeNull();
+
+    const sampleBackup = JSON.stringify({
+      format: 'recalllc-backup',
+      version: 1,
+      exportedAt: Date.now(),
+      problems: [{ slug: 'two-sum', title: 'Two Sum', notes: 'hash table' }],
+      attempts: [{ id: '1', slug: 'two-sum', attemptedAt: Date.now() }],
+      revisions: [{ slug: 'two-sum', dueAt: Date.now() + 86400000 }],
+    });
+
+    const file = new File([sampleBackup], 'recalllc-backup-2026-10-28.json', { type: 'application/json' });
+    Object.defineProperty(fileInput, 'files', { value: [file], configurable: true });
+
+    await act(async () => {
+      fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(container.textContent).toContain('RecallLC Complete Backup Detected');
+    expect(container.textContent).toContain('Restore All Data & Schedules');
+
+    // Click Restore button
+    const buttons = Array.from(container.querySelectorAll('button'));
+    const restoreBtn = buttons.find((b) => b.textContent?.includes('Restore All Data & Schedules'));
+    expect(restoreBtn).toBeDefined();
+
+    await act(async () => {
+      restoreBtn?.click();
+    });
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+
+    expect(restored).toBe(true);
+    expect(container.textContent).toContain('Data Restored Successfully');
   });
 });

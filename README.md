@@ -3,8 +3,8 @@
 **Solve it. Remember it. Master it.**
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Published-blue?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo)
-[![Version](https://img.shields.io/badge/version-1.0.2-brightgreen.svg)](https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo)
-[![Tests](https://img.shields.io/badge/tests-317%20passed-success)](https://github.com/PranavSharma1008/RecalLc)
+[![Version](https://img.shields.io/badge/version-1.0.3-brightgreen.svg)](https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo)
+[![Tests](https://img.shields.io/badge/tests-343%20passed-success)](https://github.com/PranavSharma1008/RecalLc)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?logo=github&logoColor=white)](https://github.com/sponsors/PranavSharma1008)
 [![Razorpay](https://img.shields.io/badge/Donate-Razorpay-0c2340?logo=razorpay&logoColor=white)](https://razorpay.me/@recallc)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -36,10 +36,11 @@ Everything runs **locally**. No account, no server, no telemetry.
 - [Support & Sponsorship (India & Outside India)](#support--sponsorship-india--outside-india)
 - [Install from Chrome Web Store](#install-from-chrome-web-store)
 - [Features](#features)
+- [Manual Rocket Push Flow (LeetCode & GeeksforGeeks)](#manual-rocket-push-flow-leetcode--geeksforgeeks)
 - [Loading the Extension Locally on Your Monitor](#loading-the-extension-locally-on-your-monitor)
 - [Packaging & Sole Distributable final.zip](#packaging--sole-distributable-finalzip)
 - [Build it yourself](#build-it-yourself)
-- [Importing your attempt history](#importing-your-attempt-history)
+- [Complete Backup, Transfer & Importing](#complete-backup-transfer--importing)
 - [How the revision schedule works](#how-the-revision-schedule-works)
 - [The recall-first workflow](#the-recall-first-workflow)
 - [Security & Anti-Hacking Architecture](#security--anti-hacking-architecture)
@@ -87,16 +88,42 @@ Direct store link:
 
 ## Features
 
-| Area                           | What RecallLC does                                                                                            |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| **Current problem detection**  | Recognises `leetcode.com/problems/<slug>`, follows single-page navigation, and never shows two cards at once. |
-| **In-page reminder**           | One compact, keyboard-accessible card with **Revise Now**, **Remind Tomorrow** and **Dismiss**.               |
-| **Automatic attempt tracking** | Records an attempt only when LeetCode reports a _verdict_. Opening a problem is never counted as an attempt.  |
-| **Import**                     | JSON and CSV, with a preview, validation, de-duplication and a per-run summary.                               |
-| **Revision engine**            | Configurable spaced repetition with an initial interval, overdue handling, snoozing and a review history.     |
-| **Dashboard**                  | Due today, overdue, tracked, revised-this-week, streak, topics, search, filters, sorting and notes.           |
-| **Recall-first workflow**      | A four-question checklist, notes that stay hidden until you reveal them, and a four-way recall rating.        |
-| **Backup**                     | Export everything to JSON, restore it later, or wipe it.                                                      |
+| Area                                | What RecallLC does                                                                                                                    |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **Manual Rocket Push (100% Reliable)** | Dedicated **🚀 Push to RecallLC** rocket button integrated into LeetCode and GeeksforGeeks headers for on-demand, verified push. |
+| **In-Page Banner Prompt**           | Displays a non-intrusive 2-second in-page banner prompt (`🚀 Click rocket to push question to RecallLC`) upon opening any problem.     |
+| **Current problem detection**       | Recognises `leetcode.com/problems/<slug>` and `geeksforgeeks.org/problems/<slug>`, follows SPA navigation without duplicate cards.   |
+| **In-page reminder island**         | One compact, keyboard-accessible card with **Revise Now**, **Remind Tomorrow** and **Dismiss**.                                       |
+| **Complete Backup & Transfer**      | Single-click **📦 Download Complete Backup (JSON)** exports 100% of problems, notes, code, and schedules for seamless multi-device transfer. |
+| **Import**                          | Drop any `.json` or `.csv` attempt export or complete backup file with instant preview, validation, and de-duplication.                |
+| **Revision engine**                 | Spaced repetition intervals with custom day selection (Mon–Sun + exact days), overdue handling, snoozing, and review history.         |
+| **Master Security Passcode**        | Optional master lock passcode of any length (numbers or text) with clear backup recovery warnings.                                    |
+| **Built-in User Guide**             | Direct **📖 User Manual & Guide** button in the dashboard navigation explaining the rocket push workflow step-by-step.               |
+| **Dashboard**                       | Due today, overdue, tracked, revised-this-week, streak, topics, search, filters, sorting and notes.                                   |
+| **Recall-first workflow**           | Four-question checklist, notes that stay hidden until revealed, and a four-way recall rating.                                        |
+
+---
+
+## Manual Rocket Push Flow (LeetCode & GeeksforGeeks)
+
+To prevent unwanted sample testcase submissions or half-finished code from accidentally cluttering your revision schedule, RecallLC puts you in total control with a **100% manual rocket push button**:
+
+1. **2-Second In-Page Prompt**:
+   - Whenever you navigate to any problem page on [LeetCode](https://leetcode.com/problems/) or [GeeksforGeeks](https://practice.geeksforgeeks.org/), a clean floating banner appears for 2 seconds:
+     > `🚀 Click rocket to push question to RecallLC`
+   - It automatically fades away without disrupting your coding or layout.
+
+2. **The Rocket Button (`🚀 Push to RecallLC`)**:
+   - Located conveniently directly next to the editor controls / header bar on LeetCode and GeeksforGeeks.
+   - When all your testcases pass (or whenever you decide your solution is ready to be tracked):
+     - Click the **🚀 Rocket** button.
+     - RecallLC captures the problem title, slug, topic tags, difficulty, programming language, your solution code, and notes.
+     - The rocket triggers a smooth CSS launch animation 🚀💨 and morphs into a green badge: **`✓ Added`**.
+     - The problem is immediately committed to your local IndexedDB and scheduled for spaced repetition revision.
+
+3. **No Accidental Submissions**:
+   - Running sample cases or clicking preliminary buttons will **never** push data into your extension database.
+   - Only your explicit click on the rocket button pushes the question.
 
 ---
 
@@ -207,7 +234,26 @@ npm run preview    # preview the production build
 
 ---
 
-## Importing your attempt history
+## Complete Backup, Transfer & Importing
+
+RecallLC makes backing up and transferring your data between devices and browsers seamless, private, and 100% loss-free.
+
+### 📦 1-Click Complete Backup & Cross-Device Transfer
+
+To move all your solved questions, notes, solution code, and revision schedules to a friend's laptop or another browser:
+
+1. In the Dashboard, open the **Import** tab.
+2. Click **📦 Download Complete Backup (JSON)**.
+   - RecallLC generates a timestamped `recalllc-backup-YYYY-MM-DD.json` file containing your complete A-to-Z data: every tracked problem, code solution, custom notes, historical submission attempts, and current spaced repetition intervals.
+3. On the new laptop or browser:
+   - Install RecallLC and navigate to the **Import** tab.
+   - Drag and drop your downloaded `recalllc-backup-YYYY-MM-DD.json` file into the upload zone.
+   - Click **🚀 Restore All Data & Schedules**.
+   - 100% of your problems, solution code, and spaced repetition revision schedules are instantly restored!
+
+---
+
+### Importing your attempt history (JSON / CSV)
 
 Open **Dashboard → Import**, drop in a `.json` or `.csv` file, review the
 preview, and confirm. Nothing is written until you press _Import_.
