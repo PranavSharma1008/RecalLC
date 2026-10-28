@@ -285,7 +285,7 @@ function showProblemOpenToast(): void {
   toast.id = 'rlc-problem-open-toast';
   toast.style.cssText = `
     position: fixed !important;
-    top: 24px !important;
+    top: 68px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
     background: rgba(18, 14, 30, 0.96) !important;
@@ -300,27 +300,42 @@ function showProblemOpenToast(): void {
     font-weight: 600 !important;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
     z-index: 2147483647 !important;
-    pointer-events: none !important;
+    pointer-events: auto !important;
     display: flex !important;
     align-items: center !important;
     gap: 8px !important;
     opacity: 1 !important;
-    transition: opacity 0.3s ease, transform 0.3s ease !important;
+    transition: opacity 0.35s ease, transform 0.35s ease !important;
     letter-spacing: -0.01em !important;
   `;
   toast.innerHTML = `
     <span style="font-size:16px;line-height:1;">🚀</span>
     <span>Click rocket to push question to RecallLC</span>
+    <button type="button" aria-label="Dismiss banner" style="background:none;border:none;color:rgba(255,255,255,0.6);font-size:14px;cursor:pointer;padding:0 0 0 4px;margin-left:4px;line-height:1;">✕</button>
   `;
+
+  const closeBtn = toast.querySelector('button');
+  if (closeBtn) {
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toast.style.opacity = '0';
+      toast.style.transform = 'translateX(-50%) translateY(-10px)';
+      setTimeout(() => {
+        if (toast.isConnected) toast.remove();
+      }, 350);
+    });
+  }
+
   (document.body ?? document.documentElement).appendChild(toast);
 
+  // Keep visible for 5.5 seconds (5-6 seconds)
   toastTimer = setTimeout(() => {
     toast.style.opacity = '0';
     toast.style.transform = 'translateX(-50%) translateY(-10px)';
     setTimeout(() => {
       if (toast.isConnected) toast.remove();
     }, 350);
-  }, 2000);
+  }, 5500);
 }
 
 function onSlugChange(slug: string | null): void {
@@ -344,7 +359,7 @@ function onSlugChange(slug: string | null): void {
     return;
   }
 
-  // Show 2-second in-page prompt to remind user they can push with the rocket
+  // Show 5-second in-page prompt to remind user they can push with the rocket
   showProblemOpenToast();
 
   // Opening a problem is *not* an attempt — it only refreshes metadata.

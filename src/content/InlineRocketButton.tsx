@@ -79,12 +79,12 @@ export function InlineRocketButton({
   const isAdded = success || (autoOpen && !launching);
 
   useEffect(() => {
-    // Show prompt message for 2 seconds on problem open (only if not already added)
+    // Show prompt message for 5-6 seconds on problem open (only if not already added)
     if (!autoOpen && !isAdded && currentSlug) {
       setShowPromptBadge(true);
       const timer = setTimeout(() => {
         setShowPromptBadge(false);
-      }, 2000);
+      }, 5500);
       return () => clearTimeout(timer);
     }
   }, [currentSlug, autoOpen, isAdded]);
@@ -186,7 +186,7 @@ export function InlineRocketButton({
             </div>
           ) : null}
 
-          {/* 2-second notification on problem open: Click rocket to push the question */}
+          {/* 5-second notification on problem open: Click rocket to push the question */}
           {showPromptBadge && !busy && !isAdded ? (
             <div
               className="rlc-rocket-prompt-banner"

@@ -91,7 +91,7 @@ Direct store link:
 | Area                                | What RecallLC does                                                                                                                    |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
 | **Manual Rocket Push (100% Reliable)** | Dedicated **🚀 Push to RecallLC** rocket button integrated into LeetCode and GeeksforGeeks headers for on-demand, verified push. |
-| **In-Page Banner Prompt**           | Displays a non-intrusive 2-second in-page banner prompt (`🚀 Click rocket to push question to RecallLC`) upon opening any problem.     |
+| **In-Page Banner Prompt**           | Displays a non-intrusive 5-second in-page banner prompt (`🚀 Click rocket to push question to RecallLC`) upon opening any problem.     |
 | **Current problem detection**       | Recognises `leetcode.com/problems/<slug>` and `geeksforgeeks.org/problems/<slug>`, follows SPA navigation without duplicate cards.   |
 | **In-page reminder island**         | One compact, keyboard-accessible card with **Revise Now**, **Remind Tomorrow** and **Dismiss**.                                       |
 | **Complete Backup & Transfer**      | Single-click **📦 Download Complete Backup (JSON)** exports 100% of problems, notes, code, and schedules for seamless multi-device transfer. |
@@ -109,7 +109,7 @@ Direct store link:
 To prevent unwanted sample testcase submissions or half-finished code from accidentally cluttering your revision schedule, RecallLC puts you in total control with a **100% manual rocket push button**:
 
 1. **2-Second In-Page Prompt**:
-   - Whenever you navigate to any problem page on [LeetCode](https://leetcode.com/problems/) or [GeeksforGeeks](https://practice.geeksforgeeks.org/), a clean floating banner appears for 2 seconds:
+   - Whenever you navigate to any problem page on [LeetCode](https://leetcode.com/problems/) or [GeeksforGeeks](https://practice.geeksforgeeks.org/), a clean floating banner appears for 5-6 seconds:
      > `🚀 Click rocket to push question to RecallLC`
    - It automatically fades away without disrupting your coding or layout.
 
