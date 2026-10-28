@@ -20,13 +20,13 @@ for zf in glob.glob('*.zip'):
 zip_path = 'final.zip'
 
 files_to_pack = {}
-exclude_dirs = {'node_modules', '.git'}
+exclude_dirs = {'node_modules', '.git', '.gemini', '.system_generated', 'coverage', '.turbo', '.cache'}
 
 # 1. Collect all project root files
 for root, dirs, files in os.walk('.'):
     dirs[:] = [d for d in dirs if d not in exclude_dirs]
     for file in files:
-        if file.endswith('.zip') or file.endswith('.tmp'):
+        if file.endswith('.zip') or file.endswith('.tmp') or file == '.DS_Store' or file == 'Thumbs.db':
             continue
         full_path = os.path.join(root, file)
         rel_path = os.path.relpath(full_path, '.')

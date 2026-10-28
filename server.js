@@ -43,19 +43,26 @@ function loadEnv() {
 
 loadEnv();
 
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID;
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+const RAZORPAY_KEY_ID =
+  process.env.RAZORPAY_KEY_ID ||
+  process.env.VITE_RAZORPAY_KEY_ID ||
+  (process.env.NODE_ENV === 'test' || process.env.VITEST ? 'rzp_test_testkeyid123' : '');
+const RAZORPAY_KEY_SECRET =
+  process.env.RAZORPAY_KEY_SECRET ||
+  (process.env.NODE_ENV === 'test' || process.env.VITEST ? 'mock_dummy_secret_for_testing_only' : '');
 const PORT = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 3000;
 
 if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-  console.warn(
-    '[RecallLC Razorpay] WARNING: RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET missing in environment variables (.env).',
-  );
+  if (process.env.NODE_ENV !== 'test' && !process.env.VITEST) {
+    console.warn(
+      '[RecallLC Razorpay] WARNING: RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET missing in environment variables (.env).',
+    );
+  }
 }
 
 const razorpay = new Razorpay({
-  key_id: RAZORPAY_KEY_ID || '',
-  key_secret: RAZORPAY_KEY_SECRET || '',
+  key_id: RAZORPAY_KEY_ID || 'rzp_test_placeholder',
+  key_secret: RAZORPAY_KEY_SECRET || 'dummy_secret_for_tests',
 });
 
 // MIME types for static file serving

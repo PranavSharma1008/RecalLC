@@ -57,7 +57,8 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
         const probTopics = problem.topics.length > 0 ? problem.topics : (getPopularProblem(problem.slug)?.topics ?? []);
         const isGfg = Boolean(problem.url?.includes('geeksforgeeks.org') || isGfgSlug(problem.slug));
         const platformText = isGfg ? 'gfg geeksforgeeks' : 'leetcode lc';
-        const haystack = `${problem.title} ${problem.slug} ${probTopics.join(' ')} ${probDifficulty} ${platformText}`.toLowerCase();
+        const haystack =
+          `${problem.title} ${problem.slug} ${probTopics.join(' ')} ${probDifficulty} ${platformText}`.toLowerCase();
         if (!haystack.includes(needle)) return false;
       }
       const problemTopics =
@@ -343,7 +344,9 @@ export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
                 <Button
                   variant="secondary"
                   size="sm"
-                  onClick={() => window.open('https://www.geeksforgeeks.org/explore?page=1&sortBy=submissions', '_blank')}
+                  onClick={() =>
+                    window.open('https://www.geeksforgeeks.org/explore?page=1&sortBy=submissions', '_blank')
+                  }
                 >
                   🌐 Open GeeksforGeeks
                 </Button>

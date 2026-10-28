@@ -8,6 +8,10 @@
 
 import 'fake-indexeddb/auto';
 
+// Ensure test environment has test keys defined for payment security tests
+process.env.RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || 'rzp_test_testkeyid123';
+process.env.RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || 'mock_dummy_secret_for_testing_only';
+
 /* ------------------------------------------------------------ chrome mock */
 
 class MockStorageArea {

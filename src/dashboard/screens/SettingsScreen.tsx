@@ -7,13 +7,7 @@ import { useSettings } from '../../hooks/useSettings';
 import { applyTheme, resolveTheme } from '../../hooks/useTheme';
 import { callService } from '../../services/messaging';
 import { generateSalt, hashPasscode, setSessionUnlocked, verifyPasscode } from '../../utils/security';
-import {
-  RATING_HINTS,
-  RATING_LABELS,
-  RECALL_RATINGS,
-  type RecallRating,
-  type ThemePreference,
-} from '../../types';
+import { RATING_HINTS, RATING_LABELS, RECALL_RATINGS, type RecallRating, type ThemePreference } from '../../types';
 
 export interface SettingsScreenProps {
   onChanged: () => void;
@@ -576,7 +570,8 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
               <div>
                 <p className="text-sm font-bold text-danger">Delete all problem and revision data</p>
                 <p className="mt-1 text-xs leading-relaxed text-muted">
-                  Permanently deletes all tracked problems, submission attempts, revision intervals, and review logs from this device. Your themes, reminders, and configuration settings are preserved.
+                  Permanently deletes all tracked problems, submission attempts, revision intervals, and review logs
+                  from this device. Your themes, reminders, and configuration settings are preserved.
                 </p>
               </div>
             </div>
@@ -637,14 +632,25 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
             </a>
           </div>
           <div className="flex items-center justify-between">
-            <span className="font-medium text-fg">Support / Donate</span>
+            <span className="font-medium text-fg">Support (India)</span>
             <a
               href="https://razorpay.me/@recallc"
               target="_blank"
               rel="noopener noreferrer"
               className="text-accent hover:underline flex items-center gap-1"
             >
-              razorpay.me/@recallc ↗
+              razorpay.me/@recallc (Razorpay) ↗
+            </a>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-fg">Sponsor (Outside India)</span>
+            <a
+              href="https://github.com/sponsors/PranavSharma1008"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-pink-400 hover:underline flex items-center gap-1"
+            >
+              github.com/sponsors/PranavSharma1008 ↗
             </a>
           </div>
           <div className="pt-2 border-t border-line flex items-center justify-between">
@@ -653,8 +659,42 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
               href="#/support"
               className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-contrast hover:bg-accent-hover transition-colors"
             >
-              💖 Support & Donate
+              💖 Support & Donate Options
             </a>
+          </div>
+        </div>
+      </Card>
+
+      {/* Local Monitor & Extension Diagnostics Card */}
+      <Card>
+        <CardHeader
+          title="Local Monitor & Extension Environment"
+          subtitle="Diagnostics for this browser monitor session and local unpacked installation."
+        />
+        <div className="space-y-3 p-4 text-xs text-muted">
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-fg">Running Environment</span>
+            <span className="font-mono text-fg bg-surface-2 px-2 py-0.5 rounded border border-line">
+              {typeof chrome !== 'undefined' && chrome.runtime?.id ? 'Chrome Extension (Local / Unpacked)' : 'Web Mode'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-fg">Extension Version</span>
+            <span className="font-mono text-fg">v1.0.2</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-fg">Extension Runtime ID</span>
+            <span className="font-mono text-[11px] text-fg bg-surface-2 px-2 py-0.5 rounded border border-line truncate max-w-[220px]">
+              {typeof chrome !== 'undefined' && chrome.runtime?.id ? chrome.runtime.id : 'recal-local-dev'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-fg">Local Storage Engine</span>
+            <span className="text-emerald-400 font-semibold">IndexedDB (100% Private & Offline)</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-fg">Security Sandbox</span>
+            <span className="text-emerald-400 font-semibold">MV3 Isolated World & Strict CSP</span>
           </div>
         </div>
       </Card>
@@ -674,7 +714,8 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
               <div>
                 <h2 className="text-base font-bold text-fg">Delete all data?</h2>
                 <p className="mt-1 text-xs leading-relaxed text-muted">
-                  Permanently deletes all tracked problems, submission attempts, revision intervals, and review logs from this device.
+                  Permanently deletes all tracked problems, submission attempts, revision intervals, and review logs
+                  from this device.
                 </p>
                 <p className="mt-2 text-xs font-semibold text-danger">
                   This action is irreversible and cannot be undone.
@@ -683,12 +724,7 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
             </div>
 
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/50">
-              <Button
-                variant="ghost"
-                size="md"
-                disabled={busy}
-                onClick={() => setShowDeleteModal(false)}
-              >
+              <Button variant="ghost" size="md" disabled={busy} onClick={() => setShowDeleteModal(false)}>
                 ✕ Cancel
               </Button>
               <Button
@@ -731,7 +767,8 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
             <div>
               <h2 className="text-base font-bold text-fg">All Data Deleted</h2>
               <p className="mt-1.5 text-xs text-muted">
-                All RecallLC problem records, attempts, and revision schedules have been successfully removed from this device.
+                All RecallLC problem records, attempts, and revision schedules have been successfully removed from this
+                device.
               </p>
             </div>
             <div className="pt-2 flex justify-center">

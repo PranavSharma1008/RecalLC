@@ -1,16 +1,28 @@
 import { useEffect, useState } from 'react';
 
 /**
- * Razorpay Payment Configuration
+ * Payment & Sponsorship Configuration
  *
- * Configured for direct Razorpay contribution page:
- * - paymentPageUrl: Direct Razorpay payment link (https://razorpay.me/@recallc).
- * - developerName: Name displayed on payment invoices.
+ * Configured for both domestic (India) and international (Outside India) contributors:
+ * - Option 1 (India): Direct Razorpay contribution page (https://razorpay.me/@recallc).
+ * - Option 2 (Outside India): GitHub Sponsors (https://github.com/sponsors/PranavSharma1008).
+ * - developerName: Pranav Sharma.
  */
 export const RAZORPAY_CONFIG = {
   checkoutUrl: 'https://razorpay.me/@recallc',
   paymentPageUrl: 'https://razorpay.me/@recallc',
   developerName: 'Pranav Sharma',
+};
+
+export const GITHUB_SPONSORS_CONFIG = {
+  sponsorUrl: 'https://github.com/sponsors/PranavSharma1008',
+  dashboardUrl: 'https://github.com/sponsors/PranavSharma1008/dashboard',
+  developerName: 'Pranav Sharma',
+};
+
+export const PAYMENT_CONFIG = {
+  razorpay: RAZORPAY_CONFIG,
+  githubSponsors: GITHUB_SPONSORS_CONFIG,
 };
 
 export function SupportScreen() {
@@ -144,8 +156,9 @@ export function SupportScreen() {
         </p>
       </div>
 
-      {/* Centered Razorpay Option Card */}
-      <div className="mx-auto w-full max-w-md">
+      {/* Payment Options: India (Razorpay) & Outside India (GitHub Sponsors) */}
+      <div className="mx-auto w-full max-w-4xl grid gap-6 md:grid-cols-2">
+        {/* Option 1: Razorpay (India) */}
         <div className="rlc-card flex flex-col justify-between p-6 sm:p-7 rounded-2xl transition-all border-line hover:border-accent/40 hover:shadow-md">
           <div className="space-y-4">
             <div className="flex items-center justify-between">
@@ -153,14 +166,18 @@ export function SupportScreen() {
                 ₹
               </div>
               <span className="rounded-full bg-accent-soft px-3 py-1 text-[11px] font-semibold text-accent border border-accent/30 uppercase tracking-wider">
-                Razorpay
+                India (Razorpay)
               </span>
             </div>
             <div>
-              <p className="text-xs font-semibold text-accent uppercase tracking-wider">Contribution</p>
+              <p className="text-xs font-semibold text-accent uppercase tracking-wider">
+                Option 1 • For Supporters in India
+              </p>
               <h2 className="text-xl font-bold text-fg">Support via Razorpay</h2>
             </div>
-            <p className="text-xs text-muted">Pay once via UPI (GPay, PhonePe, Paytm), Cards, or NetBanking.</p>
+            <p className="text-xs text-muted leading-relaxed">
+              Pay once via UPI (GPay, PhonePe, Paytm), Indian Credit/Debit Cards, or NetBanking. Fast and secure.
+            </p>
             <div className="flex flex-wrap gap-2 pt-1">
               <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-xs font-medium text-muted border border-line">
                 <span className="text-accent font-bold">✓</span> One-time
@@ -169,18 +186,64 @@ export function SupportScreen() {
                 <span className="text-accent font-bold">✓</span> In rupees (₹)
               </span>
               <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-xs font-medium text-muted border border-line">
-                <span className="text-accent font-bold">✓</span> Fast & Secure
+                <span className="text-accent font-bold">✓</span> UPI & Cards
               </span>
             </div>
           </div>
           <div className="mt-6 pt-2">
             <a
-              href="https://razorpay.me/@recallc"
+              href={RAZORPAY_CONFIG.paymentPageUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full rounded-xl py-3 text-center text-xs font-bold transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5 active:scale-[0.99] bg-accent text-accent-contrast hover:bg-accent-hover hover:shadow-lg"
             >
               <span>Pay with Razorpay</span>
+              <span className="text-[10px] font-semibold">↗</span>
+            </a>
+          </div>
+        </div>
+
+        {/* Option 2: GitHub Sponsors (Outside India) */}
+        <div className="rlc-card flex flex-col justify-between p-6 sm:p-7 rounded-2xl transition-all border-line hover:border-pink-500/40 hover:shadow-md">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-pink-500/10 text-pink-400 text-xl font-bold border border-pink-500/30 shadow-inner">
+                💖
+              </div>
+              <span className="rounded-full bg-pink-500/10 px-3 py-1 text-[11px] font-semibold text-pink-400 border border-pink-500/30 uppercase tracking-wider">
+                Outside India
+              </span>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-pink-400 uppercase tracking-wider">
+                Option 2 • Outside India (International)
+              </p>
+              <h2 className="text-xl font-bold text-fg">Sponsor on GitHub</h2>
+            </div>
+            <p className="text-xs text-muted leading-relaxed">
+              For developers outside India. Support RecalLC with international credit/debit cards, PayPal, or GitHub
+              billing.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-xs font-medium text-muted border border-line">
+                <span className="text-pink-400 font-bold">✓</span> Outside India
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-xs font-medium text-muted border border-line">
+                <span className="text-pink-400 font-bold">✓</span> In Dollars ($ USD)
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1 text-xs font-medium text-muted border border-line">
+                <span className="text-pink-400 font-bold">✓</span> One-time or Monthly
+              </span>
+            </div>
+          </div>
+          <div className="mt-6 pt-2">
+            <a
+              href={GITHUB_SPONSORS_CONFIG.sponsorUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full rounded-xl py-3 text-center text-xs font-bold transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5 active:scale-[0.99] bg-gradient-to-r from-pink-600 to-rose-600 text-white hover:from-pink-500 hover:to-rose-500 hover:shadow-lg"
+            >
+              <span>Sponsor on GitHub</span>
               <span className="text-[10px] font-semibold">↗</span>
             </a>
           </div>

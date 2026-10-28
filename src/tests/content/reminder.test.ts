@@ -243,4 +243,77 @@ describe('isAcceptedOnPage', () => {
     `;
     expect(isAcceptedOnPage()).toBe(true);
   });
+
+  it('returns false on problem description page load with Editorial Complexity Analysis and Solution', () => {
+    document.body.innerHTML = `
+      <div class="description-tab">
+        <h2>72. Edit Distance</h2>
+        <span class="badge">Solved ✔</span>
+      </div>
+      <div class="editorial-content">
+        <h3>Complexity Analysis</h3>
+        <p>Time complexity: O(M * N)</p>
+        <p>Solution approach: Dynamic Programming</p>
+      </div>
+      <div class="console">
+        <p>You must run your code first</p>
+      </div>
+    `;
+    expect(isAcceptedOnPage()).toBe(false);
+  });
+
+  it('returns false on page open when code editor is untouched even if previously solved', () => {
+    document.body.innerHTML = `
+      <header>
+        <a href="/problems/edit-distance/">72. Edit Distance</a>
+        <span>Solved ✔</span>
+      </header>
+      <div class="monaco-editor">
+        class Solution { public int minDistance(String word1, String word2) {} }
+      </div>
+      <div class="test-result-panel">
+        <p>You must run your code first</p>
+      </div>
+    `;
+    expect(isAcceptedOnPage()).toBe(false);
+  });
+
+  it('returns true when LeetCode modern submission with Beats is shown even with Case 1 in the DOM', () => {
+    document.body.innerHTML = `
+      <div class="split-pane">
+        <div class="console-dock">
+          <div role="tab">Testcase</div>
+          <div>Case 1</div>
+          <div>Case 2</div>
+        </div>
+        <div class="submission-area">
+          <div class="flex items-center gap-2">
+            <span class="text-green-500 font-bold text-xl">Accepted</span>
+            <span>Runtime: 38 ms</span>
+            <span class="text-green-400">Beats 89.2%</span>
+            <span>Memory: 16.4 MB</span>
+            <span class="text-green-400">Beats 76.5%</span>
+          </div>
+        </div>
+      </div>
+    `;
+    expect(isAcceptedOnPage()).toBe(true);
+  });
+
+  it('returns true when LeetCode displays 66 / 66 testcases passed even with Case 1 in the DOM', () => {
+    document.body.innerHTML = `
+      <div class="split-pane">
+        <div class="console-dock">
+          <div>Case 1</div>
+          <div>Case 2</div>
+          <div>Custom Input</div>
+        </div>
+        <div class="submission-container">
+          <div class="text-green-500">Accepted</div>
+          <div>66 / 66 testcases passed</div>
+        </div>
+      </div>
+    `;
+    expect(isAcceptedOnPage()).toBe(true);
+  });
 });

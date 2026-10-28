@@ -17,10 +17,11 @@
 
 import { createRoot, type Root } from 'react-dom/client';
 
+import { triggerFlyingRocketAnimation } from './InlineRocketButton';
 import { ReminderRoot } from './ReminderRoot';
-import { startInlineRocketObserver, updateInlineRocket } from './inlineInjector';
+import { removeInlineRocket, resetLaunchState, startInlineRocketObserver, updateInlineRocket } from './inlineInjector';
 import { detectDifficultyFromPage, extractTitleFromPage } from './pushHelper';
-import { currentProblemSlug, isAcceptedOnPage, isProblemSolvedBadgeOnPage, observeUrlChanges } from './reminder';
+import { currentProblemSlug, isAcceptedOnPage, observeUrlChanges } from './reminder';
 import { callService } from '../services/messaging';
 import { readSettings } from '../services/storage';
 import { fetchCatalogViaGraphQL, fetchSubmissionHistory, statusToAccepted } from '../services/leetcodeApi';
@@ -126,6 +127,9 @@ async function applyTheme(): Promise<void> {
 function startTracker(): void {
   if (tracker) return;
   tracker = new SubmissionTracker({
+    onSubmit: () => {
+      resetLaunchState();
+    },
     onAttempt: (attempt) => {
       void handleAttempt(attempt);
     },
@@ -149,10 +153,11 @@ async function handleAttempt(attempt: {
     void recordAttempt(attempt);
   }
 
-  // When a solution is submitted and accepted, update the inline rocket button
+  // When a solution is submitted and accepted, update the inline rocket button and launch animation
   if (attempt.accepted) {
     hasSuccessfulSubmit = true;
-    updateInlineRocket(currentSlug, true, true);
+    triggerFlyingRocketAnimation();
+    updateInlineRocket(currentSlug, true, true, true);
   }
 }
 
@@ -251,24 +256,15 @@ async function maybeSyncAccountHistory(): Promise<void> {
 
 function onSlugChange(slug: string | null): void {
   currentSlug = slug;
-  hasSuccessfulSubmit = isAcceptedOnPage() || isProblemSolvedBadgeOnPage();
+  // Always reset on slug change: rocket only shows after all testcases pass in this session!
+  hasSuccessfulSubmit = false;
   renderReminder(slug);
-  updateInlineRocket(slug, hasSuccessfulSubmit, hasSuccessfulSubmit);
+  removeInlineRocket();
 
   if (!slug) {
     stopTracker();
     return;
   }
-
-  // Check if problem is already tracked in RecallLC
-  void callService('get-problem', { slug })
-    .then((res) => {
-      if (res?.problem) {
-        hasSuccessfulSubmit = true;
-        updateInlineRocket(slug, true, true);
-      }
-    })
-    .catch(() => undefined);
 
   // Opening a problem is *not* an attempt — it only refreshes metadata.
   void callService('mark-viewed', { slug, url: window.location.href }).catch(() => undefined);
@@ -281,21 +277,15 @@ function boot(): void {
 
   console.log('[RecallLC] Content script loaded on:', window.location.href);
   currentSlug = currentProblemSlug();
-  hasSuccessfulSubmit = isAcceptedOnPage() || isProblemSolvedBadgeOnPage();
-  console.log('[RecallLC] Initial slug:', currentSlug, 'isAcceptedOnPage:', hasSuccessfulSubmit);
+  // Start session fresh — do NOT show rocket or Added before running testcases!
+  hasSuccessfulSubmit = false;
+  console.log('[RecallLC] Initial slug:', currentSlug);
   ensureHost();
   void applyTheme();
   renderReminder(currentSlug);
+  removeInlineRocket();
 
   if (currentSlug) {
-    void callService('get-problem', { slug: currentSlug })
-      .then((res) => {
-        if (res?.problem) {
-          hasSuccessfulSubmit = true;
-          updateInlineRocket(currentSlug, true, true);
-        }
-      })
-      .catch(() => undefined);
     void callService('mark-viewed', { slug: currentSlug, url: window.location.href }).catch(() => undefined);
     startTracker();
   }
@@ -305,30 +295,23 @@ function boot(): void {
     onSlugChange(slug);
   });
 
-  // Periodic safeguard: ensure host is attached, check for accepted state, and keep UI responsive
+  // Periodic safeguard: check for accepted submission state (only when all testcases pass)
   setInterval(() => {
     const slug = currentProblemSlug();
     if (slug) {
       const accepted = isAcceptedOnPage();
-      if (accepted) {
-        if (!hasSuccessfulSubmit) {
-          hasSuccessfulSubmit = true;
-          renderReminder(slug);
-          void handleAttempt({
-            accepted: true,
-            language: detectLanguage(),
-            verdict: 'Accepted',
-            at: Date.now(),
-          });
-        }
-        updateInlineRocket(slug, true, true);
-      } else if (!hasSuccessfulSubmit) {
-        if (isProblemSolvedBadgeOnPage()) {
-          hasSuccessfulSubmit = true;
-          updateInlineRocket(slug, true, true);
-        } else {
-          updateInlineRocket(slug, false);
-        }
+      if (accepted && !hasSuccessfulSubmit) {
+        hasSuccessfulSubmit = true;
+        triggerFlyingRocketAnimation();
+        renderReminder(slug);
+        void handleAttempt({
+          accepted: true,
+          language: detectLanguage(),
+          verdict: 'Accepted',
+          at: Date.now(),
+        });
+        // When all testcases pass on a submission: launch rocket from ground to top through animation, then turn to Added!
+        updateInlineRocket(slug, true, true, true);
       }
       const el = document.getElementById(HOST_ID);
       if (!el || !el.isConnected) {
@@ -338,10 +321,14 @@ function boot(): void {
     }
   }, 500);
 
-  // Start watching for submission result rows to inject inline rocket when problem is accepted
+  // Start watching for submission result rows to inject inline rocket when all cases pass
   startInlineRocketObserver(
     () => currentProblemSlug(),
-    () => hasSuccessfulSubmit || isAcceptedOnPage() || isProblemSolvedBadgeOnPage(),
+    () => isAcceptedOnPage(),
+    () => hasSuccessfulSubmit,
+    () => {
+      hasSuccessfulSubmit = true;
+    },
   );
 
   void maybeEnrichCatalogue();

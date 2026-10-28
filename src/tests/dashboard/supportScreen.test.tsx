@@ -3,7 +3,12 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { SupportScreen } from '../../dashboard/screens/SupportScreen';
+import {
+  GITHUB_SPONSORS_CONFIG,
+  PAYMENT_CONFIG,
+  RAZORPAY_CONFIG,
+  SupportScreen,
+} from '../../dashboard/screens/SupportScreen';
 
 // @ts-expect-error React act environment flag
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
@@ -16,7 +21,7 @@ describe('SupportScreen', () => {
     document.body.appendChild(container);
   });
 
-  it('renders centered Razorpay option card with direct external link opening in new tab and no GitHub Sponsors', async () => {
+  it('renders both payment options: Option 1 (Razorpay for India) and Option 2 (GitHub Sponsors for Outside India)', async () => {
     const root = createRoot(container);
     await act(async () => {
       root.render(<SupportScreen />);
@@ -25,9 +30,10 @@ describe('SupportScreen', () => {
     // Check main title
     expect(container.textContent).toContain('Support my Free Extensions');
 
-    // Razorpay Card (Centered)
+    // 1. Razorpay Card (India)
     expect(container.textContent).toContain('Support via Razorpay');
-    expect(container.textContent).toContain('Pay once via UPI (GPay, PhonePe, Paytm), Cards, or NetBanking.');
+    expect(container.textContent).toContain('Option 1 • For Supporters in India');
+    expect(container.textContent).toContain('Pay once via UPI (GPay, PhonePe, Paytm)');
 
     const razorpayLink = Array.from(container.querySelectorAll('a')).find((a) =>
       a.textContent?.includes('Pay with Razorpay'),
@@ -37,25 +43,35 @@ describe('SupportScreen', () => {
     expect(razorpayLink?.getAttribute('target')).toBe('_blank');
     expect(razorpayLink?.getAttribute('rel')).toBe('noopener noreferrer');
 
-    // GitHub Sponsors is completely removed
-    expect(container.textContent).not.toContain('GitHub Sponsors');
-    expect(container.textContent).not.toContain('Outside India');
-    expect(container.textContent).not.toContain('Sponsor on GitHub');
-    expect(container.textContent).not.toContain('sponsors/PranavSharma1008');
+    // 2. GitHub Sponsors Card (Outside India)
+    expect(container.textContent).toContain('Sponsor on GitHub');
+    expect(container.textContent).toContain('Option 2 • Outside India (International)');
+    expect(container.textContent).toContain('Outside India');
+    expect(container.textContent).toContain('In Dollars ($ USD)');
 
-    // Does not render bottom contact/terms section
+    const sponsorsLink = Array.from(container.querySelectorAll('a')).find((a) =>
+      a.textContent?.includes('Sponsor on GitHub'),
+    );
+    expect(sponsorsLink).toBeDefined();
+    expect(sponsorsLink?.getAttribute('href')).toBe('https://github.com/sponsors/PranavSharma1008');
+    expect(sponsorsLink?.getAttribute('target')).toBe('_blank');
+    expect(sponsorsLink?.getAttribute('rel')).toBe('noopener noreferrer');
+
+    // Check exported config objects
+    expect(RAZORPAY_CONFIG.paymentPageUrl).toBe('https://razorpay.me/@recallc');
+    expect(GITHUB_SPONSORS_CONFIG.sponsorUrl).toBe('https://github.com/sponsors/PranavSharma1008');
+    expect(GITHUB_SPONSORS_CONFIG.dashboardUrl).toBe('https://github.com/sponsors/PranavSharma1008/dashboard');
+    expect(PAYMENT_CONFIG.razorpay).toBe(RAZORPAY_CONFIG);
+    expect(PAYMENT_CONFIG.githubSponsors).toBe(GITHUB_SPONSORS_CONFIG);
+
+    // Does not render bottom legacy clutter
     expect(container.textContent).not.toContain('Terms & Conditions:');
-    expect(container.textContent).not.toContain('Open in Gmail');
-
-    // Does not render any wishlist/requirements/gear boxes
-    expect(container.textContent).not.toContain('Requirements');
     expect(container.textContent).not.toContain('AULA F75');
 
     // Renders attractive value proposition and community impact content
     expect(container.textContent).toContain('Built by a Developer, for Developers');
     expect(container.textContent).toContain('Always 100% Free & Private');
     expect(container.textContent).toContain('Fuel Late-Night Coding');
-    expect(container.textContent).not.toContain('Landed an interview or job offer');
 
     await act(async () => {
       root.unmount();

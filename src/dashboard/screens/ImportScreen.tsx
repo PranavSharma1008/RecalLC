@@ -274,20 +274,10 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button
-                variant="primary"
-                size="sm"
-                disabled={busyExport}
-                onClick={() => void handleDownloadCsv()}
-              >
+              <Button variant="primary" size="sm" disabled={busyExport} onClick={() => void handleDownloadCsv()}>
                 📄 Download Solved Problems (CSV)
               </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                disabled={busyExport}
-                onClick={() => void handleDownloadJson()}
-              >
+              <Button variant="primary" size="sm" disabled={busyExport} onClick={() => void handleDownloadJson()}>
                 💾 Download Solved Problems (JSON)
               </Button>
             </div>
@@ -296,9 +286,15 @@ export function ImportScreen({ onChanged }: ImportScreenProps) {
           <div className="rounded-xl border border-line/60 bg-surface-2/60 p-3 text-[11px] leading-relaxed text-muted">
             <p className="font-medium text-fg mb-1">💡 How RecallLC gets your real LeetCode data:</p>
             <ul className="list-disc pl-4 space-y-0.5 text-subtle">
-              <li>When you submit code and receive an <strong className="text-fg">&quot;Accepted&quot;</strong> verdict on LeetCode, RecallLC automatically tracks it.</li>
+              <li>
+                When you submit code and receive an <strong className="text-fg">&quot;Accepted&quot;</strong> verdict on
+                LeetCode, RecallLC automatically tracks it.
+              </li>
               <li>You can click the 🚀 rocket button directly on any LeetCode problem page to record it.</li>
-              <li>LeetCode Account Sync automatically syncs your recent solved submissions whenever you browse leetcode.com.</li>
+              <li>
+                LeetCode Account Sync automatically syncs your recent solved submissions whenever you browse
+                leetcode.com.
+              </li>
             </ul>
           </div>
         </div>

@@ -30,9 +30,7 @@ describe('GeeksforGeeks (GFG) full integration support', () => {
     });
 
     it('generates GFG canonical problemUrl when platform/url is GFG', () => {
-      expect(problemUrl('reverse-an-array', 'gfg')).toBe(
-        'https://www.geeksforgeeks.org/problems/reverse-an-array/1',
-      );
+      expect(problemUrl('reverse-an-array', 'gfg')).toBe('https://www.geeksforgeeks.org/problems/reverse-an-array/1');
       expect(problemUrl('reverse-an-array')).toBe('https://leetcode.com/problems/reverse-an-array/');
     });
 
@@ -147,6 +145,31 @@ describe('GeeksforGeeks (GFG) full integration support', () => {
       expect(reported).toBeDefined();
 
       tracker.stop();
+    });
+
+    it('strictly returns false when running sample testcases on GFG (Compile & Run)', () => {
+      document.body.innerHTML = `
+        <div class="compilation-results">
+          <div class="compilation-header">Compilation Completed</div>
+          <div class="test-cases">Test Cases Passed: 2/2</div>
+          <div>Your Output: 1 2 3</div>
+          <div>Expected Output: 1 2 3</div>
+        </div>
+        <div class="ide-console">
+          <span>Compile & Run</span>
+          <span>Sample Test Cases</span>
+        </div>
+      `;
+      expect(isAcceptedOnPage()).toBe(false);
+    });
+
+    it('strictly returns false while code is actively compiling or running', () => {
+      document.body.innerHTML = `
+        <div class="console-panel">
+          <span class="loading-spinner">Compiling...</span>
+        </div>
+      `;
+      expect(isAcceptedOnPage()).toBe(false);
     });
   });
 

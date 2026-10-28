@@ -23,7 +23,6 @@ import { SupportScreen } from './screens/SupportScreen';
 export const GMAIL_ENQUIRY_URL =
   'https://mail.google.com/mail/?view=cm&fs=1&to=pranav2410991479@gmail.com&su=RecallLC%20Enquiry';
 
-
 interface NavItem {
   path: string;
   label: string;

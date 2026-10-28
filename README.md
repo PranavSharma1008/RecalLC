@@ -4,7 +4,9 @@
 
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Published-blue?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo)
 [![Version](https://img.shields.io/badge/version-1.0.2-brightgreen.svg)](https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo)
-[![Tests](https://img.shields.io/badge/tests-307%20passed-success)](https://github.com/PranavSharma1008/RecalLc)
+[![Tests](https://img.shields.io/badge/tests-317%20passed-success)](https://github.com/PranavSharma1008/RecalLc)
+[![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?logo=github&logoColor=white)](https://github.com/sponsors/PranavSharma1008)
+[![Razorpay](https://img.shields.io/badge/Donate-Razorpay-0c2340?logo=razorpay&logoColor=white)](https://razorpay.me/@recallc)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 RecallLC is a Chrome extension (Manifest V3) that helps you revise the LeetCode
@@ -31,13 +33,16 @@ Everything runs **locally**. No account, no server, no telemetry.
 
 ## Table of contents
 
+- [Support & Sponsorship (India & Outside India)](#support--sponsorship-india--outside-india)
 - [Install from Chrome Web Store](#install-from-chrome-web-store)
 - [Features](#features)
-- [Install the built extension manually](#install-the-built-extension-manually)
+- [Loading the Extension Locally on Your Monitor](#loading-the-extension-locally-on-your-monitor)
+- [Packaging & Sole Distributable final.zip](#packaging--sole-distributable-finalzip)
 - [Build it yourself](#build-it-yourself)
 - [Importing your attempt history](#importing-your-attempt-history)
 - [How the revision schedule works](#how-the-revision-schedule-works)
 - [The recall-first workflow](#the-recall-first-workflow)
+- [Security & Anti-Hacking Architecture](#security--anti-hacking-architecture)
 - [Privacy & permissions](#privacy--permissions)
 - [Limitations](#limitations)
 - [Architecture](#architecture)
@@ -45,6 +50,23 @@ Everything runs **locally**. No account, no server, no telemetry.
 - [Testing](#testing)
 - [Project layout](#project-layout)
 - [Troubleshooting](#troubleshooting)
+- [License](#license)
+
+---
+
+## Support & Sponsorship (India & Outside India)
+
+RecalLC is 100% free, private, and open-source. Two official payment and sponsorship options are available depending on your location:
+
+| Region                       | Payment Platform    | Supported Methods                                                                  | Direct Contribution Link                                                                 |
+| :--------------------------- | :------------------ | :--------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------- |
+| **Inside India** (Option 1)  | **Razorpay**        | UPI (GPay, PhonePe, Paytm), RuPay / Visa / Mastercard, NetBanking (INR ₹)          | 👉 **[Pay with Razorpay (India)](https://razorpay.me/@recallc)**                         |
+| **Outside India** (Option 2) | **GitHub Sponsors** | International Credit/Debit Cards, PayPal, Monthly or One-Time sponsorships (USD $) | 👉 **[Sponsor on GitHub (Outside India)](https://github.com/sponsors/PranavSharma1008)** |
+
+- **GitHub Sponsors Dashboard**: Manage or review sponsorships at `https://github.com/sponsors/PranavSharma1008/dashboard`.
+- **Developer**: Pranav Sharma ([pranav2410991479@gmail.com](mailto:pranav2410991479@gmail.com)) • [LinkedIn](https://www.linkedin.com/in/pranavsharma1008/).
+
+---
 
 ---
 
@@ -78,40 +100,76 @@ Direct store link:
 
 ---
 
-## Install the built extension manually
+## Loading the Extension Locally on Your Monitor
 
-You can install from the distributable `final.zip` or build from source:
+You can load and run RecalLC directly on your local monitor in any Chromium-based browser (Google Chrome, Microsoft Edge, Brave, Arc, Opera, Vivaldi) without relying on the web store.
 
-### Option A: Using `final.zip`
+### Method 1: Instant Load via `final.zip` (No Node.js Required)
 
-1. Download or extract `final.zip`.
-2. Open Chrome and go to `chrome://extensions`.
-3. Turn on **Developer mode** (top-right toggle).
-4. Click **Load unpacked** and select the extracted folder.
-5. Pin RecallLC to your toolbar (click the puzzle-piece icon → pin).
+1. **Extract `final.zip`**: Unzip `final.zip` into a local directory on your machine.
+2. **Open Extensions Page**: In your browser address bar, navigate to:
+   - Chrome: `chrome://extensions`
+   - Edge: `edge://extensions`
+   - Brave: `brave://extensions`
+3. **Turn on Developer Mode**: Toggle the **"Developer mode"** switch located at the top-right corner of the window.
+4. **Load Unpacked**: Click the **"Load unpacked"** button in the top-left toolbar.
+5. **Select Folder**: Choose the folder where you extracted `final.zip` (it contains `manifest.json` right at its root).
+6. **Pin to Toolbar**: Click the extensions puzzle icon (🧩) on your browser toolbar and pin 📌 **RecalLC**.
 
-### Option B: Build it yourself
+---
 
-1. Build the extension:
+### Method 2: Build From Source with Live Monitor & HMR
 
+1. **Install dependencies and build**:
    ```bash
    npm install
    npm run build
    ```
+2. **Load the extension**:
+   - Go to `chrome://extensions` and enable **Developer mode**.
+   - Click **"Load unpacked"** and select the `dist/` directory (or the project root).
+3. **Live HMR Development Mode**:
+   - Run `npm run dev` to start Vite with CRXJS hot-module-replacement.
+   - Edit any component or script in `src/` — changes immediately reload in your browser!
 
-2. Open Chrome and go to `chrome://extensions`.
+---
 
-3. Turn on **Developer mode** (top-right toggle).
+### How to Inspect & Monitor RecalLC via DevTools on Your Monitor
 
-4. Click **Load unpacked** and select the `dist/` folder produced by the build.
+When running locally, you can monitor and debug every context of the extension in real time using Chrome DevTools:
 
-5. Pin RecallLC to your toolbar (click the puzzle-piece icon → pin).
+1. **Inspect Background Service Worker**:
+   - Go to `chrome://extensions`.
+   - Find the **RecalLC** card and click the blue link: `service worker` (or `Inspect views: background page`).
+   - A dedicated DevTools window opens to view service worker logs, indexedDB queries, and lifecycle events.
+2. **Inspect the Extension Popup**:
+   - Right-click the RecalLC icon in your browser toolbar and select **"Inspect popup"**.
+   - DevTools opens docked to the popup, allowing you to debug UI states, local storage, and styles.
+3. **Inspect the Full Dashboard**:
+   - Open the Dashboard (`chrome-extension://<id>/src/dashboard/index.html` or click Dashboard in popup).
+   - Right-click anywhere and select **Inspect** (`Cmd+Option+I` on Mac, `Ctrl+Shift+I` on Windows/Linux).
+   - Under the **Application** tab → **Storage** → **IndexedDB**, view the `recallc_db` database containing your problems, attempts, and revisions.
+4. **Inspect In-Page Content Scripts on LeetCode / GeeksforGeeks**:
+   - Navigate to any problem on `leetcode.com/problems/<slug>/` or `geeksforgeeks.org/problems/<slug>/`.
+   - Open DevTools (`F12`), switch to the **Console** tab, and filter by `[RecallLC]` to monitor in-page verdict detection, submission captures, and floating reminder cards.
+5. **Reloading after edits**:
+   - Whenever you re-run `npm run build`, simply click the circular **⟳ (Reload)** icon on the RecalLC card in `chrome://extensions`.
 
-6. Visit a LeetCode problem. The onboarding page opens automatically on first
-   install; you can always get back to it from **Dashboard → Settings**.
+---
 
-> **Tip:** after changing the extension's code, press the ⟳ (reload) button on
-> the `chrome://extensions` card to pick up the new build.
+## Packaging & Sole Distributable final.zip
+
+The project distributes code strictly via a single, self-contained zip file: `final.zip`.
+
+```bash
+npm run package
+```
+
+**Packaging guarantees**:
+
+- **Sole Distributable Archive**: Before and after packaging, the script actively purges any temporary or secondary `.zip` files (such as `final(1).zip` or competing archives) to guarantee `final.zip` is the sole distributable file.
+- **Dual Entrypoint Structure**: `final.zip` overlays compiled production assets (`manifest.json`, `service-worker-loader.js`, and compiled bundles) directly at the root level for instant **"Load unpacked"** loading, while also preserving the complete source code and `dist/` directory.
+- **Exclusion of Junk**: Automatically excludes `node_modules`, `.git`, `.DS_Store`, build caches, and test artifacts.
 
 ---
 
@@ -308,6 +366,52 @@ editor, and never modifies the page.
 
 ---
 
+## Security & Anti-Hacking Architecture
+
+RecalLC is built with a multi-layered defense-in-depth security model to ensure that the extension cannot be hacked, hijacked, or compromised:
+
+### 1. Zero-Telemetry Local-First Isolation
+
+- **100% Client-Side**: All problem attempt logs, spaced repetition intervals, study notes, and personal code snippets are stored exclusively inside your browser's private `IndexedDB` (`recallc_db`) and `chrome.storage.local`.
+- **No Remote Attack Surface**: There are no remote user databases, tracking pixels, or third-party telemetry servers to breach.
+
+### 2. Manifest V3 Sandbox & Strict Content Security Policy (CSP)
+
+- **Strict CSP Enforced**: `script-src 'self'; object-src 'none'; frame-src 'self' https://*.razorpay.com https://api.razorpay.com;`
+- **Zero Remote Code**: No `unsafe-eval`, no `unsafe-inline` scripts, and no execution of code strings or remote CDN scripts.
+- **Isolated Extension Origin**: Content scripts execute in an isolated world and communicate strictly through typed message passing.
+
+### 3. Principle of Least Privilege (Minimal Chrome Permissions)
+
+- **Only `storage` requested**: RecalLC does **not** request invasive permissions like `tabs`, `cookies`, `webRequest`, `webRequestBlocking`, `debugger`, or `<all_urls>`.
+- **Strictly Scoped Host Permissions**: Limited exclusively to `https://leetcode.com/*` and `https://*.geeksforgeeks.org/*` solely for detecting problem URLs and verdict submissions.
+
+### 4. IPC Message Authentication & Privilege Escalation Defense
+
+- **Sender Verification**: The background service worker strictly checks `sender.id === chrome.runtime.id`, rejecting any rogue third-party extensions immediately with 401 Unauthorized.
+- **Context Privilege Separation**: Privileged methods (`export`, `restore`, `clear-all`, `delete-problem`, `update-settings`, `purge-sample-data`, `import-commit`) are quarantined in `PRIVILEGED_METHODS`. In-page content scripts running on web pages are blocked from ever invoking these methods.
+- **Input Sanitization on Messages**: All IPC payloads enforce strict validation (whitelisted rating strings, bounded note byte limits, and sanitized timestamps) preventing memory exhaustion or buffer attacks.
+
+### 5. Safe DOM Rendering & XSS Neutralization
+
+- **React Virtual DOM**: All dynamic user data (problem titles, user notes, tag lists) is rendered as safe text nodes. No raw or unsanitized `innerHTML` is executed.
+- **HTML Sanitization**: All user strings pass through `sanitizeInput()` converting `<`, `>`, `&`, `"`, `'` to safe HTML entities.
+- **Safe URL Openers**: All outbound URLs are verified with `isSafeUrl()` and opened with `target="_blank" rel="noopener noreferrer"` to protect against tab-nabbing and `window.opener` attacks. Malicious schemes like `javascript:`, `data:`, `vbscript:`, and URLs with embedded credentials (`user:pass@`) are blocked.
+
+### 6. CSV Formula Injection & Prototype Pollution Defense
+
+- **CSV Injection (CWE-1236)**: Any cell beginning with `=`, `+`, `-`, `@`, or `\t` is automatically prefixed with an apostrophe during CSV export, preventing command execution in Microsoft Excel or Google Sheets.
+- **Prototype Pollution Immunity**: JSON importers and server request parsers specifically filter out `__proto__`, `constructor`, and `prototype` keys.
+
+### 7. Backend & Payment Gateway Security
+
+- **HMAC-SHA256 Verification**: Server payment verification uses timing-safe comparisons (`crypto.timingSafeEqual`) to prevent timing side-channel attacks.
+- **Payment Replay Defense**: Verified payments are stored in an expiring cache to reject duplicate/replay verification attempts.
+- **Strict Format Regex**: Order IDs, payment IDs, and signatures must match strict regex patterns (`order_[a-zA-Z0-9_]{5,60}`, `pay_[a-zA-Z0-9_]{5,60}`, `^[a-f0-9]{64}$`).
+- **IP Rate Limiting**: In-memory sliding window rate limiters protect API endpoints against brute-force and DoS attacks.
+
+---
+
 ## Privacy & permissions
 
 RecallLC is **local-first**. Your attempt history, notes and revision schedule
@@ -315,10 +419,11 @@ live in your browser profile and never leave your device.
 
 ### Permissions requested
 
-| Permission                               | Why                                                                                                                                                        |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `storage`                                | Persist your settings and revision schedule locally.                                                                                                       |
-| Host permission `https://leetcode.com/*` | Read the problem page you are already on, detect the current slug, detect the submit verdict, and (only if you opt in) fetch the public problem catalogue. |
+| Permission                      | Type            | Why                                                                                                                                                        |
+| :------------------------------ | :-------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `storage`                       | API Permission  | Persist your settings and revision schedule locally.                                                                                                       |
+| `https://leetcode.com/*`        | Host Permission | Read the problem page you are already on, detect the current slug, detect the submit verdict, and (only if you opt in) fetch the public problem catalogue. |
+| `https://*.geeksforgeeks.org/*` | Host Permission | Read GeeksforGeeks problem practice pages to detect problem titles and submit verdicts.                                                                    |
 
 That is the complete list. RecallLC does **not** request `tabs`, `scripting`,
 `cookies`, `webRequest`, `history` or `notifications`.
@@ -447,7 +552,10 @@ npm run verify
 npm run verify:content
 ```
 
-281 unit & integration tests across 30 test files plus full Chrome E2E automation suites, covering:
+317 unit, integration, and penetration tests across 33 test suites plus full Chrome E2E automation suites, covering:
+
+- **Packaging & Monitor Load Verification** — verifies strict creation of sole distributable `final.zip`, exclusion of duplicate archives, and presence of unpacked entry points for direct monitor loading.
+- **Payment & Sponsorship Verification** — verifies Option 1 (Razorpay for India) and Option 2 (GitHub Sponsors for Outside India) external URL safety, protocol validation, and tab-nabbing defenses.
 
 - **Ultra-Fast Request & Response Acceleration** — in-flight request coalescing/deduplication
   for both network and IPC messaging channels, sub-millisecond in-memory read micro-caching
@@ -562,5 +670,3 @@ Node 20.19+ is required.
 ## License
 
 MIT.
-
-# RecalLC

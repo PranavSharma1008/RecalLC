@@ -68,10 +68,7 @@ export function App() {
   };
 
   const openProblem = async (candidate: ReminderCandidate) => {
-    const isGfg = Boolean(
-      (candidate.url && candidate.url.includes('geeksforgeeks.org')) ||
-      isGfgSlug(candidate.slug),
-    );
+    const isGfg = Boolean((candidate.url && candidate.url.includes('geeksforgeeks.org')) || isGfgSlug(candidate.slug));
     const targetUrl =
       candidate.url && candidate.url.includes(isGfg ? 'geeksforgeeks.org' : 'leetcode.com')
         ? candidate.url
@@ -228,7 +225,7 @@ export function App() {
               <span className="text-pink-400">💖</span> Support
             </button>
           </div>
-          <span className="text-[11px] font-mono text-subtle">v1.0.0</span>
+          <span className="text-[11px] font-mono text-subtle">v1.0.2</span>
         </div>
       </footer>
     </div>

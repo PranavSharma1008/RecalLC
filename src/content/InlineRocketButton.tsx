@@ -1,41 +1,93 @@
 import { useEffect, useState } from 'react';
 
 import { pushProblemToRecallLC } from './pushHelper';
-import { callService } from '../services/messaging';
 
 export interface InlineRocketButtonProps {
   currentSlug: string;
   autoOpen?: boolean;
+  autoLaunch?: boolean;
+  onPushed?: () => void;
 }
 
-export function InlineRocketButton({ currentSlug, autoOpen = false }: InlineRocketButtonProps) {
+let activeRocketElement: HTMLDivElement | null = null;
+let rocketTimer: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Triggers the flying rocket launch animation across the full screen.
+ * Guaranteed to mount directly into document.body with fixed maximum z-index,
+ * flying from bottom: 28px, left: 50% all the way up through the middle of the screen.
+ */
+export function triggerFlyingRocketAnimation(): void {
+  if (typeof document === 'undefined' || !document.body) return;
+
+  if (activeRocketElement && activeRocketElement.isConnected) {
+    activeRocketElement.remove();
+  }
+  if (rocketTimer) {
+    clearTimeout(rocketTimer);
+  }
+
+  const container = document.createElement('div');
+  container.className = 'rlc-flying-rocket-container';
+  container.setAttribute('aria-hidden', 'true');
+  container.style.setProperty('position', 'fixed', 'important');
+  container.style.setProperty('bottom', '28px', 'important');
+  container.style.setProperty('left', '50%', 'important');
+  container.style.setProperty('transform', 'translateX(-50%)', 'important');
+  container.style.setProperty('z-index', '2147483647', 'important');
+  container.style.setProperty('pointer-events', 'none', 'important');
+  container.style.setProperty('display', 'flex', 'important');
+  container.style.setProperty('flex-direction', 'column', 'important');
+  container.style.setProperty('align-items', 'center', 'important');
+
+  container.innerHTML = `
+    <div class="rlc-flying-rocket" style="display:flex!important;flex-direction:column!important;align-items:center!important;animation:rlc-rocket-fly 1.1s cubic-bezier(0.25, 1, 0.5, 1) forwards!important;">
+      <span class="rlc-rocket-symbol" style="font-size:48px!important;line-height:1!important;filter:drop-shadow(0 0 18px rgba(168, 85, 247, 0.95)) drop-shadow(0 0 32px rgba(52, 211, 153, 0.8))!important;">🚀</span>
+      <span class="rlc-rocket-flame" style="font-size:30px!important;line-height:1!important;margin-top:-6px!important;animation:rlc-flame-flicker 0.15s infinite alternate!important;">🔥</span>
+      <span class="rlc-rocket-smoke" style="font-size:24px!important;line-height:1!important;margin-top:-6px!important;animation:rlc-smoke-trail 0.7s ease-out forwards!important;">💨</span>
+    </div>
+  `;
+
+  document.body.appendChild(container);
+  activeRocketElement = container;
+
+  rocketTimer = setTimeout(() => {
+    if (container.isConnected) {
+      container.remove();
+    }
+    if (activeRocketElement === container) {
+      activeRocketElement = null;
+    }
+  }, 1150);
+}
+
+export function InlineRocketButton({
+  currentSlug,
+  autoOpen = false,
+  autoLaunch = false,
+  onPushed,
+}: InlineRocketButtonProps) {
   const [busy, setBusy] = useState(false);
-  const [launching, setLaunching] = useState(false);
-  const [success, setSuccess] = useState(autoOpen);
+  const [, setLaunching] = useState(autoLaunch);
+  const [success, setSuccess] = useState(!autoLaunch && autoOpen);
   const [showTooltip, setShowTooltip] = useState(false);
   const isGfg = typeof window !== 'undefined' && window.location.hostname.includes('geeksforgeeks.org');
 
   useEffect(() => {
-    if (autoOpen) {
+    if (autoLaunch) {
+      setLaunching(true);
+      setSuccess(false);
+      triggerFlyingRocketAnimation();
+      const timer = setTimeout(() => {
+        setLaunching(false);
+        setSuccess(true);
+        onPushed?.();
+      }, 1100);
+      return () => clearTimeout(timer);
+    } else if (autoOpen) {
       setSuccess(true);
     }
-  }, [autoOpen]);
-
-  useEffect(() => {
-    let active = true;
-    if (currentSlug) {
-      callService('get-problem', { slug: currentSlug })
-        .then((res) => {
-          if (active && res?.problem) {
-            setSuccess(true);
-          }
-        })
-        .catch(() => undefined);
-    }
-    return () => {
-      active = false;
-    };
-  }, [currentSlug]);
+  }, [autoLaunch, autoOpen, onPushed]);
 
   async function handlePush(event: React.MouseEvent): Promise<void> {
     event.preventDefault();
@@ -43,16 +95,18 @@ export function InlineRocketButton({ currentSlug, autoOpen = false }: InlineRock
     if (busy || !currentSlug) return;
     setBusy(true);
     setLaunching(true);
+    triggerFlyingRocketAnimation();
 
     try {
       await pushProblemToRecallLC(currentSlug);
 
-      // Rocket flight animation
-      await new Promise((r) => setTimeout(r, 900));
+      // Rocket flight animation from ground to top (1.1s)
+      await new Promise((r) => setTimeout(r, 1100));
 
       setLaunching(false);
       setBusy(false);
       setSuccess(true);
+      onPushed?.();
     } catch (err) {
       console.warn('[RecallLC] Could not push problem:', err);
       setLaunching(false);
@@ -62,17 +116,6 @@ export function InlineRocketButton({ currentSlug, autoOpen = false }: InlineRock
 
   return (
     <>
-      {/* Floating Rocket Launch Animation (flies up with flame & smoke) */}
-      {launching ? (
-        <div className="rlc-flying-rocket-container" aria-hidden="true">
-          <div className="rlc-flying-rocket">
-            <span className="rlc-rocket-symbol">🚀</span>
-            <span className="rlc-rocket-flame">🔥</span>
-            <span className="rlc-rocket-smoke">💨</span>
-          </div>
-        </div>
-      ) : null}
-
       {/* Top bar inline cluster: seamless rocket button */}
       <div
         className="rlc-topbar-rocket-container"
@@ -148,7 +191,12 @@ export function InlineRocketButton({ currentSlug, autoOpen = false }: InlineRock
             {busy ? (
               <span
                 className="rlc-inline-spin"
-                style={{ display: 'inline-block', fontSize: '12px', lineHeight: 1, animation: 'rlc-spin 1s linear infinite' }}
+                style={{
+                  display: 'inline-block',
+                  fontSize: '12px',
+                  lineHeight: 1,
+                  animation: 'rlc-spin 1s linear infinite',
+                }}
               >
                 ⏳
               </span>

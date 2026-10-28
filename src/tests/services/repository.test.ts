@@ -28,6 +28,7 @@ import {
   purgeSampleData,
 } from '../../services/repository';
 import { addLocalDays, getNextSunday, startOfLocalDay } from '../../utils/date';
+import { isOverdue } from '../../services/revisionEngine';
 import { writeSettings } from '../../services/storage';
 import { resetChromeStorage } from '../setup';
 
@@ -546,5 +547,39 @@ describe('persistence', () => {
     expect(backup.attempts.some((a) => a.slug === 'two-sum')).toBe(false);
     expect(backup.problems.some((p) => p.slug === 'trapping-rain-water')).toBe(true);
     expect(backup.problems.some((p) => p.slug === 'two-sum')).toBe(false);
+  });
+
+  it('reschedules an overdue problem when successfully solved so it is no longer overdue', async () => {
+    // Problem was originally due 45 days ago
+    const past45Days = addLocalDays(NOW, -45);
+    await recordAttempt(
+      { slug: 'edit-distance', title: 'Edit Distance', attemptedAt: past45Days, accepted: true, source: 'auto' },
+      past45Days,
+    );
+    const revOld = await getRevision('edit-distance');
+    expect(revOld).not.toBeNull();
+    // Simulate due date being in the past (overdue)
+    if (revOld) {
+      revOld.dueAt = past45Days;
+      await getDb().revisions.put(revOld);
+    }
+
+    const dueListBefore = await listDueProblems(NOW);
+    const overdueEntry = dueListBefore.find((d) => d.slug === 'edit-distance');
+    expect(overdueEntry?.overdue).toBe(true);
+
+    // Now user solves it today
+    await recordAttempt(
+      { slug: 'edit-distance', title: 'Edit Distance', attemptedAt: NOW, accepted: true, source: 'auto' },
+      NOW,
+    );
+
+    const revNew = await getRevision('edit-distance');
+    expect(revNew?.dueAt).toBeGreaterThan(NOW);
+    expect(isOverdue(revNew?.dueAt ?? 0, NOW)).toBe(false);
+
+    const dueListAfter = await listDueProblems(NOW);
+    const clearedEntry = dueListAfter.find((d) => d.slug === 'edit-distance');
+    expect(clearedEntry?.overdue ?? false).toBe(false);
   });
 });

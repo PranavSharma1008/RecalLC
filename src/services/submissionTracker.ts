@@ -29,6 +29,7 @@ export interface DetectedAttempt {
 
 export interface SubmissionTrackerOptions {
   onAttempt: (attempt: DetectedAttempt) => void;
+  onSubmit?: () => void;
   /** Poll interval while a submission is in flight. */
   pollIntervalMs?: number;
   /** How long a pending verdict is awaited before giving up. */
@@ -123,8 +124,9 @@ function isSubmitButton(element: Element): boolean {
 }
 
 export class SubmissionTracker {
-  private readonly options: Required<Omit<SubmissionTrackerOptions, 'onAttempt'>> & {
+  private readonly options: Required<Omit<SubmissionTrackerOptions, 'onAttempt' | 'onSubmit'>> & {
     onAttempt: (attempt: DetectedAttempt) => void;
+    onSubmit?: () => void;
   };
 
   private clickListener: ((event: MouseEvent) => void) | null = null;
@@ -145,6 +147,7 @@ export class SubmissionTracker {
   constructor(options: SubmissionTrackerOptions) {
     this.options = {
       onAttempt: options.onAttempt,
+      onSubmit: options.onSubmit,
       pollIntervalMs: options.pollIntervalMs ?? 1000,
       verdictTimeoutMs: options.verdictTimeoutMs ?? 90_000,
       now: options.now ?? (() => Date.now()),
@@ -164,6 +167,7 @@ export class SubmissionTracker {
         this.awaitingVerdict = true;
         this.awaitingSince = this.options.now();
         this.baseline = this.readVerdictText();
+        this.options.onSubmit?.();
         if (this.checkTimer) clearTimeout(this.checkTimer);
         this.checkTimer = setTimeout(() => this.checkForVerdict(), 600);
       }
@@ -223,6 +227,7 @@ export class SubmissionTracker {
     this.awaitingVerdict = true;
     this.awaitingSince = this.options.now();
     this.baseline = null;
+    this.options.onSubmit?.();
 
     // Give the editor a moment, then start looking for the verdict.
     if (this.checkTimer) clearTimeout(this.checkTimer);

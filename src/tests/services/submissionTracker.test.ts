@@ -203,4 +203,16 @@ describe('SubmissionTracker', () => {
     expect(onAttempt).toHaveBeenCalledTimes(1);
     expect(onAttempt.mock.calls[0]?.[0]).toMatchObject({ verdict: 'Accepted', accepted: true });
   });
+
+  it('triggers onSubmit callback when submit button is clicked', async () => {
+    mount('<button id="submit">Submit</button>');
+    const onSubmit = vi.fn();
+    const onAttempt = vi.fn();
+    const tracker = new SubmissionTracker({ onAttempt, onSubmit, pollIntervalMs: 10 });
+    tracker.start();
+
+    document.getElementById('submit')?.click();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    tracker.stop();
+  });
 });

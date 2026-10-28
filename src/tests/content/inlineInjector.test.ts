@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { findInlineTarget } from '../../content/inlineInjector';
+import { findInlineTarget, resetLaunchState } from '../../content/inlineInjector';
+import { triggerFlyingRocketAnimation } from '../../content/InlineRocketButton';
 
 describe('findInlineTarget', () => {
   beforeEach(() => {
@@ -113,5 +114,44 @@ describe('findInlineTarget', () => {
 
     // Must be null because we removed submission body targeting!
     expect(findInlineTarget()).toBeNull();
+  });
+
+  it('finds target before Submit button when no random or problem list link is found', () => {
+    document.body.innerHTML = `
+      <div class="top-nav flex items-center">
+        <div class="actions flex items-center">
+          <button class="test-btn">Test</button>
+          <button data-e2e-locator="console-submit-button">Submit</button>
+        </div>
+      </div>
+    `;
+
+    const target = findInlineTarget();
+    expect(target).not.toBeNull();
+    expect(target?.position).toBe('before');
+    const submitBtn = document.querySelector('[data-e2e-locator="console-submit-button"]');
+    expect(target?.referenceNode).toBe(submitBtn);
+  });
+
+  it('triggerFlyingRocketAnimation creates styled flying rocket container at bottom 28px and removes it after duration', () => {
+    vi.useFakeTimers();
+    triggerFlyingRocketAnimation();
+
+    const container = document.querySelector('.rlc-flying-rocket-container');
+    expect(container).not.toBeNull();
+    expect(container?.getAttribute('aria-hidden')).toBe('true');
+    expect(container?.innerHTML).toContain('🚀');
+    expect(container?.innerHTML).toContain('🔥');
+    expect(container?.innerHTML).toContain('💨');
+
+    // Advances timer past 1150ms
+    vi.advanceTimersByTime(1200);
+    expect(document.querySelector('.rlc-flying-rocket-container')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('resetLaunchState allows subsequent auto-launch triggers', () => {
+    resetLaunchState();
+    expect(typeof resetLaunchState).toBe('function');
   });
 });

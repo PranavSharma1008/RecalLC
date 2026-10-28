@@ -183,10 +183,7 @@ export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
           </div>
         </div>
         {(() => {
-          const isGfg = Boolean(
-            (tracked.url && tracked.url.includes('geeksforgeeks.org')) ||
-            isGfgSlug(tracked.slug),
-          );
+          const isGfg = Boolean((tracked.url && tracked.url.includes('geeksforgeeks.org')) || isGfgSlug(tracked.slug));
           const targetUrl =
             tracked.url && tracked.url.includes(isGfg ? 'geeksforgeeks.org' : 'leetcode.com')
               ? tracked.url

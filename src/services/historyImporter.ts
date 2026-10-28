@@ -14,7 +14,14 @@ import type { ImportErrorEntry, ImportPreview, ImportResult, NormalizedAttempt }
 import { parseCsvTable } from '../utils/csv';
 import { attemptId, createId } from '../utils/id';
 import { normalizeRecord, type RawRecord } from './historyNormalizer';
-import { isSampleAttempt, listAttempts, listProblems, purgeSampleData, recordAttempt, recordImport } from './repository';
+import {
+  isSampleAttempt,
+  listAttempts,
+  listProblems,
+  purgeSampleData,
+  recordAttempt,
+  recordImport,
+} from './repository';
 
 /** Refuse absurdly large files rather than locking up the UI. */
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;

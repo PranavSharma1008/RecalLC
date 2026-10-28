@@ -1,6 +1,6 @@
 import { createRoot, type Root } from 'react-dom/client';
 
-import { InlineRocketButton } from './InlineRocketButton';
+import { InlineRocketButton, triggerFlyingRocketAnimation } from './InlineRocketButton';
 import { isAcceptedOnPage } from './reminder';
 
 const INLINE_HOST_ID = 'recalllc-inline-rocket';
@@ -198,9 +198,7 @@ function findGfgInlineTarget(): {
   }
 
   // 2. Fallback: Look for GFG Compile & Run action buttons
-  const buttons = Array.from(
-    document.querySelectorAll('button, a, [role="button"]'),
-  );
+  const buttons = Array.from(document.querySelectorAll('button, a, [role="button"]'));
   for (const b of buttons) {
     if (!(b instanceof HTMLElement)) continue;
     if (b.id === INLINE_HOST_ID || b.closest(`#${INLINE_HOST_ID}`)) continue;
@@ -333,12 +331,37 @@ export function findInlineTarget(): {
     }
   }
 
-  // 4. Fallback: Append into top navigation bar
+  // 4. Submit button strategy
+  const submitBtn = document.querySelector<HTMLElement>(
+    '[data-e2e-locator="console-submit-button"], [data-cypress="submit-code-btn"], [data-cy="submit-code-btn"]',
+  );
+  if (submitBtn) {
+    const ref = getNavReferenceNode(submitBtn);
+    if (ref) {
+      return {
+        container: ref.container,
+        referenceNode: ref.referenceNode,
+        position: 'before',
+      };
+    }
+  }
+
+  // 5. Fallback: Append into top navigation bar
   const topNav = findTopNavBar();
   if (topNav) {
     const leftCluster = (topNav.firstElementChild as HTMLElement) || topNav;
     return {
       container: leftCluster,
+      referenceNode: null,
+      position: 'append',
+    };
+  }
+
+  // 6. Header container fallback
+  const header = document.querySelector<HTMLElement>('header, [data-layout-path*="header" i], [class*="header" i]');
+  if (header) {
+    return {
+      container: header,
       referenceNode: null,
       position: 'append',
     };
@@ -375,10 +398,34 @@ function ensureInlineHost(): HTMLDivElement {
   return inlineHost;
 }
 
-export function updateInlineRocket(slug: string | null, isAccepted?: boolean, autoOpenToast?: boolean): void {
-  if (!slug || !isAccepted) {
+let hasLaunchedForCurrentSubmission = false;
+let lastLaunchedSlug: string | null = null;
+
+export function resetLaunchState(): void {
+  hasLaunchedForCurrentSubmission = false;
+  lastLaunchedSlug = null;
+}
+
+export function updateInlineRocket(
+  slug: string | null,
+  isAccepted = false,
+  autoOpenToast = false,
+  autoLaunch = false,
+  onPushed?: () => void,
+): void {
+  if (!slug) {
+    hasLaunchedForCurrentSubmission = false;
+    lastLaunchedSlug = null;
     removeInlineRocket();
     return;
+  }
+
+  // Determine if this is the first launch for this submission
+  const shouldLaunch = autoLaunch && (!hasLaunchedForCurrentSubmission || lastLaunchedSlug !== slug);
+  if (shouldLaunch) {
+    hasLaunchedForCurrentSubmission = true;
+    lastLaunchedSlug = slug;
+    triggerFlyingRocketAnimation();
   }
 
   const target = findInlineTarget();
@@ -415,10 +462,23 @@ export function updateInlineRocket(slug: string | null, isAccepted?: boolean, au
     currentHost = host;
   }
 
-  inlineRoot.render(<InlineRocketButton currentSlug={slug} autoOpen={autoOpenToast} />);
+  inlineRoot.render(
+    <InlineRocketButton
+      currentSlug={slug}
+      autoOpen={isAccepted || autoOpenToast}
+      autoLaunch={shouldLaunch}
+      onPushed={() => {
+        hasLaunchedForCurrentSubmission = true;
+        lastLaunchedSlug = slug;
+        onPushed?.();
+      }}
+    />,
+  );
 }
 
 export function removeInlineRocket(): void {
+  hasLaunchedForCurrentSubmission = false;
+  lastLaunchedSlug = null;
   if (inlineRoot) {
     try {
       inlineRoot.unmount();
@@ -438,14 +498,31 @@ export function removeInlineRocket(): void {
   currentHost = null;
 }
 
-export function startInlineRocketObserver(getSlug: () => string | null, getAccepted?: () => boolean): () => void {
+export function startInlineRocketObserver(
+  getSlug: () => string | null,
+  getAccepted?: () => boolean,
+  isAlreadyAdded?: () => boolean,
+  onPushed?: () => void,
+): () => void {
   const check = () => {
     const slug = getSlug();
-    const accepted = getAccepted ? getAccepted() : isAcceptedOnPage();
-    if (slug && accepted) {
-      updateInlineRocket(slug, true, true);
-    } else {
+    if (!slug) {
       removeInlineRocket();
+      return;
+    }
+
+    const accepted = getAccepted ? getAccepted() : isAcceptedOnPage();
+    const alreadyAdded = isAlreadyAdded ? isAlreadyAdded() : false;
+
+    if (accepted) {
+      // When all testcases pass on a submission: launch rocket from ground to top through animation, then turn to Added!
+      updateInlineRocket(slug, true, true, true, onPushed);
+    } else if (alreadyAdded) {
+      // If already added/submitted in this session, maintain Added state permanently — NEVER remove automatically!
+      updateInlineRocket(slug, true, true, false, onPushed);
+    } else {
+      // Problem page open before submission: render clean ready rocket button (NOT added)
+      updateInlineRocket(slug, false, false, false, onPushed);
     }
   };
 

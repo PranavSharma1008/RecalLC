@@ -24,6 +24,7 @@ import type {
 import { createId, attemptId } from '../utils/id';
 import { isGfgSlug, normalizeSlug, problemUrl, titleFromSlug } from '../utils/slug';
 import {
+  isDue,
   isOverdue,
   isReminderEligible,
   computeStreak,
@@ -94,10 +95,7 @@ export function computeStruggleScore(input: {
 
 function emptyProblem(slug: string, now: number, customUrl?: string): Problem {
   const popular = getPopularProblem(slug);
-  const isGfg = Boolean(
-    (customUrl && customUrl.includes('geeksforgeeks.org')) ||
-    isGfgSlug(slug),
-  );
+  const isGfg = Boolean((customUrl && customUrl.includes('geeksforgeeks.org')) || isGfgSlug(slug));
   const url = customUrl && isSafeUrl(customUrl) ? customUrl : problemUrl(slug, isGfg ? 'gfg' : undefined);
   return {
     slug,
@@ -123,24 +121,40 @@ function emptyProblem(slug: string, now: number, customUrl?: string): Problem {
 export async function listProblems(): Promise<Problem[]> {
   const database = db();
   const raw = await database.problems.toArray();
+  const allRevisions = await database.revisions.toArray();
+  const revSlugSet = new Set(allRevisions.map((r) => r.slug));
 
   // Exclude and purge accidental ghost problems created just by viewing without ever pushing or writing notes
   const ghostSlugs: string[] = [];
   const problems = raw.filter((problem) => {
     const hasAttempt = problem.attemptCount > 0 || problem.lastAttemptAt !== null;
     const hasNotes = Boolean(problem.notes && problem.notes.trim().length > 0);
-    if (!hasAttempt && !hasNotes) {
+    const hasRevision = revSlugSet.has(problem.slug);
+    if (!hasAttempt && !hasNotes && !hasRevision) {
       ghostSlugs.push(problem.slug);
       return false;
     }
     return true;
   });
 
-  // Auto-heal any problem records that have GFG slugs but defaulted to LeetCode URL
+  // Auto-heal any problem records that have GFG slugs but defaulted to LeetCode URL,
+  // or that were solved recently but had revision dates stuck in an overdue past.
+  const revisionBySlug = new Map(allRevisions.map((r) => [r.slug, r]));
   for (const problem of problems) {
     if (isGfgSlug(problem.slug) && (!problem.url || problem.url.includes('leetcode.com'))) {
       problem.url = problemUrl(problem.slug, 'gfg');
       void database.problems.put(problem);
+    }
+    // Auto-heal overdue status if problem was successfully solved after due date
+    if (problem.accepted && problem.lastAttemptAt) {
+      const rev = revisionBySlug.get(problem.slug);
+      if (rev && rev.dueAt && isOverdue(rev.dueAt, problem.lastAttemptAt)) {
+        void computeInitialDue(problem.lastAttemptAt).then((newDue) => {
+          rev.dueAt = newDue;
+          rev.updatedAt = Date.now();
+          void database.revisions.put(rev);
+        });
+      }
     }
   }
 
@@ -321,10 +335,7 @@ export async function recordAttempt(input: AttemptInput, now: number = Date.now(
     createdAt: now,
   };
 
-  const isGfg = Boolean(
-    (input.url && input.url.includes('geeksforgeeks.org')) ||
-    isGfgSlug(slug),
-  );
+  const isGfg = Boolean((input.url && input.url.includes('geeksforgeeks.org')) || isGfgSlug(slug));
   const previous = await database.problems.get(slug);
   const catalogEntry = await database.catalog.get(slug);
   const problem: Problem = previous ?? emptyProblem(slug, now, input.url ?? undefined);
@@ -379,6 +390,29 @@ export async function recordAttempt(input: AttemptInput, now: number = Date.now(
   if (!previousRevision) {
     const initialDue = await computeInitialDue(lastAttemptAt);
     revision = createRevision(slug, initialDue, now);
+  } else if (input.accepted === true && (previousRevision.dueAt <= now || isDue(previousRevision.dueAt, now))) {
+    // Solving an overdue or due problem fulfills the revision and reschedules it to the next revision date
+    const nextDue = await computeInitialDue(lastAttemptAt);
+    revision = {
+      ...previousRevision,
+      stage: (previousRevision.stage ?? 0) + 1,
+      lastReviewedAt: lastAttemptAt,
+      dueAt: nextDue,
+      snoozedUntil: null,
+      dismissedAt: null,
+      updatedAt: now,
+    };
+    const event: ReviewEvent = {
+      id: createId('evt'),
+      slug,
+      rating: null,
+      reviewedAt: lastAttemptAt,
+      previousDueAt: previousRevision.dueAt,
+      nextDueAt: nextDue,
+      elapsedDays: Math.max(0, localDayDiff(previousRevision.dueAt, lastAttemptAt)),
+      source: input.source === 'auto' ? 'review' : 'manual',
+    };
+    await database.events.put(event);
   } else {
     // Preserve existing revision schedule so user's manual schedule / progress is preserved
     revision = previousRevision;
@@ -404,10 +438,7 @@ export async function saveProblem(input: ManualSaveInput, now: number = Date.now
   const slug = normalizeSlug(input.slug);
   if (!slug) throw new Error(`Invalid problem slug: ${String(input.slug)}`);
 
-  const isGfg = Boolean(
-    (input.url && input.url.includes('geeksforgeeks.org')) ||
-    isGfgSlug(slug),
-  );
+  const isGfg = Boolean((input.url && input.url.includes('geeksforgeeks.org')) || isGfgSlug(slug));
   const database = db();
   const existing = await database.problems.get(slug);
   const problem: Problem = existing ?? emptyProblem(slug, now, input.url ?? undefined);
@@ -1141,25 +1172,9 @@ export const SAMPLE_SLUGS = new Set([
 ]);
 
 export const SAMPLE_TIMESTAMPS = new Set<number>([
-  1790758800000,
-  1790755200000,
-  1790924400000,
-  1791352800000,
-  1791608400000,
-  1791777600000,
-  1791946800000,
-  1791968400000,
-  1792137600000,
-  1792220400000,
-  1792303200000,
-  1792386000000,
-  1792468800000,
-  1792465200000,
-  1792573200000,
-  1791882000000,
-  1791882000,
-  1792054800000,
-  1760518800000,
+  1790758800000, 1790755200000, 1790924400000, 1791352800000, 1791608400000, 1791777600000, 1791946800000,
+  1791968400000, 1792137600000, 1792220400000, 1792303200000, 1792386000000, 1792468800000, 1792465200000,
+  1792573200000, 1791882000000, 1791882000, 1792054800000, 1760518800000,
 ]);
 
 /** Check whether an attempt is part of demo / mock datasets. */
@@ -1209,10 +1224,7 @@ export async function purgeSampleData(): Promise<{ deletedAttempts: number; dele
       // Remove any sample import batch records
       const allImports = await database.imports.toArray();
       for (const batch of allImports) {
-        if (
-          batch.fileName.toLowerCase().includes('sample-import') ||
-          batch.fileName.toLowerCase().includes('sample')
-        ) {
+        if (batch.fileName.toLowerCase().includes('sample-import') || batch.fileName.toLowerCase().includes('sample')) {
           await database.imports.delete(batch.id);
         }
       }

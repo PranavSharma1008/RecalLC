@@ -68,10 +68,7 @@ export function RevisionCard({
     problem.difficulty !== 'Unknown' ? problem.difficulty : (popular?.difficulty ?? 'Unknown');
   const topic = problem.topics[0] || popular?.topics[0];
   const parsed = parseProblemNotes(problem.notes);
-  const isGfg = Boolean(
-    (problem.url && problem.url.includes('geeksforgeeks.org')) ||
-    isGfgSlug(problem.slug),
-  );
+  const isGfg = Boolean((problem.url && problem.url.includes('geeksforgeeks.org')) || isGfgSlug(problem.slug));
   const targetUrl =
     problem.url && problem.url.includes(isGfg ? 'geeksforgeeks.org' : 'leetcode.com')
       ? problem.url

@@ -62,11 +62,7 @@ export default defineManifest({
   },
 
   permissions: ['storage'],
-  host_permissions: [
-    'https://leetcode.com/*',
-    'https://*.geeksforgeeks.org/*',
-    'https://geeksforgeeks.org/*',
-  ],
+  host_permissions: ['https://leetcode.com/*', 'https://*.geeksforgeeks.org/*', 'https://geeksforgeeks.org/*'],
   content_security_policy: {
     extension_pages:
       "script-src 'self'; object-src 'none'; frame-src 'self' https://*.razorpay.com https://api.razorpay.com;",
