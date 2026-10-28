@@ -17,6 +17,7 @@ export interface RecallScreenProps {
   slug: string;
   navigate: (path: string) => void;
   onChanged: () => void;
+  dataVersion?: number;
 }
 
 const CHECKLIST = [
@@ -44,8 +45,12 @@ const CHECKLIST = [
 
 type ChecklistKey = (typeof CHECKLIST)[number]['key'];
 
-export function RecallScreen({ slug, navigate, onChanged }: RecallScreenProps) {
+export function RecallScreen({ slug, navigate, onChanged, dataVersion }: RecallScreenProps) {
   const problem = useAsync(() => callService('get-problem', { slug }), [slug]);
+
+  useEffect(() => {
+    problem.reload();
+  }, [dataVersion]);
   const [answers, setAnswers] = useState<Record<ChecklistKey, string>>({
     approach: '',
     dataStructure: '',

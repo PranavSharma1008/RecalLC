@@ -58,6 +58,20 @@ export function App() {
     }
   }, [loadDue, settings?.securityAuthEnabled, isLocked]);
 
+  // Real-time automatic data reload on storage updates or window focus
+  useEffect(() => {
+    function handleStorageChange(changes: { [key: string]: chrome.storage.StorageChange }, area: string) {
+      if (area === 'local' && changes['recalllc:data_version']) {
+        stats.reload();
+        void loadDue();
+      }
+    }
+    if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+      chrome.storage.onChanged.addListener(handleStorageChange);
+      return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+    }
+  }, [loadDue, stats]);
+
   const dueList = Array.isArray(due) ? due : [];
   const dueToday = useMemo(() => dueList.filter((candidate) => !candidate.overdue).length, [dueList]);
   const overdue = useMemo(() => dueList.filter((candidate) => candidate.overdue).length, [dueList]);

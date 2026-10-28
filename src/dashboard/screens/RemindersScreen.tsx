@@ -13,11 +13,29 @@ import { addLocalDays } from '../../utils/date';
 export interface RemindersScreenProps {
   navigate: (path: string) => void;
   onChanged: () => void;
+  dataVersion?: number;
 }
 
-export function RemindersScreen({ navigate, onChanged }: RemindersScreenProps) {
+export function RemindersScreen({ navigate, onChanged, dataVersion }: RemindersScreenProps) {
   const due = useAsync(() => callService('list-due'), []);
   const schedule = useAsync(() => callService('list-problems'), []);
+
+  // Real-time automatic data reload whenever data is updated anywhere
+  useEffect(() => {
+    void Promise.all([due.reload(), schedule.reload()]);
+  }, [dataVersion]);
+
+  useEffect(() => {
+    function handleStorageChange(changes: { [key: string]: chrome.storage.StorageChange }, area: string) {
+      if (area === 'local' && changes['recalllc:data_version']) {
+        void Promise.all([due.reload(), schedule.reload()]);
+      }
+    }
+    if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+      chrome.storage.onChanged.addListener(handleStorageChange);
+      return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+    }
+  }, []);
 
   const [successToast, setSuccessToast] = useState<{ slug: string; message: string } | null>(null);
 

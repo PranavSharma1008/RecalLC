@@ -140,6 +140,19 @@ export function invalidateServiceCache(method?: ServiceMethod): void {
   }
 }
 
+// Automatically purge cache when any context updates database data
+if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes['recalllc:data_version']) {
+        invalidateServiceCache();
+      }
+    });
+  } catch {
+    // ignore
+  }
+}
+
 export interface CallOptions {
   bypassCache?: boolean;
 }

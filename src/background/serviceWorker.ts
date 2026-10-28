@@ -408,6 +408,23 @@ function isPrivilegedSender(sender: chrome.runtime.MessageSender): boolean {
   return false;
 }
 
+const DATA_MUTATING_METHODS = new Set<keyof ServiceMap>([
+  'record-attempt',
+  'rate',
+  'snooze',
+  'dismiss',
+  'reschedule',
+  'delete-problem',
+  'update-notes',
+  'set-paused',
+  'import-commit',
+  'restore',
+  'clear-all',
+  'purge-sample-data',
+  'save-problem',
+  'account-sync',
+]);
+
 const inFlightWorkerHandlers = new Map<string, Promise<unknown>>();
 
 chrome.runtime.onMessage.addListener(
@@ -476,7 +493,12 @@ chrome.runtime.onMessage.addListener(
     }
 
     handlerPromise
-      .then((data) => sendResponse(ok(data) satisfies ServiceEnvelope))
+      .then((data) => {
+        if (DATA_MUTATING_METHODS.has(method)) {
+          void chrome.storage?.local?.set({ 'recalllc:data_version': Date.now() }).catch(() => {});
+        }
+        sendResponse(ok(data) satisfies ServiceEnvelope);
+      })
       .catch((error: unknown) => sendResponse(fail(error) satisfies ServiceErrorEnvelope));
 
     return true; // keep the message channel open for the async response

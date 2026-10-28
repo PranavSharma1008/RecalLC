@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { StatTile } from '../../components/ui/Card';
 import { ErrorState, Spinner } from '../../components/ui/States';
 import { useAsync } from '../../hooks/useAsync';
@@ -6,10 +7,28 @@ import { callService } from '../../services/messaging';
 export interface OverviewScreenProps {
   navigate: (path: string) => void;
   onChanged: () => void;
+  dataVersion?: number;
 }
 
-export function OverviewScreen({ navigate: _navigate, onChanged: _onChanged }: OverviewScreenProps) {
+export function OverviewScreen({ navigate: _navigate, onChanged: _onChanged, dataVersion }: OverviewScreenProps) {
   const stats = useAsync(() => callService('stats'), []);
+
+  // Real-time automatic data reload whenever data is updated anywhere
+  useEffect(() => {
+    stats.reload();
+  }, [dataVersion]);
+
+  useEffect(() => {
+    function handleStorageChange(changes: { [key: string]: chrome.storage.StorageChange }, area: string) {
+      if (area === 'local' && changes['recalllc:data_version']) {
+        stats.reload();
+      }
+    }
+    if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+      chrome.storage.onChanged.addListener(handleStorageChange);
+      return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+    }
+  }, []);
 
   if (stats.loading && !stats.data) {
     return <Spinner label="Crunching your revision history…" />;

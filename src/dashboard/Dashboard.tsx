@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '../components/ui/Button';
 import { Spinner } from '../components/ui/States';
@@ -6,7 +6,7 @@ import { useAsync } from '../hooks/useAsync';
 import { useHashRoute } from '../hooks/useHashRoute';
 import { useSettings } from '../hooks/useSettings';
 import { useTheme } from '../hooks/useTheme';
-import { callService } from '../services/messaging';
+import { callService, invalidateServiceCache } from '../services/messaging';
 import { LockScreen } from '../components/LockScreen';
 import { UserGuideModal } from '../components/UserGuideModal';
 import { isSessionExpired, isSessionUnlocked, setSessionUnlocked, touchSessionActivity } from '../utils/security';
@@ -148,15 +148,59 @@ export function Dashboard() {
     );
   }
 
-  const screen = renderScreen(route.segments, navigate, refreshStats);
+  const [dataVersion, setDataVersion] = useState(Date.now());
 
-  function refreshStats(): void {
+  const refreshStats = useCallback((): void => {
+    invalidateServiceCache();
+    setDataVersion(Date.now());
     stats.reload();
     void reloadSettings();
     void callService('list-due')
       .then((due) => setDueCount(due.length))
       .catch(() => setDueCount(0));
-  }
+  }, [reloadSettings]);
+
+  // Real-time automatic data sync: instant response to storage updates, tab focus, & page visibility
+  useEffect(() => {
+    function handleStorageChange(changes: { [key: string]: chrome.storage.StorageChange }, area: string) {
+      if (area === 'local' && changes['recalllc:data_version']) {
+        refreshStats();
+      }
+    }
+
+    if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+      chrome.storage.onChanged.addListener(handleStorageChange);
+    }
+
+    // Instantly re-fetch data when user switches to this tab or window gains focus
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshStats();
+      }
+    };
+    const onFocus = () => refreshStats();
+
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    // Fast polling fallback while tab is actively open (every 2.5 seconds)
+    const syncInterval = setInterval(() => {
+      if (document.visibilityState === 'visible' && !isLocked) {
+        refreshStats();
+      }
+    }, 2500);
+
+    return () => {
+      if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+        chrome.storage.onChanged.removeListener(handleStorageChange);
+      }
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      clearInterval(syncInterval);
+    };
+  }, [refreshStats, isLocked]);
+
+  const screen = renderScreen(route.segments, navigate, refreshStats, dataVersion);
 
   return (
     <div className="flex min-h-screen flex-col bg-bg text-fg">
@@ -391,18 +435,18 @@ export function Dashboard() {
 
 type Navigate = (path: string) => void;
 
-function renderScreen(segments: string[], navigate: Navigate, refresh: () => void) {
+function renderScreen(segments: string[], navigate: Navigate, refresh: () => void, dataVersion?: number) {
   const [first, second] = segments;
 
   switch (first) {
     case undefined:
-      return <OverviewScreen navigate={navigate} onChanged={refresh} />;
+      return <OverviewScreen navigate={navigate} onChanged={refresh} dataVersion={dataVersion} />;
     case 'reminders':
-      return <RemindersScreen navigate={navigate} onChanged={refresh} />;
+      return <RemindersScreen navigate={navigate} onChanged={refresh} dataVersion={dataVersion} />;
     case 'problems':
-      return <ProblemsScreen navigate={navigate} onChanged={refresh} />;
+      return <ProblemsScreen navigate={navigate} onChanged={refresh} dataVersion={dataVersion} />;
     case 'recall':
-      return <RecallScreen slug={second ?? ''} navigate={navigate} onChanged={refresh} />;
+      return <RecallScreen slug={second ?? ''} navigate={navigate} onChanged={refresh} dataVersion={dataVersion} />;
     case 'import':
       return <ImportScreen onChanged={refresh} />;
     case 'settings':

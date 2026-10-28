@@ -14,6 +14,7 @@ import { isGfgSlug } from '../../utils/slug';
 export interface ProblemsScreenProps {
   navigate: (path: string) => void;
   onChanged: () => void;
+  dataVersion?: number;
 }
 
 const DIFFICULTY_ORDER: Record<Difficulty, number> = { Easy: 1, Medium: 2, Hard: 3, Unknown: 4 };
@@ -24,8 +25,25 @@ function getEffectiveDifficulty(problem: { slug: string; difficulty: Difficulty 
   return popular?.difficulty ?? 'Unknown';
 }
 
-export function ProblemsScreen({ navigate, onChanged }: ProblemsScreenProps) {
+export function ProblemsScreen({ navigate, onChanged, dataVersion }: ProblemsScreenProps) {
   const schedule = useAsync(() => callService('list-problems'), []);
+
+  // Real-time automatic data reload whenever data is updated anywhere
+  useEffect(() => {
+    schedule.reload();
+  }, [dataVersion]);
+
+  useEffect(() => {
+    function handleStorageChange(changes: { [key: string]: chrome.storage.StorageChange }, area: string) {
+      if (area === 'local' && changes['recalllc:data_version']) {
+        schedule.reload();
+      }
+    }
+    if (typeof chrome !== 'undefined' && chrome.storage?.onChanged) {
+      chrome.storage.onChanged.addListener(handleStorageChange);
+      return () => chrome.storage.onChanged.removeListener(handleStorageChange);
+    }
+  }, []);
   const [search, setSearch] = useState('');
   const [topic, setTopic] = useState<string>('');
   const [difficulty, setDifficulty] = useState<Difficulty | ''>('');

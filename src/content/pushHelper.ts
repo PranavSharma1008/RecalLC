@@ -264,9 +264,17 @@ export async function pushProblemToRecallLC(
         notes: notesToSave,
       });
     }
+    if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+      void chrome.storage.local.set({ 'recalllc:data_version': Date.now() }).catch(() => {});
+    }
   } catch (err) {
     if (!isExtensionContextValid()) return false;
     console.debug?.('[RecallLC] Problem notes update skipped:', err);
+  }
+
+  // Notify all open extension tabs (Dashboard, Popup) to immediately refresh data
+  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+    void chrome.storage.local.set({ 'recalllc:data_version': Date.now() }).catch(() => {});
   }
 
   return true;
