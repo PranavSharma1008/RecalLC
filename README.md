@@ -5,6 +5,7 @@
 [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Published-blue?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo)
 [![Version](https://img.shields.io/badge/version-1.0.3-brightgreen.svg)](https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo)
 [![Tests](https://img.shields.io/badge/tests-343%20passed-success)](https://github.com/PranavSharma1008/RecalLc)
+[![YouTube Guide](https://img.shields.io/badge/YouTube-Video%20Guide-FF0000?logo=youtube&logoColor=white)](https://youtu.be/K-BiR7K2tPo)
 [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub%20Sponsors-ea4aaa?logo=github&logoColor=white)](https://github.com/sponsors/PranavSharma1008)
 [![Razorpay](https://img.shields.io/badge/Donate-Razorpay-0c2340?logo=razorpay&logoColor=white)](https://razorpay.me/@recallc)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)

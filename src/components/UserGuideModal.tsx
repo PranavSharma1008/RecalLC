@@ -49,6 +49,26 @@ export function UserGuideModal({ isOpen, onClose }: UserGuideModalProps) {
 
         {/* Content sections */}
         <div className="space-y-4 text-xs leading-relaxed text-muted">
+          {/* YouTube Video Walkthrough Banner */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-500/40 bg-red-500/10 p-3.5">
+            <div className="flex items-center gap-3">
+              <svg className="w-6 h-6 fill-current text-red-500 shrink-0" viewBox="0 0 24 24">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+              <div>
+                <p className="font-semibold text-fg">Watch Complete Video Walkthrough</p>
+                <p className="text-[11px] text-subtle">See how to solve, push, and revise with RecallLC on YouTube</p>
+              </div>
+            </div>
+            <a
+              href="https://youtu.be/K-BiR7K2tPo"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 hover:bg-red-500 px-3.5 py-1.5 font-semibold text-white transition-colors cursor-pointer text-xs shrink-0 shadow-sm"
+            >
+              <span>▶ Watch on YouTube</span>
+            </a>
+          </div>
           {/* Section 1: How to Push Problems */}
           <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-4 space-y-2">
             <div className="flex items-center gap-2 text-purple-300 font-semibold text-sm">
