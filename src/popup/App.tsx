@@ -221,25 +221,34 @@ export function App() {
         </div>
 
         <div className="flex items-center justify-between pt-0.5">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <a
-              href="https://mail.google.com/mail/?view=cm&fs=1&to=pranav2410991479@gmail.com&su=RecallLC%20Enquiry"
+              href="https://mail.google.com/mail/?view=cm&fs=1&to=pranav2410991479@gmail.com&su=RecallLC%20Bug%20Report"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-400 hover:border-indigo-400 hover:bg-indigo-500/20 hover:text-indigo-300 transition-colors cursor-pointer"
-              title="Open Gmail to send enquiry directly to pranav2410991479@gmail.com"
+              className="inline-flex items-center gap-1 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-2 py-1 text-[11px] font-medium text-indigo-400 hover:border-indigo-400 hover:bg-indigo-500/20 hover:text-indigo-300 transition-colors cursor-pointer whitespace-nowrap"
+              title="Open Gmail in new tab to report a bug directly to pranav2410991479@gmail.com"
             >
-              <span>✉️</span> Enquiry
+              <span>🐛</span> Report an Issue
+            </a>
+            <a
+              href="https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-400 hover:border-amber-400 hover:bg-amber-500/20 hover:text-amber-300 transition-colors cursor-pointer whitespace-nowrap"
+              title="Review RecallLC on Chrome Web Store"
+            >
+              <span>⭐</span> Review
             </a>
             <button
               type="button"
               onClick={() => openDashboard('#/support')}
-              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3 py-1 text-xs font-medium text-fg hover:border-line-strong hover:bg-surface-3 transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 px-2 py-1 text-[11px] font-medium text-fg hover:border-line-strong hover:bg-surface-3 transition-colors cursor-pointer whitespace-nowrap"
             >
               <span className="text-pink-400">💖</span> Support
             </button>
           </div>
-          <span className="text-[11px] font-mono text-subtle">v1.0.3</span>
+          <span className="text-[11px] font-mono text-subtle shrink-0">v1.0.3</span>
         </div>
       </footer>
     </div>

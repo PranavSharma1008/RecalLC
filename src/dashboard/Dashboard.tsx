@@ -20,9 +20,19 @@ import { RemindersScreen } from './screens/RemindersScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { SupportScreen } from './screens/SupportScreen';
 
-/** Direct Gmail compose URL to pranav2410991479@gmail.com */
-export const GMAIL_ENQUIRY_URL =
-  'https://mail.google.com/mail/?view=cm&fs=1&to=pranav2410991479@gmail.com&su=RecallLC%20Enquiry';
+/** Direct Gmail compose URL to pranav2410991479@gmail.com for bug / issue reports */
+export const GMAIL_BUG_REPORT_URL =
+  'https://mail.google.com/mail/?view=cm&fs=1&to=pranav2410991479@gmail.com&su=RecallLC%20Bug%20Report';
+
+/** Direct Gmail compose URL (kept for backwards compatibility) */
+export const GMAIL_ENQUIRY_URL = GMAIL_BUG_REPORT_URL;
+
+/** GitHub Issues page for bug reports and feature requests */
+export const GITHUB_ISSUES_URL = 'https://github.com/PranavSharma1008/RecalLC/issues';
+
+/** Chrome Web Store listing page for ratings and reviews */
+export const CHROME_STORE_REVIEW_URL =
+  'https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo';
 
 interface NavItem {
   path: string;
@@ -60,7 +70,6 @@ export function Dashboard() {
   const [route, navigate] = useHashRoute();
   const { settings, update, reload: reloadSettings } = useSettings();
   const { resolved } = useTheme(settings?.theme);
-  const [dueCount, setDueCount] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
   const [showGuideModal, setShowGuideModal] = useState(false);
 
@@ -110,9 +119,6 @@ export function Dashboard() {
   }
 
   useEffect(() => {
-    void callService('list-due')
-      .then((due) => setDueCount(due.length))
-      .catch(() => setDueCount(0));
     if (typeof navigator !== 'undefined' && navigator.storage?.persist) {
       void navigator.storage.persist().catch(() => {});
     }
@@ -131,9 +137,6 @@ export function Dashboard() {
     setDataVersion(Date.now());
     stats.reload();
     void reloadSettings();
-    void callService('list-due')
-      .then((due) => setDueCount(due.length))
-      .catch(() => setDueCount(0));
   }, [reloadSettings]);
 
   // Real-time automatic data sync: instant response to storage updates, tab focus, & page visibility
@@ -218,7 +221,9 @@ export function Dashboard() {
             />
             <span className="shrink-0">
               <span className="block text-sm font-semibold tracking-tight">RecalLC</span>
-              <span className="hidden text-[11px] text-subtle sm:block whitespace-nowrap">Solve it. Remember it. Master it.</span>
+              <span className="hidden text-[11px] text-subtle sm:block whitespace-nowrap">
+                Solve it. Remember it. Master it.
+              </span>
             </span>
           </button>
 
@@ -308,9 +313,9 @@ export function Dashboard() {
       </main>
 
       <footer className="border-t border-line bg-surface/40 backdrop-blur-sm px-4 py-3.5 transition-colors">
-        <div className="mx-auto flex w-full max-w-6xl flex-col sm:flex-row items-center justify-between gap-3 text-xs text-subtle">
+        <div className="mx-auto flex w-full max-w-6xl flex-col lg:flex-row items-center justify-between gap-3 text-xs text-subtle">
           {/* Brand & Creator Attribution */}
-          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-[11px]">
+          <div className="flex items-center justify-center sm:justify-start gap-1.5 text-[11px] whitespace-nowrap shrink-0">
             <div className="flex items-center gap-1.5 font-semibold text-fg">
               <img src="/icons/icon16.png" alt="" className="h-4 w-4 rounded object-contain" />
               <span>RecallLC</span>
@@ -332,7 +337,7 @@ export function Dashboard() {
           </div>
 
           {/* Quick Actions & Status Badges */}
-          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 text-[11px]">
+          <div className="flex flex-wrap items-center justify-center lg:justify-end gap-1.5 text-[11px]">
             {/* User Manual & Project Guide Button */}
             <button
               type="button"
@@ -352,20 +357,31 @@ export function Dashboard() {
               title="Watch full RecallLC video guide on YouTube"
             >
               <svg className="w-3.5 h-3.5 fill-current text-red-500 shrink-0" viewBox="0 0 24 24">
-                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
               </svg>
               <span>YouTube</span>
             </a>
 
-            {/* Direct 1-Click Gmail Enquiry Button */}
+            {/* Report an Issue Button */}
             <a
-              href={GMAIL_ENQUIRY_URL}
+              href={GMAIL_BUG_REPORT_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 font-medium text-indigo-400 hover:border-indigo-400 hover:bg-indigo-500/20 hover:text-indigo-300 transition-all cursor-pointer"
-              title="Open Gmail to send enquiry directly to pranav2410991479@gmail.com"
+              className="inline-flex items-center gap-1.5 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 font-medium text-indigo-400 hover:border-indigo-400 hover:bg-indigo-500/20 hover:text-indigo-300 transition-all cursor-pointer shadow-sm"
+              title="Open Gmail in new tab to report a bug directly to pranav2410991479@gmail.com"
             >
-              ✉️ Enquiry
+              🐛 Report an Issue
+            </a>
+
+            {/* Chrome Web Store Review Button */}
+            <a
+              href={CHROME_STORE_REVIEW_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1 font-medium text-amber-400 hover:border-amber-400 hover:bg-amber-500/20 hover:text-amber-300 transition-all cursor-pointer shadow-sm"
+              title="Review RecallLC on the Chrome Web Store"
+            >
+              ⭐ Review
             </a>
 
             <button
@@ -397,33 +413,6 @@ export function Dashboard() {
                 <span>Lock</span>
               </button>
             ) : null}
-
-            {/* Revision status pill */}
-            <button
-              type="button"
-              onClick={() => navigate('/reminders')}
-              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-2.5 py-1 font-medium transition-all hover:border-accent hover:text-accent cursor-pointer"
-            >
-              <span
-                className={`inline-block h-1.5 w-1.5 rounded-full ${
-                  dueCount > 0 ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'
-                }`}
-              />
-              <span className={dueCount > 0 ? 'text-amber-500 font-semibold' : 'text-muted'}>
-                {dueCount > 0 ? `${dueCount} due today` : 'All caught up'}
-              </span>
-            </button>
-
-            {/* Theme switcher pill */}
-            <button
-              type="button"
-              onClick={() => void update({ theme: resolved === 'dark' ? 'light' : 'dark' })}
-              title={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} mode`}
-              className="inline-flex items-center gap-1 rounded-full border border-line bg-surface-2 px-2.5 py-1 text-muted hover:border-accent hover:text-fg hover:bg-surface-3 transition-all cursor-pointer"
-            >
-              <span>{resolved === 'dark' ? '☾' : '☀'}</span>
-              <span className="capitalize">{resolved}</span>
-            </button>
           </div>
         </div>
       </footer>

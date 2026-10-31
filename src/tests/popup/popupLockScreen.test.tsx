@@ -79,5 +79,21 @@ describe('Popup LockScreen Authentication Guard', () => {
     expect(container.textContent).not.toContain('RecallLC is Locked');
     expect(container.textContent).toContain('RecallLC');
     expect(container.textContent).toContain('Due today');
+
+    // Verify Report an Issue button opens Gmail to pranav2410991479@gmail.com in new tab
+    const issueLink = container.querySelector<HTMLAnchorElement>('a[href*="mail.google.com/mail"]');
+    expect(issueLink).not.toBeNull();
+    expect(issueLink?.textContent).toContain('Report an Issue');
+    expect(issueLink?.href).toContain('pranav2410991479@gmail.com');
+    expect(issueLink?.target).toBe('_blank');
+
+    // Verify Review button
+    const reviewLink = container.querySelector<HTMLAnchorElement>('a[href*="chromewebstore.google.com"]');
+    expect(reviewLink).not.toBeNull();
+    expect(reviewLink?.textContent).toContain('Review');
+    expect(reviewLink?.href).toBe(
+      'https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo',
+    );
+    expect(reviewLink?.target).toBe('_blank');
   });
 });

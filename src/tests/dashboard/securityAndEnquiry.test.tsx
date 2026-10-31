@@ -103,5 +103,15 @@ describe('EnquiryScreen Component', () => {
     expect(gmailLink).not.toBeNull();
     expect(gmailLink?.href).toBe(DIRECT_GMAIL_URL);
     expect(gmailLink?.href).toContain(ENQUIRY_TARGET_EMAIL);
+
+    const issueLink = container.querySelector<HTMLAnchorElement>(
+      'a[href*="github.com/PranavSharma1008/RecalLC/issues"]',
+    );
+    expect(issueLink).not.toBeNull();
+    expect(issueLink?.textContent).toContain('Report an Issue');
+
+    const reviewLink = container.querySelector<HTMLAnchorElement>('a[href*="chromewebstore.google.com"]');
+    expect(reviewLink).not.toBeNull();
+    expect(reviewLink?.textContent).toContain('Review on Web Store');
   });
 });

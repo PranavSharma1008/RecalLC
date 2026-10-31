@@ -32,8 +32,31 @@ export function EnquiryScreen({ navigate }: EnquiryScreenProps) {
           <span>Open in Gmail ({ENQUIRY_TARGET_EMAIL})</span>
         </a>
 
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <a
+            href="https://github.com/PranavSharma1008/RecalLC/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-line bg-surface-2 px-4 py-2.5 text-xs font-semibold text-fg hover:border-line-strong hover:bg-surface-3 transition-all cursor-pointer"
+          >
+            <span>🐛</span>
+            <span>Report an Issue (GitHub)</span>
+          </a>
+
+          <a
+            href="https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs font-semibold text-amber-400 hover:border-amber-400 hover:bg-amber-500/20 hover:text-amber-300 transition-all cursor-pointer"
+          >
+            <span>⭐</span>
+            <span>Review on Web Store</span>
+          </a>
+        </div>
+
         <p className="text-xs text-subtle">
-          Clicking above directly opens the Gmail compose window with recipient set to {ENQUIRY_TARGET_EMAIL}.
+          Clicking above directly opens the Gmail compose window with recipient set to {ENQUIRY_TARGET_EMAIL}, or opens
+          GitHub to report an issue or Chrome Web Store to leave a review.
         </p>
       </div>
 

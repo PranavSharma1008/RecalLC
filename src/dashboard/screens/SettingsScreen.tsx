@@ -480,12 +480,16 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
               {securityMode !== 'disable' && (
                 <>
                   <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-2.5 text-[11px] text-amber-200 leading-relaxed">
-                    ⚠️ <strong>Important Note:</strong> There is no way to recover or reset this passcode if forgotten, except by downloading your data backup (<strong>📦 Download Complete Backup (JSON)</strong>) from the Import tab. Please choose a passcode that you will easily remember!
+                    ⚠️ <strong>Important Note:</strong> There is no way to recover or reset this passcode if forgotten,
+                    except by downloading your data backup (<strong>📦 Download Complete Backup (JSON)</strong>) from
+                    the Import tab. Please choose a passcode that you will easily remember!
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-muted mb-1">New Passcode (any length - numbers or text)</label>
+                      <label className="block text-xs font-medium text-muted mb-1">
+                        New Passcode (any length - numbers or text)
+                      </label>
                       <input
                         type="password"
                         value={newPasscode}
@@ -621,12 +625,14 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
             <strong className="text-fg">storage</strong> — remembers your settings and revision schedule on this device.
           </p>
           <p>
-            <strong className="text-fg">leetcode.com & geeksforgeeks.org</strong> — lets the extension read the problem page you are already
-            on, and (only if you opt in) fetch the public problem catalogue. It cannot read any other site.
+            <strong className="text-fg">leetcode.com & geeksforgeeks.org</strong> — lets the extension read the problem
+            page you are already on, and (only if you opt in) fetch the public problem catalogue. It cannot read any
+            other site.
           </p>
           <p>
-            RecallLC contains no analytics, no telemetry and no remote code. It never asks for your LeetCode or GeeksforGeeks password,
-            never reads or forwards your session cookies, and never sends your revision history anywhere.
+            RecallLC contains no analytics, no telemetry and no remote code. It never asks for your LeetCode or
+            GeeksforGeeks password, never reads or forwards your session cookies, and never sends your revision history
+            anywhere.
           </p>
         </div>
       </Card>
@@ -642,6 +648,28 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
             <span className="font-medium text-fg">Email</span>
             <a href="mailto:pranav2410991479@gmail.com" className="text-accent hover:underline">
               pranav2410991479@gmail.com
+            </a>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-fg">Report an Issue</span>
+            <a
+              href="https://github.com/PranavSharma1008/RecalLC/issues"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent hover:underline flex items-center gap-1"
+            >
+              github.com/PranavSharma1008/RecalLC/issues ↗
+            </a>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="font-medium text-fg">Rate & Review</span>
+            <a
+              href="https://chromewebstore.google.com/detail/recallc-%E2%80%94-smart-leetcode/jdpadmceoelmbpmanhcagdnbooceclpo"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-amber-400 hover:underline flex items-center gap-1"
+            >
+              Chrome Web Store ↗
             </a>
           </div>
           <div className="flex items-center justify-between">

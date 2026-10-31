@@ -1,0 +1,439 @@
+================================================================================
+RECALLLC — COMPLETE PROJECT OVERVIEW & ARCHITECTURE SPECIFICATION
+================================================================================
+Project Name  : RecalLC (RecallLC)
+Tagline       : "Solve it. Remember it. Master it."
+Version       : 1.0.3
+Type          : Google Chrome Extension (Manifest V3) + Companion Web Platform
+Target Sites  : LeetCode (leetcode.com) & GeeksforGeeks (geeksforgeeks.org)
+Storage Model : 100% Local-First (Private IndexedDB via Dexie + chrome.storage.local)
+Test Status   : 343 / 343 Tests Passing (33 Test Suites in Vitest)
+Licence       : MIT Open Source
+Developer     : Pranav Sharma (pranav2410991479@gmail.com)
+Chrome Store  : Published (ID: jdpadmceoelmbpmanhcagdnbooceclpo)
+================================================================================
+
+
+1. EXECUTIVE SUMMARY & CORE MISSION
+--------------------------------------------------------------------------------
+Students, software engineers, and competitive programmers frequently solve dozens
+or hundreds of Data Structures and Algorithms (DSA) problems on LeetCode and
+GeeksforGeeks, only to forget the core patterns, edge cases, and approaches weeks
+later during technical interviews.
+
+Existing reminder systems fail because they are separated from the developer's
+actual workflow (e.g., standard calendar alerts, generic todo apps, external spreadsheets).
+RecalLC solves this by embedding an intelligent spaced repetition engine directly into
+the browser and into the active problem pages of LeetCode and GeeksforGeeks.
+
+When a user opens a new problem (e.g., "Number of Islands"), RecalLC analyzes their
+revision schedule and displays a non-intrusive reminder island prompting them to
+revise an older, related problem that is due (e.g., "Climbing Stairs" solved 3 days ago).
+
+RecalLC is strictly local-first and zero-telemetry:
+  - No remote user databases or external tracking servers.
+  - No credentials, passwords, or session cookies are ever captured.
+  - All problems, notes, code snippets, and revision logs remain on the user's device.
+
+
+2. KEY FEATURES & USER EXPERIENCE
+--------------------------------------------------------------------------------
+
+2.1 Manual Rocket Push Button (100% Reliable & Accidental-Push Proof)
+    - Integrated directly into the problem headers/action bars on LeetCode and
+      GeeksforGeeks next to editor controls.
+    - When test cases pass or when a user chooses to track their solution, they click
+      the "🚀 Push to RecallLC" button.
+    - Captures: problem title, slug, topic tags, difficulty, programming language,
+      solution code, and initial notes.
+    - Features a smooth CSS rocket launch animation and green confirmation state ("✓ Added").
+    - Prevents half-finished solutions or exploratory runs from polluting the schedule.
+
+2.2 In-Page Reminder Island
+    - When a problem is opened, RecalLC evaluates the due revision queue.
+    - A compact, keyboard-accessible card appears in the bottom-right corner.
+    - Displays: Problem title, difficulty badge, topic tags, last attempt timestamp,
+      attempt count, and struggle indicators.
+    - Actions:
+        * [ Revise Now ]      -> Opens the problem and navigates to the recall interface.
+        * [ Remind Tomorrow ] -> Snoozes the card until next local midnight without altering due dates.
+        * [ Dismiss ]         -> Hides the card for the rest of today without altering due dates.
+    - The currently active problem is strictly excluded from its own reminder island.
+
+2.3 The Recall-First Workflow (Active Recall Method)
+    - Located in the Dashboard at `#/recall/<slug>`.
+    - 4-Question Recall Prompt (before seeing code or answers):
+        1. What is the main approach?
+        2. What data structure or algorithm is used?
+        3. What is the time and space complexity?
+        4. What mistake or edge case did I previously encounter?
+    - Hidden Notes & Code: Notes and solution code are hidden behind a toggle button
+      to prevent spoiler bias before active retrieval.
+    - Spaced Repetition Self-Rating:
+        * Forgot (Blanked out) -> Stage reset to 0; interval 1 day.
+        * Hard   (Shaky recall) -> Interval 2 days.
+        * Good   (Recalled with moderate effort) -> Interval 5 days.
+        * Easy   (Instant recall) -> Interval 14 days.
+    - Custom Schedule Options: Override with 1, 3, 5, or 7 days, or select specific weekdays.
+    - Automatic queue progression: Saving immediately returns to the active reminder queue.
+
+2.4 Complete Backup, Transfer & Cross-Device Restore
+    - 1-Click JSON export: "📦 Download Complete Backup (JSON)" generates a complete
+      snapshot including tracked problems, notes, solution code, submission history,
+      and spaced repetition states.
+    - Loss-Free Restore: Drag-and-drop the JSON backup file on any machine or browser
+      to instantly restore 100% of the state.
+    - Flexible Importer: Also supports raw CSV / JSON attempt logs from LeetCode
+      with deduplication, loose header matching, and conflict resolution.
+
+2.5 Master Security Passcode & Auto-Lock
+    - Optional master lock protection for dashboard and popup.
+    - Supports alphanumeric passcodes of arbitrary length.
+    - Cryptographic client-side hashing (SHA-256 + salt + pepper) with pure TypeScript fallback.
+    - Configurable inactivity auto-lock (e.g., 5, 15, 30, 60 minutes).
+    - Rate-limited verification attempts to prevent brute-force attacks.
+
+2.6 Comprehensive Dashboard & UI Tabs
+    - Overview: High-level statistics (total tracked, due today, overdue, revised this week,
+      current streak, difficulty distribution, struggle score).
+    - Reminders: Prioritized list of problems due for revision with quick action buttons.
+    - Problems: Searchable, filterable catalogue of all tracked problems with tag filters,
+      sorting (due date, difficulty, attempts, title), and inline note editing.
+    - Import: Drag-and-drop backup/history importer with validation summary and detailed row warnings.
+    - Settings: Configurable revision intervals, reminder behavior, auto-lock timeouts,
+      passcode management, sync switches, and dark/light/system theme toggles.
+    - Support & Sponsorship: Dual payment channels (Razorpay for India via UPI/cards;
+      GitHub Sponsors for outside India) with safety-verified links.
+    - User Guide Modal: Interactive visual walkthrough accessible from anywhere in the UI.
+
+
+3. SYSTEM ARCHITECTURE & DATA FLOW
+--------------------------------------------------------------------------------
+
+3.1 Chrome Extension Manifest V3 Structure
+    - Root Manifest: `src/manifest.config.ts` built via `@crxjs/vite-plugin`.
+    - Permissions: Strictly `storage` API only.
+    - Host Permissions: `https://leetcode.com/*`, `https://*.geeksforgeeks.org/*`.
+    - No intrusive permissions requested: NO `tabs`, NO `cookies`, NO `webRequest`,
+      NO `debugger`, NO `<all_urls>`, NO `notifications`.
+
+3.2 Context Separation & Single-Writer Pattern
+    ```
+    ┌─────────────────────────┐               ┌───────────────────────────┐
+    │   Content Script World  │               │   Extension UI Context    │
+    │ (LeetCode / GFG Pages)  │               │    (Popup & Dashboard)    │
+    │  - DOM observers        │               │  - React 19 UI            │
+    │  - Rocket push button   │               │  - Spaced Repetition View │
+    │  - In-page reminder card│               │  - Filter / Search / Notes│
+    └────────────┬────────────┘               └─────────────┬─────────────┘
+                 │                                          │
+                 │ chrome.runtime.sendMessage (Typed IPC)   │
+                 ▼                                          ▼
+    ┌─────────────────────────────────────────────────────────────────────┐
+    │              Background Service Worker (serviceWorker.ts)           │
+    │  - IPC Message Router & Privilege Gatekeeper                        │
+    │  - Single Writer to IndexedDB (preventing multi-origin corruption)   │
+    │  - Input Validation & Byte-Cap Protection                           │
+    └──────────────────────────────────┬──────────────────────────────────┘
+                                       │
+                      ┌────────────────┴────────────────┐
+                      ▼                                 ▼
+             IndexedDB (Dexie 4)              chrome.storage.local
+             - problems                        - user settings
+             - attempts                        - security passcode hash
+             - revisions (schedules)           - UI preferences
+             - review_events (audit trail)     - cache invalidation keys
+             - catalogue cache
+    ```
+
+3.3 Why Content Scripts Do Not Write to IndexedDB Directly:
+    In Chrome, an IndexedDB opened inside a content script belongs to the *web page's*
+    origin (`leetcode.com` or `geeksforgeeks.org`), NOT the extension's origin.
+    Direct writes would expose user notes, schedules, and revision data to scripts running
+    on the host website. By channeling all database operations through the service worker,
+    the data is permanently isolated within the extension's private sandboxed origin.
+
+
+4. DATA MODELS & SCHEMA SPECIFICATION
+--------------------------------------------------------------------------------
+
+All domain models are defined in `src/types/index.ts`:
+
+- Problem:
+    * `slug`: string (unique primary key, e.g. "two-sum")
+    * `title`: string
+    * `url`: string
+    * `difficulty`: 'Easy' | 'Medium' | 'Hard' | 'Unknown'
+    * `topics`: string[]
+    * `notes`: string (user study notes, markdown/text)
+    * `firstAttemptAt`: number | null (preserved historical unix ms)
+    * `lastAttemptAt`: number | null
+    * `lastViewedAt`: number | null
+    * `attemptCount`: number
+    * `accepted`: boolean | null
+    * `lastLanguage`: string | null (e.g. "python3", "cpp", "java")
+    * `struggleScore`: number (0.0 to 1.0, calculated from failed attempts and low ratings)
+    * `createdAt`: number
+    * `updatedAt`: number
+
+- SubmissionAttempt:
+    * `id`: string (UUID or composite)
+    * `slug`: string
+    * `title`: string | null
+    * `attemptedAt`: number
+    * `accepted`: boolean | null
+    * `language`: string | null
+    * `submissionId`: string | null (used for cross-import deduplication)
+    * `source`: 'import' | 'manual' | 'auto'
+    * `createdAt`: number
+
+- RevisionRecord:
+    * `slug`: string (primary key)
+    * `stage`: number (count of successful reviews; resets to 0 on 'forgot')
+    * `lastRating`: 'forgot' | 'hard' | 'good' | 'easy' | null
+    * `lastReviewedAt`: number | null
+    * `dueAt`: number (unix ms snapped to midnight of local calendar day)
+    * `snoozedUntil`: number | null (midnight of next day)
+    * `dismissedUntil`: number | null (end of current calendar day)
+    * `paused`: boolean (when user temporarily freezes reminders)
+    * `customIntervalDays`: number | null
+
+- ReviewEvent:
+    * Immutable audit log of every revision action (timestamp, rating, previous stage, new stage).
+
+- UserSettings:
+    * `theme`: 'light' | 'dark' | 'system'
+    * `intervals`: { forgot: 1, hard: 2, good: 5, easy: 14, firstReview: 1 }
+    * `reminderPosition`: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
+    * `securityAuthEnabled`: boolean
+    * `securityPasscodeHash`: string
+    * `securityPasscodeSalt`: string
+    * `securityAutoLockMinutes`: number
+
+
+5. REVISION ENGINE & ALGORITHMS
+--------------------------------------------------------------------------------
+
+5.1 Pure Functional Design (`src/services/revisionEngine.ts`):
+    Every scheduling function is 100% pure, accepting `now: number` as an explicit parameter.
+    No hidden calls to `Date.now()`, ensuring deterministic calculations and robust testability.
+
+5.2 Local-Day Boundary Arithmetic:
+    Revision due dates snap to local calendar midnights rather than rolling 24-hour offsets.
+    This guarantees that a reminder scheduled for "tomorrow" arrives tomorrow morning regardless
+    of Daylight Saving Time (DST) or time-zone shifts.
+
+5.3 Priority Queue Scoring:
+    When multiple problems are due, RecalLC prioritizes them using the following criteria:
+      1. Overdue problems first (ordered by days overdue descending).
+      2. Problems due today.
+      3. Struggle score descending (problems with prior failed submissions or "forgot" ratings).
+      4. Tiebreaker: Oldest due date, then alphabetical slug for deterministic stability.
+    The current active page is dynamically filtered out from candidate reminders.
+
+
+6. SECURITY & PENETRATION HARDENING
+--------------------------------------------------------------------------------
+
+RecalLC incorporates defense-in-depth protections against client-side extension vulnerabilities:
+
+1. IPC Sender Verification & Origin Isolation:
+   Background service worker verifies `sender.id === chrome.runtime.id`.
+   Privileged actions (database wipe, backup export, restore, settings mutation) are isolated
+   in `PRIVILEGED_METHODS` and blocked from content scripts.
+
+2. Content Security Policy (CSP):
+   Strict policy: `script-src 'self'; object-src 'none'; frame-src 'self' https://*.razorpay.com https://api.razorpay.com;`
+   No eval(), no inline script execution, no external CDN code.
+
+3. Cross-Site Scripting (XSS) Neutralization:
+   React Virtual DOM safely renders strings as text nodes. User notes and problem titles
+   pass through `sanitizeInput()` escaping `<`, `>`, `&`, `"`, `'`.
+
+4. CSV Formula Injection Defense (CWE-1236):
+   Exported CSV cells starting with formula trigger symbols (`=`, `+`, `-`, `@`, `\t`)
+   are prepended with an apostrophe to neutralize spreadsheet code execution.
+
+5. Prototype Pollution Protection:
+   JSON importers and IPC parsers recursively reject and scrub `__proto__`, `constructor`,
+   and `prototype` keys.
+
+6. Outbound Link Sanitization & Anti-Tab-Nabbing:
+   All external URLs are validated against dangerous protocols (`javascript:`, `data:`, `vbscript:`)
+   and stripped of embedded credentials. Outbound links enforce `rel="noopener noreferrer"`.
+
+7. Payment Server Cryptography:
+   Companion Node.js server verifies Razorpay signatures using HMAC-SHA256 with
+   `crypto.timingSafeEqual` to thwart timing side-channel attacks. Expiring token cache
+   prevents payment replay attacks.
+
+
+7. CODEBASE DIRECTORY MAP
+--------------------------------------------------------------------------------
+
+```
+RecalLC/
+├── package.json                   # Dependencies, build scripts, engine constraints
+├── tsconfig.json                  # Strict TypeScript configuration
+├── vite.config.ts                 # Vite 8 config with CRXJS plugin
+├── vitest.config.ts               # Vitest 5 testing configuration
+├── server.js                      # Companion backend for Razorpay checkout & static docs
+├── final.zip                      # Sole distributable Chrome Web Store archive
+│
+├── src/
+│   ├── manifest.config.ts         # MV3 Chrome extension manifest definition
+│   ├── background/
+│   │   └── serviceWorker.ts       # Service worker, IPC router, IndexedDB manager
+│   ├── content/
+│   │   ├── content.tsx            # Main content script entry point
+│   │   ├── interceptor.iife.ts    # Main-world network & submission interceptor
+│   │   ├── inlineInjector.tsx     # Rocket push button injection controller
+│   │   ├── InlineRocketButton.tsx # Push to RecallLC UI component
+│   │   ├── RocketPushButton.tsx   # Rocket animation component
+│   │   ├── pushHelper.ts          # Page DOM scraper for LeetCode/GFG problem details
+│   │   ├── reminder.ts            # URL detection & reminder island orchestrator
+│   │   └── ReminderRoot.tsx       # React root for in-page reminder widget
+│   ├── dashboard/
+│   │   ├── index.html             # Dashboard full-page HTML shell
+│   │   ├── main.tsx               # Dashboard entry mounting React
+│   │   ├── Dashboard.tsx          # Master navigation, layout, lock screen handler
+│   │   └── screens/
+│   │       ├── OverviewScreen.tsx    # Metrics, streaks, stats
+│   │       ├── RemindersScreen.tsx   # Prioritized revision queue
+│   │       ├── ProblemsScreen.tsx    # Catalogue, search, filter, inline notes
+│   │       ├── RecallScreen.tsx      # Active recall 4-question revision screen
+│   │       ├── ImportScreen.tsx      # 1-click backup download & restore
+│   │       ├── SettingsScreen.tsx    # Intervals, passcode, preferences
+│   │       ├── SupportScreen.tsx     # Razorpay (India) & GitHub Sponsors
+│   │       ├── EnquiryScreen.tsx     # Feedback & support modal
+│   │       └── OnboardingScreen.tsx  # First-time user welcome guide
+│   ├── popup/
+│   │   ├── index.html             # Toolbar popup HTML
+│   │   ├── main.tsx               # Popup entry mounting React
+│   │   └── App.tsx                # Compact toolbar popup UI
+│   ├── services/
+│   │   ├── db.ts                  # Dexie IndexedDB schema & version migrations
+│   │   ├── repository.ts          # Core CRUD database repository layer
+│   │   ├── revisionEngine.ts      # Pure spaced repetition logic & prioritization
+│   │   ├── historyImporter.ts     # JSON / CSV parse, validate & ingest pipeline
+│   │   ├── historyNormalizer.ts   # Sanitizes incoming attempt records
+│   │   ├── leetcodeApi.ts         # LeetCode GraphQL / public REST client
+│   │   ├── submissionTracker.ts   # DOM verdict detection engine
+│   │   ├── messaging.ts           # Typed IPC abstraction for runtime.sendMessage
+│   │   ├── storage.ts             # Typed wrapper around chrome.storage.local
+│   │   └── enquiry.ts             # Support mailer utilities
+│   ├── components/
+│   │   ├── RevisionCard.tsx       # Reusable reminder card component
+│   │   ├── RevisionReminder.tsx   # Floating reminder island widget
+│   │   ├── RecallRating.tsx       # 4-button rating selector (Forgot/Hard/Good/Easy)
+│   │   ├── ImportPreview.tsx      # Pre-commit table preview for imported files
+│   │   ├── LockScreen.tsx         # Passcode challenge screen
+│   │   ├── UserGuideModal.tsx     # Comprehensive visual user guide modal
+│   │   └── ui/                    # Base UI atoms (Button, Badge, Modal, Input, etc.)
+│   ├── hooks/
+│   │   ├── useAsync.ts            # Async lifecycle & loading state hook
+│   │   ├── useHashRoute.ts        # Client-side hash routing hook
+│   │   ├── useSettings.ts         # Reactive settings synchronization hook
+│   │   └── useTheme.ts            # Light / dark / system theme resolution hook
+│   ├── utils/
+│   │   ├── security.ts            # Cryptographic hashing, session tokens, auto-lock
+│   │   ├── slug.ts                # URL-to-slug parser for LeetCode and GFG
+│   │   ├── date.ts                # Local midnight calendar arithmetic
+│   │   ├── time.ts                # Relative time and timestamp formatters
+│   │   ├── csv.ts                 # RFC-4180 CSV parser & serializer
+│   │   ├── notes.ts               # Structured note parsing & formatting
+│   │   ├── qr.ts                  # Canvas QR generator for UPI payments
+│   │   └── id.ts                  # Unique ID generation utilities
+│   ├── types/
+│   │   └── index.ts               # Domain types, DTOs, IPC message protocols
+│   ├── styles/
+│   │   ├── app.css                # Dashboard and popup styling
+│   │   ├── content.css            # Scoped styles for in-page injected widgets
+│   │   ├── palette.css            # Color token definitions
+│   │   └── theme.css              # Dark/light theme variable mapping
+│   └── tests/                     # 33 test suites (343 tests)
+│
+├── public/                        # Static extension assets and icons (16/32/48/128)
+├── cws-assets/                    # Chrome Web Store promo banners and screenshots
+├── landing-page/ & docs/          # Static landing page, checkout, and documentation
+└── scripts/
+    ├── generate-icons.mjs         # Vector icon generator
+    ├── verify-extension.mjs       # Headless Chrome E2E verification script
+    ├── verify-content-script.mjs  # In-page content script verification script
+    ├── create-final-zip.mjs       # Produces production distribution final.zip
+    └── screenshot.mjs             # Headless screenshot capture utility
+```
+
+
+8. TECH STACK SPECIFICATION
+--------------------------------------------------------------------------------
+- Framework            : React 19.3.1 (with Virtual DOM rendering)
+- Language             : TypeScript 5.9.3 (strict mode, noUncheckedIndexedAccess)
+- Styling              : Tailwind CSS 4.3.3 (modern CSS-first theme variables)
+- Bundler & Dev Tool   : Vite 8.3.4 (powered by Rolldown engine)
+- Extension Tooling    : @crxjs/vite-plugin 3.0.0 (Manifest V3 HMR support)
+- Database             : Dexie 4.4.6 (IndexedDB wrapper with migration tables)
+- Test Runner          : Vitest 5.0.5 (with fake-indexeddb 6.2.6 & jsdom 30.1.3)
+- Payment Gateway      : Razorpay 2.9.8 (Standard Checkout API & HMAC verification)
+- Node Runtime         : Node.js 20.19+ (tested through Node 24)
+- Minimum Chrome Ver   : Chrome 116+ (Manifest V3 Service Worker baseline)
+
+
+9. NPM SCRIPTS & DEVELOPMENT COMMANDS
+--------------------------------------------------------------------------------
+- `npm run dev`            : Starts Vite development server with hot module replacement (HMR).
+- `npm run build`          : Runs strict TypeScript type check (`tsc --noEmit`) and builds `dist/`.
+- `npm test`               : Executes all 343 unit, integration, and security tests in Vitest.
+- `npm run test:watch`     : Runs Vitest in interactive watch mode.
+- `npm run test:coverage`  : Generates test coverage report.
+- `npm run typecheck`      : Runs strict TypeScript validation.
+- `npm run verify`         : Real-Chrome E2E test verifying manifest, service worker, and storage via CDP.
+- `npm run verify:content` : Real-Chrome E2E test verifying in-page rocket button and reminder card.
+- `npm run package`        : Builds production bundle and packages the sole `final.zip` for CWS.
+- `npm run server`         : Starts the companion Node.js server (Razorpay endpoints & static landing page).
+- `npm run format`         : Formats codebase according to Prettier rules.
+- `npm run icons`          : Re-generates PNG icons from vector templates.
+
+
+10. TESTING & VERIFICATION SUMMARY
+--------------------------------------------------------------------------------
+The project features 343 tests across 33 test suites with 100% pass rate:
+  - Repository Tests              : CRUD operations, IndexedDB schema versions, deduplication.
+  - Spaced Repetition Engine      : Interval calculations, overdue sorting, streak tracking.
+  - Security & Penetration Tests  : Timing attacks, prototype pollution, XSS, CSV injection.
+  - IPC & Permission Boundaries   : Origin verification, message validation, privilege guards.
+  - History Importers             : JSON/CSV parsing, timestamp edge-case normalizations.
+  - Content Script & DOM Trackers : Rocket button insertion, SPA navigation observer, GFG support.
+  - Real Chrome E2E Verification  : Headless Chrome launches, unpacked extension loading,
+                                    service worker wake/sleep cycles, IndexedDB persistence.
+
+
+11. MONETIZATION & SPONSORSHIP ARCHITECTURE
+--------------------------------------------------------------------------------
+RecalLC is 100% free and open-source. For user contributions, two compliant channels exist:
+  1. Indian Contributors: Razorpay Standard Checkout (UPI, GPay, PhonePe, Cards, NetBanking).
+     Verified server-side with HMAC-SHA256 signatures, dynamic order IDs, and rate limiting.
+  2. International Contributors: GitHub Sponsors (International cards, PayPal).
+All external links validate security origins and prevent tab-nabbing attacks.
+
+
+12. TROUBLESHOOTING & KNOWN CONSTRAINTS
+--------------------------------------------------------------------------------
+- LeetCode Bot Protection:
+    * LeetCode's GraphQL API returns 403 to standalone HTTP/curl requests.
+    * Solution: RecalLC executes GraphQL queries strictly within the authenticated
+      page context via content script, preserving cookies and headers seamlessly.
+- Vite 8 Minification:
+    * Vite 8 / Rolldown deprecates `transformWithEsbuild`. `minify: 'esbuild'` must not
+      be used in `vite.config.ts` (defaults to OXC minifier).
+- Tailwind in Manifest V3 Content Scripts:
+    * CRXJS 3.0 does not preprocess CSS declared directly in `content_scripts.css`.
+    * Solution: CSS is imported directly into `content.tsx`, allowing Vite and Tailwind
+      to compile and emit clean CSS into `dist/assets/`.
+- Reminder Exclusions:
+    * A reminder card never shows the problem currently being worked on; another problem
+      in the database must be due for a reminder to appear.
+
+================================================================================
+END OF PROJECT OVERVIEW — RECALLLC
+================================================================================
