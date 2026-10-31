@@ -1,16 +1,15 @@
 /**
- * End-to-end verification of the in-page reminder and submission tracker
+ * End-to-end verification of the content script and manual rocket submission tracker
  * on a simulated LeetCode page.
  *
  * Runs headless Chrome over CDP, loads a patched unpacked extension (with
  * local mock URL match), serves a problem page at
  * `http://127.0.0.1:8765/problems/two-sum/`, and asserts:
- *   1. `#recalllc-root` island mounts onto the page,
- *   2. The reminder card displays a due problem (Coin Change),
- *   3. The currently open problem (Two Sum) is excluded from the reminder,
+ *   1. Content script loads on problem page without mounting in-page reminder popups,
+ *   2. Rocket button is present and clickable in header,
+ *   3. Problem is not automatically pushed before clicking rocket,
  *   4. Clicking Submit on the page triggers verdict detection,
- *   5. The attempt is recorded in the extension's database,
- *   6. Snoozing the reminder removes the card from the screen.
+ *   5. The attempt is recorded and pushed to the extension's database upon clicking Rocket.
  *
  *   node scripts/verify-content-script.mjs [path-to-dist]
  */
@@ -317,28 +316,23 @@ try {
   await pageCdp.ready;
   await pageCdp.attach();
 
-  // Wait for the content script to run and mount #recalllc-root
+  // Wait for the content script to run and verify #recalllc-root is not mounted
   let rootFound = false;
-  let reminderHtml = '';
-  for (let i = 0; i < 40; i++) {
+  for (let i = 0; i < 15; i++) {
     const checkHost = await pageCdp.evaluate(`
       (() => {
         const root = document.getElementById('recalllc-root');
-        if (!root) return { found: false, html: '' };
-        return { found: true, html: root.innerHTML, text: root.innerText };
+        return Boolean(root && root.innerHTML.trim().length > 0);
       })()
     `);
-    if (checkHost.found && checkHost.text && checkHost.text.includes('Coin Change')) {
+    if (checkHost) {
       rootFound = true;
-      reminderHtml = checkHost.text;
       break;
     }
-    await sleep(250);
+    await sleep(200);
   }
 
-  check('content script mounts #recalllc-root container', rootFound);
-  check('reminder card displays due problem — "Coin Change"', reminderHtml.includes('Coin Change'));
-  check('reminder card excludes current problem — "Two Sum"', !reminderHtml.includes('Two Sum'));
+  check('content script does not mount in-page revision reminder on platform', !rootFound);
 
   // 6. Test manual push via Rocket button on page
   console.log('\n3) Manual push via Rocket button on page');
@@ -401,31 +395,6 @@ try {
   check('attempt count is 1', trackerResult.problem?.attemptCount === 1);
   check('verdict is recorded as accepted', trackerResult.problem?.accepted === true);
   check('an attempt record is stored', trackerResult.attempts?.length === 1);
-
-  // 7. Test in-page snooze action
-  console.log('\n4) In-page reminder interactions');
-  const snoozed = await pageCdp.evaluate(`
-    (() => {
-      const buttons = Array.from(document.querySelectorAll('#recalllc-root button'));
-      const snoozeBtn = buttons.find(b => b.textContent && b.textContent.includes('Remind Tomorrow'));
-      if (snoozeBtn) {
-        snoozeBtn.click();
-        return true;
-      }
-      return false;
-    })()
-  `);
-  check('user can click "Remind Tomorrow" inside the reminder', snoozed);
-
-  await sleep(600);
-
-  const afterSnoozeText = await pageCdp.evaluate(`
-    (() => {
-      const root = document.getElementById('recalllc-root');
-      return root ? root.innerText : '';
-    })()
-  `);
-  check('reminder card disappears after snooze', !afterSnoozeText.includes('Coin Change'));
 
   dashCdp.close();
   pageCdp.close();

@@ -13,7 +13,7 @@
 RecallLC is a Chrome extension (Manifest V3) that helps you revise the LeetCode and GeeksforGeeks
 problems you have already solved — at the exact moment you open a new one.
 
-Open _Number of Islands_ and RecallLC notices that _Climbing Stairs_ was attempted three days ago and is due for revision. A small, non-intrusive reminder card appears in the bottom-right corner offering **Revise Now**, **Remind Tomorrow**, and **Dismiss**.
+Track your solved problems on LeetCode and GeeksforGeeks with the one-click rocket push button, and manage your spaced repetition schedule directly from your clean RecallLC popup and dashboard with zero on-screen interruptions.
 
 Everything runs **locally** on your device. No account, no external server, and zero telemetry.
 
@@ -73,19 +73,19 @@ Direct store link:
 
 ## Features
 
-| Area                                | What RecallLC does                                                                                                                    |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **Manual Rocket Push (100% Reliable)** | Dedicated **🚀 Push to RecallLC** rocket button integrated into LeetCode and GeeksforGeeks headers for on-demand, verified push. |
-| **In-Page Banner Prompt**           | Displays a non-intrusive 5-second in-page banner prompt (`🚀 Click rocket to push question to RecallLC`) upon opening any problem.     |
-| **Current problem detection**       | Recognises `leetcode.com/problems/<slug>` and `geeksforgeeks.org/problems/<slug>`, follows SPA navigation without duplicate cards.   |
-| **In-page reminder island**         | One compact, keyboard-accessible card with **Revise Now**, **Remind Tomorrow** and **Dismiss**.                                       |
-| **Complete Backup & Transfer**      | Single-click **📦 Download Complete Backup (JSON)** exports 100% of problems, notes, code, and schedules for seamless multi-device transfer. |
-| **Import**                          | Drop any `.json` or `.csv` attempt export or complete backup file with instant preview, validation, and de-duplication.                |
-| **Revision engine**                 | Spaced repetition intervals with custom day selection (Mon–Sun + exact days), overdue handling, snoozing, and review history.         |
-| **Master Security Passcode**        | Optional master lock passcode of any length (numbers or text) with clear backup recovery warnings.                                    |
-| **Built-in User Guide**             | Direct **📖 User Manual & Guide** button in the dashboard navigation explaining the rocket push workflow step-by-step.               |
-| **Dashboard**                       | Due today, overdue, tracked, revised-this-week, streak, topics, search, filters, sorting and notes.                                   |
-| **Recall-first workflow**           | Four-question checklist, notes that stay hidden until revealed, and a four-way recall rating.                                        |
+| Area                                   | What RecallLC does                                                                                                                           |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Manual Rocket Push (100% Reliable)** | Dedicated **🚀 Push to RecallLC** rocket button integrated into LeetCode and GeeksforGeeks headers for on-demand, verified push.             |
+| **In-Page Banner Prompt**              | Displays a non-intrusive 5-second in-page banner prompt (`🚀 Click rocket to push question to RecallLC`) upon opening any problem.           |
+| **Current problem detection**          | Recognises `leetcode.com/problems/<slug>` and `geeksforgeeks.org/problems/<slug>`, follows SPA navigation without duplicate cards.           |
+| **Zero Platform Distractions**         | Clean coding experience — no popup reminder cards or interruptions on problem pages while you code.                                          |
+| **Complete Backup & Transfer**         | Single-click **📦 Download Complete Backup (JSON)** exports 100% of problems, notes, code, and schedules for seamless multi-device transfer. |
+| **Import**                             | Drop any `.json` or `.csv` attempt export or complete backup file with instant preview, validation, and de-duplication.                      |
+| **Revision engine**                    | Spaced repetition intervals with custom day selection (Mon–Sun + exact days), overdue handling, snoozing, and review history.                |
+| **Master Security Passcode**           | Optional master lock passcode of any length (numbers or text) with clear backup recovery warnings.                                           |
+| **Built-in User Guide**                | Direct **📖 User Manual & Guide** button in the dashboard navigation explaining the rocket push workflow step-by-step.                       |
+| **Dashboard**                          | Due today, overdue, tracked, revised-this-week, streak, topics, search, filters, sorting and notes.                                          |
+| **Recall-first workflow**              | Four-question checklist, notes that stay hidden until revealed, and a four-way recall rating.                                                |
 
 ---
 
@@ -138,17 +138,17 @@ npm run dev        # development server with hot module replacement (HMR)
 
 ### NPM Scripts Reference
 
-| Script                   | What it does                                                                                 |
-| ------------------------ | -------------------------------------------------------------------------------------------- |
-| `npm run dev`            | Vite dev server with CRXJS HMR (content scripts reload too).                                 |
-| `npm run build`          | Strict typecheck (`tsc --noEmit`) + production build into `dist/`.                           |
-| `npm test`               | Vitest test suite (343 unit, integration & penetration tests across 33 test suites).         |
-| `npm run test:watch`     | Vitest in interactive watch mode.                                                            |
-| `npm run typecheck`      | Strict TypeScript check (`tsc --noEmit`).                                                    |
-| `npm run verify`         | Real-Chrome E2E verification of manifest, SW restart, IndexedDB, and UI pages via CDP.       |
-| `npm run verify:content` | Real-Chrome E2E verification of in-page banner, rocket button, and reminder island.          |
-| `npm run package`        | Builds production extension and creates sole distributable `final.zip`.                      |
-| `npm run format`         | Formats codebase using Prettier.                                                             |
+| Script                   | What it does                                                                           |
+| ------------------------ | -------------------------------------------------------------------------------------- |
+| `npm run dev`            | Vite dev server with CRXJS HMR (content scripts reload too).                           |
+| `npm run build`          | Strict typecheck (`tsc --noEmit`) + production build into `dist/`.                     |
+| `npm test`               | Vitest test suite (343 unit, integration & penetration tests across 33 test suites).   |
+| `npm run test:watch`     | Vitest in interactive watch mode.                                                      |
+| `npm run typecheck`      | Strict TypeScript check (`tsc --noEmit`).                                              |
+| `npm run verify`         | Real-Chrome E2E verification of manifest, SW restart, IndexedDB, and UI pages via CDP. |
+| `npm run verify:content` | Real-Chrome E2E verification of in-page banner, rocket button, and content script.     |
+| `npm run package`        | Builds production extension and creates sole distributable `final.zip`.                |
+| `npm run format`         | Formats codebase using Prettier.                                                       |
 
 **Stack:** React 19 · TypeScript 5.9 (strict) · Tailwind CSS 4 · Vite 8 + `@crxjs/vite-plugin` 3 · Dexie 4 (IndexedDB) · Vitest 5.
 

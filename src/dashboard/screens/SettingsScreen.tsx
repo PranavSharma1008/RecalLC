@@ -299,61 +299,6 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
       </Card>
 
       <Card>
-        <CardHeader title="Reminders" subtitle="The card that appears on a LeetCode problem page." />
-        <div className="space-y-4 p-4">
-          <ToggleRow
-            label="Show reminders"
-            description="Turn this off and RecallLC will never interrupt a problem page."
-            checked={settings.remindersEnabled}
-            onChange={(value) => void update({ remindersEnabled: value })}
-          />
-          <ToggleRow
-            label="Show the topic in the reminder"
-            description="Displays the problem's main topic tag next to its title."
-            checked={settings.showTopicInReminder}
-            onChange={(value) => void update({ showTopicInReminder: value })}
-          />
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-fg">Delay before showing</p>
-              <p className="text-[11px] text-subtle">Lets the page settle before the card appears.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={0}
-                max={30000}
-                step={250}
-                className="rlc-input w-24 text-center"
-                value={settings.reminderDelayMs}
-                onChange={(event) => void update({ reminderDelayMs: Number(event.target.value) })}
-                aria-label="Reminder delay in milliseconds"
-              />
-              <span className="w-12 text-[11px] text-subtle">ms</span>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-medium text-fg">Maximum reminders per session</p>
-              <p className="text-[11px] text-subtle">Prevents the extension from becoming noisy.</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={0}
-                max={50}
-                className="rlc-input w-24 text-center"
-                value={settings.maxRemindersPerSession}
-                onChange={(event) => void update({ maxRemindersPerSession: Number(event.target.value) })}
-                aria-label="Maximum reminders per session"
-              />
-              <span className="w-12 text-[11px] text-subtle">cards</span>
-            </div>
-          </div>
-        </div>
-      </Card>
-
-      <Card>
         <CardHeader
           title="Security & Authentication"
           subtitle="Cryptographically lock your dashboard and LeetCode notes so no one else can view or tamper with them."
@@ -803,36 +748,5 @@ export function SettingsScreen({ onChanged }: SettingsScreenProps) {
         </div>
       ) : null}
     </div>
-  );
-}
-
-function ToggleRow({
-  label,
-  description,
-  checked,
-  onChange,
-}: {
-  label: string;
-  description: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <label className="flex cursor-pointer items-start justify-between gap-4">
-      <span className="min-w-0">
-        <span className="block text-xs font-medium text-fg">{label}</span>
-        <span className="mt-0.5 block text-[11px] leading-relaxed text-subtle">{description}</span>
-      </span>
-      <span className="relative mt-0.5 inline-flex shrink-0">
-        <input
-          type="checkbox"
-          className="peer sr-only"
-          checked={checked}
-          onChange={(event) => onChange(event.target.checked)}
-        />
-        <span className="h-5 w-9 rounded-full bg-surface-3 transition-colors peer-checked:bg-accent" />
-        <span className="absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white transition-transform peer-checked:translate-x-4" />
-      </span>
-    </label>
   );
 }

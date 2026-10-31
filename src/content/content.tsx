@@ -15,9 +15,6 @@
  * one absolutely-positioned container for its own UI.
  */
 
-import { createRoot, type Root } from 'react-dom/client';
-
-import { ReminderRoot } from './ReminderRoot';
 import { removeInlineRocket, resetLaunchState, startInlineRocketObserver } from './inlineInjector';
 import {
   clearInterceptedSubmission,
@@ -36,29 +33,19 @@ import {
   type LeetCodeProblemMeta,
 } from '../services/leetcodeApi';
 import { SubmissionTracker } from '../services/submissionTracker';
-import type { ThemePreference } from '../types';
 import '../styles/content.css';
 
-const HOST_ID = 'recalllc-root';
 const LAST_CATALOG_SYNC_KEY = 'recalllc:lastCatalogSync';
 const LAST_ACCOUNT_SYNC_KEY = 'recalllc:lastAccountSync';
 
 const CATALOG_REFRESH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const ACCOUNT_SYNC_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
-let host: HTMLDivElement | null = null;
-let reactRoot: Root | null = null;
 let currentSlug: string | null = null;
 let tracker: SubmissionTracker | null = null;
 let hasSuccessfulSubmit = false;
 
 /* ------------------------------------------------------------------ helpers */
-
-function resolveTheme(preference: ThemePreference): 'dark' | 'light' {
-  if (preference === 'dark' || preference === 'light') return preference;
-  const media = window.matchMedia?.('(prefers-color-scheme: light)');
-  return media?.matches ? 'light' : 'dark';
-}
 
 async function getLocal<T>(key: string): Promise<T | null> {
   try {
@@ -77,59 +64,17 @@ async function setLocal(key: string, value: unknown): Promise<void> {
   }
 }
 
-/* -------------------------------------------------------------- the island */
+/* -------------------------------------------------------------- cleanup */
 
-function applyHostStyles(element: HTMLElement): void {
-  element.style.setProperty('position', 'fixed', 'important');
-  element.style.setProperty('right', '24px', 'important');
-  element.style.setProperty('bottom', '44px', 'important');
-  element.style.setProperty('z-index', '2147483647', 'important');
-  element.style.setProperty('pointer-events', 'none', 'important');
-  element.style.setProperty('display', 'block', 'important');
-}
-
-function ensureHost(): HTMLDivElement {
-  if (host && host.isConnected) {
-    applyHostStyles(host);
-    return host;
-  }
-  const existing = document.getElementById(HOST_ID);
-  if (existing instanceof HTMLDivElement && existing.isConnected) {
-    host = existing;
-    applyHostStyles(host);
-    return host;
-  }
-  const element = existing instanceof HTMLDivElement ? existing : document.createElement('div');
-  element.id = HOST_ID;
-  element.setAttribute('data-theme', 'dark');
-  applyHostStyles(element);
-  (document.body ?? document.documentElement).appendChild(element);
-  host = element;
-  return host;
-}
-
-let currentHostElement: HTMLDivElement | null = null;
-
-function renderReminder(slug: string | null): void {
-  const element = ensureHost();
-  if (!reactRoot || currentHostElement !== element || !element.isConnected) {
-    if (reactRoot) {
-      try {
-        reactRoot.unmount();
-      } catch {
-        // ignore
-      }
-      reactRoot = null;
+function removeLegacyReminderHost(): void {
+  const existing = document.getElementById('recalllc-root');
+  if (existing) {
+    try {
+      existing.remove();
+    } catch {
+      // ignore
     }
-    reactRoot = createRoot(element);
-    currentHostElement = element;
   }
-  reactRoot.render(<ReminderRoot currentSlug={slug} />);
-}
-
-async function applyTheme(): Promise<void> {
-  const settings = await readSettings();
-  ensureHost().setAttribute('data-theme', resolveTheme(settings.theme));
 }
 
 /* ---------------------------------------------------------------- tracking */
@@ -343,7 +288,6 @@ function onSlugChange(slug: string | null): void {
 
   // If navigating within the same problem (e.g. from problem description to submission details /submissions/123)
   if (slug && currentSlug === slug) {
-    renderReminder(slug);
     return;
   }
 
@@ -351,7 +295,7 @@ function onSlugChange(slug: string | null): void {
   // Always reset on slug change: rocket starts fresh ready for manual click!
   hasSuccessfulSubmit = false;
   clearInterceptedSubmission();
-  renderReminder(slug);
+  removeLegacyReminderHost();
   removeInlineRocket();
 
   if (!slug) {
@@ -377,9 +321,7 @@ function boot(): void {
   hasSuccessfulSubmit = false;
   clearInterceptedSubmission();
   console.log('[RecallLC] Initial slug:', currentSlug);
-  ensureHost();
-  void applyTheme();
-  renderReminder(currentSlug);
+  removeLegacyReminderHost();
   removeInlineRocket();
 
   if (currentSlug) {
@@ -392,22 +334,6 @@ function boot(): void {
     console.log('[RecallLC] URL changed to:', window.location.href, 'slug:', slug);
     onSlugChange(slug);
   });
-
-  // Ensure island container stays attached
-  const islandTimer = setInterval(() => {
-    if (!isExtensionContextValid()) {
-      clearInterval(islandTimer);
-      return;
-    }
-    const slug = currentProblemSlug();
-    if (slug) {
-      const el = document.getElementById(HOST_ID);
-      if (!el || !el.isConnected) {
-        ensureHost();
-        renderReminder(slug);
-      }
-    }
-  }, 1000);
 
   // Listen for verified network interception events from MAIN world interceptor
   window.addEventListener('recalllc:submit-started', (event: Event) => {
@@ -428,7 +354,10 @@ function boot(): void {
     if (detail?.code) {
       setInterceptedSubmission(detail.code, detail.lang);
     }
-    console.log('[RecallLC] Submission verified accepted. User can click rocket button to push to RecallLC:', detail?.slug);
+    console.log(
+      '[RecallLC] Submission verified accepted. User can click rocket button to push to RecallLC:',
+      detail?.slug,
+    );
   });
 
   window.addEventListener('recalllc:submission-rejected', (event: Event) => {
@@ -439,16 +368,18 @@ function boot(): void {
 
     console.log('[RecallLC] Intercepted submission rejected (' + detail.verdict + ') for:', slug);
 
-    void readSettings().then((s) => {
-      if (s?.autoTrackSubmissions !== false) {
-        void recordAttempt({
-          accepted: false,
-          language: null,
-          verdict: detail.verdict,
-          at: Date.now(),
-        });
-      }
-    }).catch(() => undefined);
+    void readSettings()
+      .then((s) => {
+        if (s?.autoTrackSubmissions !== false) {
+          void recordAttempt({
+            accepted: false,
+            language: null,
+            verdict: detail.verdict,
+            at: Date.now(),
+          });
+        }
+      })
+      .catch(() => undefined);
   });
 
   // Start watching for submission result rows to inject inline rocket
