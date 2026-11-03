@@ -3,7 +3,7 @@ RECALLLC — COMPLETE PROJECT OVERVIEW & ARCHITECTURE SPECIFICATION
 ================================================================================
 Project Name  : RecalLC (RecallLC)
 Tagline       : "Solve it. Remember it. Master it."
-Version       : 1.0.4
+Version       : 1.0.5
 Type          : Google Chrome Extension (Manifest V3) + Companion Web Platform
 Target Sites  : LeetCode (leetcode.com) & GeeksforGeeks (geeksforgeeks.org)
 Storage Model : 100% Local-First (Private IndexedDB via Dexie + chrome.storage.local)

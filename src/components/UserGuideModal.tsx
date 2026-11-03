@@ -161,7 +161,7 @@ export function UserGuideModal({ isOpen, onClose }: UserGuideModalProps) {
 
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-line pt-3">
-          <span className="text-[11px] text-subtle">Crafted by Pranav Sharma · RecallLC v1.0.4</span>
+          <span className="text-[11px] text-subtle">Crafted by Pranav Sharma · RecallLC v1.0.5</span>
           <Button variant="primary" size="sm" onClick={onClose}>
             Got it, close guide
           </Button>

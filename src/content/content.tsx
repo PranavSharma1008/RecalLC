@@ -106,10 +106,17 @@ async function handleAttempt(attempt: {
 }): Promise<void> {
   if (!isExtensionContextValid()) return;
 
-  // History tracking if enabled — NEVER auto-pushes problem to RecallLC!
+  // STRICT: Submitting code or clicking submit NEVER auto-pushes a problem to RecallLC!
+  // Only the 🚀 Rocket button pushes problems. If autoTrackSubmissions is explicitly enabled,
+  // it only logs attempts for problems that the user has ALREADY pushed.
   const settings = await readSettings().catch(() => null);
-  if (settings?.autoTrackSubmissions !== false && !attempt.accepted) {
-    void recordAttempt(attempt);
+  if (settings?.autoTrackSubmissions && !attempt.accepted) {
+    const slug = currentProblemSlug();
+    if (!slug) return;
+    const existing = await callService('get-problem', { slug }).catch(() => null);
+    if (existing?.problem) {
+      void recordAttempt(attempt);
+    }
   }
 }
 
@@ -368,15 +375,20 @@ function boot(): void {
 
     console.log('[RecallLC] Intercepted submission rejected (' + detail.verdict + ') for:', slug);
 
+    // STRICT: Submitting or failing a question NEVER auto-pushes it to RecallLC!
+    // Only logs an attempt if autoTrackSubmissions is enabled AND the problem was already pushed via the rocket button.
     void readSettings()
-      .then((s) => {
-        if (s?.autoTrackSubmissions !== false) {
-          void recordAttempt({
-            accepted: false,
-            language: null,
-            verdict: detail.verdict,
-            at: Date.now(),
-          });
+      .then(async (s) => {
+        if (s?.autoTrackSubmissions) {
+          const existing = await callService('get-problem', { slug }).catch(() => null);
+          if (existing?.problem) {
+            void recordAttempt({
+              accepted: false,
+              language: null,
+              verdict: detail.verdict,
+              at: Date.now(),
+            });
+          }
         }
       })
       .catch(() => undefined);

@@ -312,4 +312,36 @@ describe('Service Worker Security & IPC Sender Verification', () => {
     );
     expect(resAccount.ok).toBe(true);
   });
+
+  it('account-sync never creates untracked problems (strictly skips them)', async () => {
+    const contentSender = {
+      id: 'recalllc-test',
+      url: 'https://leetcode.com/problems/two-sum/',
+    };
+
+    const res = await dispatch(
+      {
+        channel: MESSAGE_CHANNEL,
+        method: 'account-sync',
+        payload: {
+          attempts: [
+            {
+              slug: 'untracked-random-question',
+              title: 'Untracked Random Question',
+              attemptedAt: Date.now(),
+              accepted: true,
+              language: 'python3',
+            },
+          ],
+        },
+      },
+      contentSender,
+    );
+
+    expect(res.ok).toBe(true);
+    const data = res.data as { skipped: number; problemsCreated: number; imported: number };
+    expect(data.skipped).toBe(1);
+    expect(data.problemsCreated).toBe(0);
+    expect(data.imported).toBe(0);
+  });
 });

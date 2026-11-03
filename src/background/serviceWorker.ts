@@ -249,6 +249,12 @@ const handlers: { [K in keyof ServiceMap]: Handler<K> } = {
 
     for (const entry of payload.attempts) {
       try {
+        if (!existing.has(entry.slug)) {
+          // STRICT: Do not create untracked problems during account sync.
+          // Only problems explicitly pushed by the rocket button belong in RecallLC.
+          result.skipped++;
+          continue;
+        }
         if (entry.submissionId && knownIds.has(entry.submissionId)) {
           result.duplicated++;
           continue;

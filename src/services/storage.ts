@@ -12,7 +12,7 @@ import { DEFAULT_INTERVALS, DEFAULT_INITIAL_INTERVAL_DAYS } from './revisionEngi
 export const SETTINGS_KEY = 'recalllc:settings';
 
 export const DEFAULT_SETTINGS: UserSettings = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   theme: 'dark',
   intervals: { ...DEFAULT_INTERVALS },
   initialScheduleMode: 'weekly_sunday',
@@ -21,8 +21,8 @@ export const DEFAULT_SETTINGS: UserSettings = {
   remindersEnabled: true,
   reminderDelayMs: 800,
   maxRemindersPerSession: 5,
-  autoTrackSubmissions: true,
-  accountSyncEnabled: true,
+  autoTrackSubmissions: false,
+  accountSyncEnabled: false,
   accountSyncLimit: 200,
   showTopicInReminder: true,
   onboardingCompleted: false,
@@ -57,6 +57,20 @@ export function mergeSettings(stored: unknown): UserSettings {
   const initialScheduleMode: 'weekly_sunday' | 'fixed_days' =
     stored.initialScheduleMode === 'fixed_days' ? 'fixed_days' : 'weekly_sunday';
 
+  const isV1 = !stored.schemaVersion || (typeof stored.schemaVersion === 'number' && stored.schemaVersion < 2);
+
+  const autoTrackSubmissions = isV1
+    ? false
+    : typeof stored.autoTrackSubmissions === 'boolean'
+      ? stored.autoTrackSubmissions
+      : DEFAULT_SETTINGS.autoTrackSubmissions;
+
+  const accountSyncEnabled = isV1
+    ? false
+    : typeof stored.accountSyncEnabled === 'boolean'
+      ? stored.accountSyncEnabled
+      : DEFAULT_SETTINGS.accountSyncEnabled;
+
   return {
     schemaVersion: DEFAULT_SETTINGS.schemaVersion,
     theme,
@@ -80,12 +94,8 @@ export function mergeSettings(stored: unknown): UserSettings {
       typeof stored.maxRemindersPerSession === 'number' && stored.maxRemindersPerSession >= 0
         ? Math.min(50, Math.floor(stored.maxRemindersPerSession))
         : DEFAULT_SETTINGS.maxRemindersPerSession,
-    autoTrackSubmissions:
-      typeof stored.autoTrackSubmissions === 'boolean'
-        ? stored.autoTrackSubmissions
-        : DEFAULT_SETTINGS.autoTrackSubmissions,
-    accountSyncEnabled:
-      typeof stored.accountSyncEnabled === 'boolean' ? stored.accountSyncEnabled : DEFAULT_SETTINGS.accountSyncEnabled,
+    autoTrackSubmissions,
+    accountSyncEnabled,
     accountSyncLimit:
       typeof stored.accountSyncLimit === 'number' && stored.accountSyncLimit > 0
         ? Math.min(2000, Math.floor(stored.accountSyncLimit))

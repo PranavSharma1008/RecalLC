@@ -50,6 +50,7 @@ export function RemindersScreen({ navigate, onChanged, dataVersion }: RemindersS
   // Quick reschedule state
   const [rescheduleFor, setRescheduleFor] = useState<string | null>(null);
   const [quickRescheduleDays, setQuickRescheduleDays] = useState(3);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
 
   const dueBySlug = useMemo(() => {
     const map = new Map<string, ProblemWithSchedule>();
@@ -220,6 +221,7 @@ export function RemindersScreen({ navigate, onChanged, dataVersion }: RemindersS
                   daysUntilDue={candidate.overdue ? -candidate.overdueDays : (entry?.daysUntilDue ?? 0)}
                   onRevise={() => navigate(`/recall/${candidate.slug}`)}
                   onReschedule={() => setRescheduleFor(rescheduleFor === candidate.slug ? null : candidate.slug)}
+                  onDelete={() => setConfirmDelete(candidate.slug)}
                   rescheduleContent={
                     rescheduleFor === candidate.slug ? (
                       <div className="space-y-2 text-[11px]">
@@ -269,6 +271,36 @@ export function RemindersScreen({ navigate, onChanged, dataVersion }: RemindersS
           })}
         </ul>
       )}
+
+      {/* Confirmation Modal before Deleting Problem */}
+      {confirmDelete ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-5 shadow-2xl">
+            <h3 className="text-sm font-semibold text-fg">Remove problem?</h3>
+            <p className="mt-2 text-xs text-muted leading-relaxed">
+              Are you sure you want to remove <strong className="text-fg">{confirmDelete}</strong> from RecallLC? This will remove all its attempts, revision schedule, and reminders.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setConfirmDelete(null)}>
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                className="!bg-rose-600 hover:!bg-rose-500 !text-white"
+                onClick={async () => {
+                  await callService('delete-problem', { slug: confirmDelete });
+                  setConfirmDelete(null);
+                  setSuccessToast({ slug: confirmDelete, message: 'Problem removed from RecallLC.' });
+                  await refresh();
+                }}
+              >
+                🗑️ Remove
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
